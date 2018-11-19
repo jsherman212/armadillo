@@ -15,18 +15,20 @@ int main(int argc, char **argv, const char **envp){
 
 			printf("\n");
 		}
-		printf("__asm__(\"MOV X%d, SP\");\n", i);
 	}
 
-
+	for(int i=0; i<limit; i++)
+		printf("__asm__(\"MOV X%d, SP\");\n", i);
 
 	for(int i=0; i<limit; i++){
 		for(int j=0; j<limit; j++){
 			printf("__asm__(\"MOV W%d, W%d\");\n", i, j);
 		}
 		
-		printf("__asm__(\"MOV W%d, WZR\");\n", i);
 	}
+
+	for(int i=0; i<limit; i++)
+		printf("__asm__(\"MOV W%d, WZR\");\n", i);
 
 	return 0;
 }

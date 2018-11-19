@@ -3,6 +3,8 @@ CFLAGS=-g
 SRCDIR=source
 
 OBJECT_FILES = $(SRCDIR)/armadillo.o \
+			   $(SRCDIR)/bits.o \
+			   $(SRCDIR)/DataProcessingImmediate.o \
 			   $(SRCDIR)/driver.o
 
 armadillo : $(OBJECT_FILES)
