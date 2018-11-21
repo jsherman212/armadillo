@@ -47,38 +47,59 @@ char *DisassembleAddSubtractImmediateInstr(unsigned int instruction){
 	unsigned int op = getbitsinrange(instruction, 30, 1);
 	unsigned int sf = getbitsinrange(instruction, 31, 1);
 
-	printf("S: %d OP: %d SF: %d\n", s, op, sf);
+	//printf("S: %d OP: %d SF: %d\n", s, op, sf);
 	
 	const char **registers = ARM64_32BitGeneralRegisters;
 
 	if(sf == 1)
 		registers = ARM64_GeneralRegisters;
 
+	unsigned int rd = getbitsinrange(instruction, 0, 5);
+	unsigned int rn = getbitsinrange(instruction, 5, 5);
+	unsigned long imm = getbitsinrange(instruction, 10, 12);
+	unsigned int shift = getbitsinrange(instruction, 22, 2);
+	
+	if(sf == 0)
+		imm = (unsigned int)imm;
+	
+	// in this case, an exception is thrown	
+	if(shift == (1 << 1))
+		return strdup(".unknown");
+	
 	// ADD (immediate)
 	if(s == 0 && op == 0){
-		unsigned int rd = getbitsinrange(instruction, 0, 5);
-		unsigned int rn = getbitsinrange(instruction, 5, 5);
-		unsigned int shift = getbitsinrange(instruction, 22, 2);
-		unsigned int imm = getbitsinrange(instruction, 10, 12);
-		
-		// in this case, an exception is thrown	
-		if(shift == (1 << 1))
-			return strdup(".unknown");
-
-		if(sf == 1)
-			imm = (unsigned long)imm;
-
 		disassembled = malloc(128);
 		
 		// mov to/from wsp/sp is used as an alias for add in this special case
 		if(shift == 0 && imm == 0 && (rd == 0x1f || rn == 0x1f))
 			sprintf(disassembled, "mov %s, %s", registers[rd], registers[rn]);
-		else{
-			sprintf(disassembled, "add %s, %s, %#x", registers[rd], registers[rn], imm);
-			
-			if(shift == 1)
-				sprintf(disassembled, "%s, lsl 12", disassembled);
-		}
+		else
+			sprintf(disassembled, "add %s, %s, %#lx%s", registers[rd], registers[rn], imm, shift == 1 ? ", lsl 12" : "");
+	}
+	// ADDS (immediate)
+	else if(s == 1 && op == 0){
+		disassembled = malloc(128);
+
+		// cmn (immediate) is used as an alias in this case
+		if(rd == 0x1f)
+			sprintf(disassembled, "cmn %s, %#lx%s", registers[rn], imm, shift == 1 ? ", lsl 12" : "");
+		else
+			sprintf(disassembled, "adds %s, %s, %#lx%s", registers[rd], registers[rn], imm, shift == 1 ? ", lsl 12" : "");
+	}
+	// SUB (immediate)
+	else if(s == 0 && op == 1){
+		disassembled = malloc(128);
+		sprintf(disassembled, "sub %s, %s, %#lx%s", registers[rd], registers[rn], imm, shift == 1 ? ", lsl 12" : "");
+	}
+	// SUBS (immediate)
+	else if(op == 1 && s == 1){
+		disassembled = malloc(128);
+
+		// cmp (immediate) is used as an alias in this case
+		if(rd == 0x1f)
+			sprintf(disassembled, "cmp %s, %#lx%s", registers[rn], imm, shift == 1 ? ", lsl 12" : "");
+		else
+			sprintf(disassembled, "subs %s, %s, %#lx%s", registers[rd], registers[rn], imm, shift == 1 ? ", lsl 12" : "");
 	}
 
 	if(!disassembled)
@@ -101,8 +122,8 @@ char *DataProcessingImmediateDisassemble(unsigned int instruction){
 	else if(op0 == 1 && (op0 != (op0 & (1 << 1))))
 		disassembled = DisassembleAddSubtractImmediateInstr(instruction);
 	
-	if(!disassembled)
-		return strdup(".unknown");
+	//if(!disassembled)
+	//	return strdup(".unknown");
 
 	return disassembled;
 }

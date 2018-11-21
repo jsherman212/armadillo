@@ -1,24 +1,66 @@
 #include "armadillo.h"
+#include "linkedlist.h"
+
+
+struct testinstr {
+	const char *name;
+	unsigned int hex;
+};
+
+struct linkedlist *instructions = NULL;
+
+void addinstr(const char *name, unsigned int hex){
+	if(!instructions)
+		return;
+
+
+	struct testinstr *i = malloc(sizeof(struct testinstr));
+	i->name = name;
+	i->hex = hex;
+
+	linkedlist_add(instructions, i);
+}
 
 int main(int argc, char **argp, const char **envp){
-	//unsigned long long instr = 0xe7031caa; // MOV X7, X28
-	//unsigned int instr = 0xAA0403E7; // mov X7, X4 little endian
-	//unsigned int instr = 0x8B010000; // add x0, x0, x1 little endian
-	/*unsigned int instr = 0xB103F800; // add x0, x0, #0xfe little endian (data processing - register)
+	instructions = linkedlist_new();
 
-	char *ret = disassemble(instr);
 
-	printf("disassemble returns %s\n\n", ret);
+	addinstr("mov x7, x4", 0xAA0403E7);
+	addinstr("add x0, x0, x1", 0x8B010000);
+	addinstr("add x0, x0, #0xfe", 0x9103F800);
+	addinstr("add x0, x0, #8388608", 0x91600000);
+	addinstr("adds x0, x0, #0xfe", 0xB103F800);
+	addinstr("add w0, w0, #0xfe", 0x1103F800);
+	addinstr("add w0, w0, #0xfe, lsl #12", 0x1143F800);
+	addinstr("add w3, wsp, #0", 0x110003E3);
+	addinstr("adds xzr, sp, #4", 0xB10013FF);
+	addinstr("sub x4, x2, #4", 0xD1001044);
+	addinstr("sub x4, x2, #0x800, lsl 12", 0xD1600044);
+	addinstr("sub w5, w11, #20", 0x51005165);
+	addinstr("subs w9, w16, #3444", 0x7135D209);
+	addinstr("subs x11, x25, #16384", 0xF140132B);
+	addinstr("subs wzr, w3, #8192", 0x7140087F);
+	addinstr("subs xzr, x14, #4192", 0xF14005DF);
+	addinstr("subs xzr, sp, #2048", 0xF12003FF);
 
-	instr = 0x8B010000; // add x0, x0, x1 little endian
-	ret = disassemble(instr);
-	printf("disassemble returns %s\n\n", ret);
-*/
-	unsigned int instrs[] = { 0xAA0403E7, 0x8B010000, 0x9103F800, 0x91600000, 0x1103F800, 0x1143F800, 0x110003E3, 0xAA1C03E7, 0x10020017, 0x10FE0017, 0xB0001A24, 0xB0FFDDF5, 0x9000003E, 0x90FFFFFE, 0x3000002F, 0x70FFFFC3 };
+	struct node_t *current = instructions->front;
+
+	while(current){
+		struct testinstr *ti = (struct testinstr *)current->data;
+		printf("Disassembling %s (aka %#x)... ", ti->name, ti->hex);
+		char *ret = disassemble(ti->hex);
+		printf("Disassembled: %s\n\n", ret);
+		free(ret);
+
+		current = current->next;
+	}
+
+	/*unsigned int instrs[] = { 0xAA0403E7, 0x8B010000, 0x9103F800, 0x91600000, 0xB103F800, 0x1103F800, 0x1143F800, 0x110003E3, 0xAA1C03E7, 0x10020017, 0x10FE0017, 0xB0001A24, 0xB0FFDDF5, 0x9000003E, 0x90FFFFFE, 0x3000002F, 0x70FFFFC3 };
 	const char *instrstrs[] = { "mov x7, x4", 
 								"add x0, x0, x1",
 								"add x0, x0, #0xfe",
 								"add x0, x0, #8388608",
+								"adds x0, x0, #0xfe",
 								"add w0, w0, #0xfe",
 								"add w0, w0, #0xfe, lsl #12",
 								"add w3, wsp, #0",
@@ -39,6 +81,6 @@ int main(int argc, char **argp, const char **envp){
 		printf("Disassembled: %s\n\n", ret);
 		free(ret);
 	}
-	
+	*/
 	return 0;
 }
