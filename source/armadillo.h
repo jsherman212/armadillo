@@ -8,10 +8,10 @@
 
 #include "bits.h"
 #include "DataProcessingImmediate.h"
-
+#include "instruction.h"
 
 // try and disassemble given bytes in little endian
 // returns a string with the instruction
-char *disassemble(unsigned int instruction);
+char *ArmadilloDisassemble(struct instruction *instr);
 
 #endif

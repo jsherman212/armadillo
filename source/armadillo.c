@@ -1,11 +1,11 @@
 #include "armadillo.h"
 
 
-char *disassemble(unsigned int instruction){
+char *ArmadilloDisassemble(struct instruction *instr){
 	printf("\n");
 	
 	// very first thing to do is get the encoding for this instruction
-	unsigned int op0 = getbitsinrange(instruction, 25, 4);
+	unsigned int op0 = getbitsinrange(instr->hex, 25, 4);
 	print_bin(op0, -1);
 	char *disassembled = NULL;
 
@@ -35,7 +35,7 @@ char *disassemble(unsigned int instruction){
 
 	if((op0 >> 1) == DataProcessingImmediateMask){
 		printf("***DataProcessingImmediate\n");
-		disassembled = DataProcessingImmediateDisassemble(instruction);
+		disassembled = DataProcessingImmediateDisassemble(instr);
 		
 		//printf("***DataProcessingImmediate - %s\n", DPIret);
 	}

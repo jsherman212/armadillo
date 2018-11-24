@@ -4,13 +4,13 @@
 #include <string.h>
 #include <math.h>
 
-char *DisassemblePCRelativeAddressingInstr(unsigned int instruction){
+char *DisassemblePCRelativeAddressingInstr(struct instruction *instruction){
 	char *disassembled = NULL;
 
-	unsigned int op = getbitsinrange(instruction, 31, 1);
-	unsigned int rd = getbitsinrange(instruction, 0, 5);
-	unsigned int immhi = getbitsinrange(instruction, 5, 19);
-	unsigned int immlo = getbitsinrange(instruction, 29, 2);
+	unsigned int op = getbitsinrange(instruction->hex, 31, 1);
+	unsigned int rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int immhi = getbitsinrange(instruction->hex, 5, 19);
+	unsigned int immlo = getbitsinrange(instruction->hex, 29, 2);
 	unsigned long imm = 0;
 
 	if(op == 0){
@@ -18,6 +18,8 @@ char *DisassemblePCRelativeAddressingInstr(unsigned int instruction){
 
 		if(is_negative(imm, 21))
 			imm = sign_extend2(imm, 21);
+
+		imm += instruction->PC;
 	}
 
 	const char *instr = "adr";
@@ -28,6 +30,10 @@ char *DisassemblePCRelativeAddressingInstr(unsigned int instruction){
 		// bottom 12 bits masked out adds 12 bits
 		// 18 + 2 + 12 = 32, so no need to sign extend
 		imm = ((immhi << 2) | immlo) << 12;
+		
+		// zero out bottom 12 bits of PC, then add it to the immediate
+		imm += (instruction->PC & ~0xfff);
+		
 		instr = "adrp";
 	}
 
@@ -38,22 +44,22 @@ char *DisassemblePCRelativeAddressingInstr(unsigned int instruction){
 	return disassembled;
 }
 
-char *DisassembleAddSubtractImmediateInstr(unsigned int instruction){
+char *DisassembleAddSubtractImmediateInstr(struct instruction *instruction){
 	char *disassembled = NULL;
 
-	unsigned int s = getbitsinrange(instruction, 29, 1);
-	unsigned int op = getbitsinrange(instruction, 30, 1);
-	unsigned int sf = getbitsinrange(instruction, 31, 1);
+	unsigned int s = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int op = getbitsinrange(instruction->hex, 30, 1);
+	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
 
 	const char **registers = ARM64_32BitGeneralRegisters;
 
 	if(sf == 1)
 		registers = ARM64_GeneralRegisters;
 
-	unsigned int rd = getbitsinrange(instruction, 0, 5);
-	unsigned int rn = getbitsinrange(instruction, 5, 5);
-	unsigned long imm = getbitsinrange(instruction, 10, 12);
-	unsigned int shift = getbitsinrange(instruction, 22, 2);
+	unsigned int rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned long imm = getbitsinrange(instruction->hex, 10, 12);
+	unsigned int shift = getbitsinrange(instruction->hex, 22, 2);
 	
 	if(sf == 0)
 		imm = (unsigned int)imm;
@@ -104,12 +110,12 @@ char *DisassembleAddSubtractImmediateInstr(unsigned int instruction){
 	return disassembled;
 }
 
-char *DisassembleLogicalImmediateInstr(unsigned int instruction){
+char *DisassembleLogicalImmediateInstr(struct instruction *instruction){
 	char *disassembled = NULL;
 
-	unsigned int n = getbitsinrange(instruction, 22, 1);
-	unsigned int opc = getbitsinrange(instruction, 29, 2);
-	unsigned int sf = getbitsinrange(instruction, 31, 1);
+	unsigned int n = getbitsinrange(instruction->hex, 22, 1);
+	unsigned int opc = getbitsinrange(instruction->hex, 29, 2);
+	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
 
 	const char **registers = ARM64_32BitGeneralRegisters;
 
@@ -120,10 +126,10 @@ char *DisassembleLogicalImmediateInstr(unsigned int instruction){
 	if(sf == 0 && n == 1)
 		return strdup(".unknown");
 	
-	unsigned int rd = getbitsinrange(instruction, 0, 5);
-	unsigned int rn = getbitsinrange(instruction, 5, 5);
-	unsigned int imms = getbitsinrange(instruction, 10, 6);
-	unsigned int immr = getbitsinrange(instruction, 16, 6);	
+	unsigned int rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int imms = getbitsinrange(instruction->hex, 10, 6);
+	unsigned int immr = getbitsinrange(instruction->hex, 16, 6);	
 	unsigned long imm;
 	
 	DecodeBitMasks(n, imms, immr, 1, &imm);
@@ -168,9 +174,9 @@ char *DisassembleLogicalImmediateInstr(unsigned int instruction){
 	return disassembled;
 }
 
-char *DataProcessingImmediateDisassemble(unsigned int instruction){
-	unsigned int op0 = getbitsinrange(instruction, 24, 3);
-	unsigned int op1 = getbitsinrange(instruction, 22, 3);
+char *DataProcessingImmediateDisassemble(struct instruction *instruction){
+	unsigned int op0 = getbitsinrange(instruction->hex, 24, 3);
+	unsigned int op1 = getbitsinrange(instruction->hex, 22, 3);
 	
 	char *disassembled = NULL;
 

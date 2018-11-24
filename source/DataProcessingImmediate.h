@@ -3,8 +3,9 @@
 
 #include "bits.h"
 #include "utils.h"
+#include "instruction.h"
 
-char *DataProcessingImmediateDisassemble(unsigned int instruction);
+char *DataProcessingImmediateDisassemble(struct instruction *instruction);
 
 
 static const char *ARM64_GeneralRegisters[] = {
