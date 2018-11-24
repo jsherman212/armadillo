@@ -6,18 +6,18 @@ char *disassemble(unsigned int instruction){
 	
 	// very first thing to do is get the encoding for this instruction
 	unsigned int op0 = getbitsinrange(instruction, 25, 4);
-	
+	print_bin(op0, -1);
 	char *disassembled = NULL;
 
 	//printf("Got op0: ");
 	//print_bin(op0, -1);
 	//printf("\n");	
 	
-	unsigned int DataProcessingImmediateMask = 1 << 3;
+	unsigned int DataProcessingImmediateMask = (1 << 3) >> 1/*| 1*/;
 	//printf("DataProcessingImmediateMask: ");
 	//print_bin(DataProcessingImmediateMask);
 	
-	unsigned int BranchExcSystemMask = (1 << 3) | (1 << 1);
+	unsigned int BranchExcSystemMask = (1 << 3) | (1 << 1) | 1; // was just (1 << 3) | (1 << 1) before
 	//printf("BranchExcSystemMask: ");
 	//print_bin(BranchExcSystemMask);
 
@@ -33,7 +33,8 @@ char *disassemble(unsigned int instruction){
 	//printf("DataProcessingFloatMask: ");
 	//print_bin(DataProcessingFloatMask);
 
-	if(op0 == (op0 & DataProcessingImmediateMask)){	
+	if((op0 >> 1) == DataProcessingImmediateMask){
+		printf("***DataProcessingImmediate\n");
 		disassembled = DataProcessingImmediateDisassemble(instruction);
 		
 		//printf("***DataProcessingImmediate - %s\n", DPIret);
@@ -51,7 +52,6 @@ char *disassemble(unsigned int instruction){
 	}
 	else if(op0 == (op0 & DataProcessingFloatMask)){
 		printf("***DataProcessingFloatMask\n");
-
 	}
 	else{
 		printf("Unknown decode field \n");

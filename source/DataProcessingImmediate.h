@@ -2,6 +2,7 @@
 #define _DATAPROCESSINGIMMEDIATE_H_
 
 #include "bits.h"
+#include "utils.h"
 
 char *DataProcessingImmediateDisassemble(unsigned int instruction);
 

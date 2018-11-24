@@ -25,8 +25,8 @@ int main(int argc, char **argp, const char **envp){
 	instructions = linkedlist_new();
 
 
-	addinstr("mov x7, x4", 0xAA0403E7);
-	addinstr("add x0, x0, x1", 0x8B010000);
+	//addinstr("mov x7, x4", 0xAA0403E7);
+	//addinstr("add x0, x0, x1", 0x8B010000);
 	addinstr("add x0, x0, #0xfe", 0x9103F800);
 	addinstr("add x0, x0, #8388608", 0x91600000);
 	addinstr("adds x0, x0, #0xfe", 0xB103F800);
@@ -43,6 +43,28 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("subs xzr, x14, #4192", 0xF14005DF);
 	addinstr("subs xzr, sp, #2048", 0xF12003FF);
 
+
+	addinstr("and x0, x2, #4", 0x927E0040);
+	addinstr("and x6, x18, #-16", 0x927CEE46);
+	addinstr("and x25, x22, #8388608", 0x926902D9);
+	addinstr("and x25, x22, #-4194304", 0x926AA6D9);
+	addinstr("and w8, w14, #1", 0x120001C8);
+	addinstr("and w18, w1, #-16", 0x121C6C32);
+
+	addinstr("orr x9, x3, #30", 0xB27F0C69);
+	addinstr("orr w20, w0, #-16", 0x321C6C14);
+	addinstr("orr w16, w4, #-0x800000", 0x32092090);
+	addinstr("orr w4, w31, #0x80000003", 0x32010BE1);
+	addinstr("orr x8, xzr, xzr", 0xAA1F03E8);
+	
+
+
+	addinstr("eor wsp, w3, #0x80000003", 0x5201087F);
+	addinstr("eor x6, x3, #0xffff", 0xD2403C66);
+	addinstr("eor x24, x8, #-0x400000", 0xD26AA518);
+	addinstr("ands x0, x1, #0x6", 0xF27F0420);
+	addinstr("ands w5, w4, #-0x4", 0x721E7485);
+
 	struct node_t *current = instructions->front;
 
 	while(current){
@@ -54,6 +76,8 @@ int main(int argc, char **argp, const char **envp){
 
 		current = current->next;
 	}
+
+	linkedlist_free(instructions);
 
 	/*unsigned int instrs[] = { 0xAA0403E7, 0x8B010000, 0x9103F800, 0x91600000, 0xB103F800, 0x1103F800, 0x1143F800, 0x110003E3, 0xAA1C03E7, 0x10020017, 0x10FE0017, 0xB0001A24, 0xB0FFDDF5, 0x9000003E, 0x90FFFFFE, 0x3000002F, 0x70FFFFC3 };
 	const char *instrstrs[] = { "mov x7, x4", 

@@ -6,6 +6,7 @@ OBJECT_FILES = $(SRCDIR)/armadillo.o \
 			   $(SRCDIR)/bits.o \
 			   $(SRCDIR)/DataProcessingImmediate.o \
 			   $(SRCDIR)/driver.o \
+			   $(SRCDIR)/linkedlist.o \
 			   $(SRCDIR)/utils.o
 
 armadillo : $(OBJECT_FILES)
