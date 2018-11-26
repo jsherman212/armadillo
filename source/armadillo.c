@@ -6,7 +6,7 @@ char *ArmadilloDisassemble(struct instruction *instr){
 	
 	// very first thing to do is get the encoding for this instruction
 	unsigned int op0 = getbitsinrange(instr->hex, 25, 4);
-	print_bin(op0, -1);
+	//print_bin(op0, -1);
 	char *disassembled = NULL;
 
 	//printf("Got op0: ");
@@ -34,7 +34,7 @@ char *ArmadilloDisassemble(struct instruction *instr){
 	//print_bin(DataProcessingFloatMask);
 
 	if((op0 >> 1) == DataProcessingImmediateMask){
-		printf("***DataProcessingImmediate\n");
+		//printf("***DataProcessingImmediate\n");
 		disassembled = DataProcessingImmediateDisassemble(instr);
 		
 		//printf("***DataProcessingImmediate - %s\n", DPIret);

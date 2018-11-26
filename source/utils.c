@@ -1,4 +1,5 @@
 #include "utils.h"
+#include <math.h>
 
 int HighestSetBit(unsigned int number, int n){
 	int ret = -1;
@@ -74,12 +75,36 @@ int MoveWidePreferred(unsigned int sf, unsigned int immN, unsigned int immr, uns
 	if(sf == 0 && (combined >> 5) != 0)
 		return 0;
 
-	if(imms < 16){
+	if(imms < 16)
 		return (-immr % 16) <= (15 - imms);
-	}
 
 	if(imms >= (width - 15))
 		return (immr % 16) <= (imms - (width - 15));
 
 	return 0;
+}
+
+int IsZero(unsigned long x){
+	return x == 0;
+}
+
+int IsOnes(unsigned long x, int n){
+	return x == Ones(n, 0);
+}
+
+int BFXPreferred(unsigned int sf, unsigned int uns, unsigned int imms, unsigned int immr){
+	if(imms < immr)
+		return 0;
+
+	if(imms == ((sf << 6) | 0x3f))
+		return 0;
+
+	if(immr == 0){
+		if(sf == 0 && (imms == 0x7 || imms == 0xf))
+			return 0;
+		else if(((sf << 1) | uns) == 0x2 && (imms == 0x7 || imms == 0xf || imms == 0x1f))
+			return 0;
+	}
+
+	return 1;
 }

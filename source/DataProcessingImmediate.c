@@ -128,8 +128,8 @@ char *DisassembleLogicalImmediateInstr(struct instruction *instruction){
 	
 	unsigned int rd = getbitsinrange(instruction->hex, 0, 5);
 	unsigned int rn = getbitsinrange(instruction->hex, 5, 5);
-	unsigned int imms = getbitsinrange(instruction->hex, 10, 6);
-	unsigned int immr = getbitsinrange(instruction->hex, 16, 6);	
+	unsigned int imms = getbitsinrange(instruction->hex, 10, 6); // used to be 6
+	unsigned int immr = getbitsinrange(instruction->hex, 16, 6); // used to be 6
 	unsigned long imm;
 	
 	DecodeBitMasks(n, imms, immr, 1, &imm);
@@ -174,23 +174,197 @@ char *DisassembleLogicalImmediateInstr(struct instruction *instruction){
 	return disassembled;
 }
 
+char *DisassembleMoveWideImmediateInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int hw = getbitsinrange(instruction->hex, 21, 2);
+	unsigned int opc = getbitsinrange(instruction->hex, 29, 2);
+	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
+	
+	// unallocated
+	if(opc == 1)
+		return strdup(".unknown");
+	
+	// unallocated
+	if(sf == 0 && (hw >> 1) == 1)
+		return strdup(".unknown");
+
+	const char **registers = ARM64_GeneralRegisters;
+
+	if(sf == 0)
+		registers = ARM64_32BitGeneralRegisters;
+
+	unsigned int rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned long imm16 = getbitsinrange(instruction->hex, 5, 16);
+	unsigned int shift = hw << 4;
+
+	// MOVN
+	if(opc == 0){
+		disassembled = malloc(128);
+		
+		int usealias = 0;
+
+		if(sf == 0)
+			usealias = !(IsZero(imm16) && hw != 0) && !IsOnes(imm16, 16);
+		else
+			usealias = !(IsZero(imm16) && hw != 0);
+
+		unsigned long result = ~(imm16 << shift);
+		
+		// mov (inverted wide immediate) is used in this case
+		if(usealias)
+			// if we are dealing with 32 bit, cut off the top 32 bits of result
+			sprintf(disassembled, "mov %s, #%#lx", registers[rd], sf == 0 ? ((result << 32) >> 32) : result);
+		else{
+			sprintf(disassembled, "movn %s, #%#lx", registers[rd], imm16);
+
+			if(shift != 0){
+				char *lslstr = malloc(64);
+				sprintf(lslstr, ", lsl #%d", shift);
+				sprintf(disassembled, "%s%s", disassembled, lslstr);
+				free(lslstr);
+			}
+
+		}
+	}
+	// MOVZ
+	// opc == 0b10
+	else if(opc == 0x2){
+		disassembled = malloc(128);
+		
+		// mov (wide immediate) is used in this case
+		if(!(IsZero(imm16) && hw != 0))
+			sprintf(disassembled, "mov %s, #%#lx", registers[rd], imm16 << shift);
+		else{
+			sprintf(disassembled, "movz %s, #%#lx", registers[rd], imm16);
+			
+			if(shift != 0){
+				char *lslstr = malloc(64);
+				sprintf(lslstr, ", lsl #%d", shift);
+				sprintf(disassembled, "%s%s", disassembled, lslstr);
+				free(lslstr);
+			}
+		}
+	}
+	// MOVK
+	// opc == 0b11
+	else if(opc == 0x3){
+		disassembled = malloc(128);
+
+		sprintf(disassembled, "movk %s, #%#lx", registers[rd], imm16);
+
+		if(shift != 0){
+			char *lslstr = malloc(64);
+			sprintf(lslstr, ", lsl #%d", shift);
+			sprintf(disassembled, "%s%s", disassembled, lslstr);
+			free(lslstr);
+		}
+	}
+
+	if(!disassembled)
+		return strdup(".unknown");
+
+	return disassembled;
+}
+
+char *DisassembleBitfieldInstruction(struct instruction *instruction){
+	char *disassembled = NULL;
+	
+	unsigned int n = getbitsinrange(instruction->hex, 22, 1);
+	unsigned int opc = getbitsinrange(instruction->hex, 29, 2);
+	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
+
+	printf("Bitfield\n");
+
+	// unallocated
+	// opc == 0b11
+	if(opc == 0x3)
+		return strdup(".unknown");
+
+	// unallocated
+	if(sf == 0 && n == 1)
+		return strdup(".unknown");
+
+	// unallocated
+	if(sf == 1 && n == 0)
+		return strdup(".unknown");
+	
+	const char **registers = ARM64_GeneralRegisters;
+
+	if(sf == 1)
+		registers = ARM64_32BitGeneralRegisters;
+
+	unsigned int rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int imms = getbitsinrange(instruction->hex, 10, 6);
+	unsigned int immr = getbitsinrange(instruction->hex, 16, 6);
+
+	printf("rd %d rn %d imms %#x immr %#x\n", rd, rn, imms, immr);
+	
+	// undefined
+	if(sf == 1 && n != 1)
+		return strdup(".unknown");
+	
+	// undefined
+	if(sf == 0 && (n != 0 || (immr & (1 << 5)) != 0 || (imms & (1 << 5)) != 0))
+		return strdup(".unknown");
+
+
+	//print_bin(imms, -1);
+	//print_bin(immr, -1);
+
+	// SBFM
+	if(opc == 0){
+		disassembled = malloc(128);
+
+		
+	}
+
+	if(!disassembled)
+		return strdup(".unknown");
+
+	return disassembled;
+}
+
 char *DataProcessingImmediateDisassemble(struct instruction *instruction){
-	unsigned int op0 = getbitsinrange(instruction->hex, 24, 3);
-	unsigned int op1 = getbitsinrange(instruction->hex, 22, 3);
+	unsigned int op0 = getbitsinrange(instruction->hex, 24, 2);
+	unsigned int op1 = getbitsinrange(instruction->hex, 22, 2);
 	
 	char *disassembled = NULL;
+	
+	//print_bin(op0, -1);
+	//print_bin(op1, -1);
 
 	// PC-rel. addressing
 	// This is the only case where op0 is 0
 	if(op0 == 0)
 		disassembled = DisassemblePCRelativeAddressingInstr(instruction);
 	// Add/subtract (immediate)
-	else if(op0 == 1 && (op0 != (op0 & (1 << 1))))
+	else if(op0 == 1 && (op1 >> 1) != 1){
+		//printf("add/subtract\n");
 		disassembled = DisassembleAddSubtractImmediateInstr(instruction);
+	}
 	// Logical (immediate)
-	else if((op0 >> 1) == 1 && ((op1 >> 1) == 0))
+	// op0 == 0b10
+	else if(op0 == 0x2 && ((op1 >> 1) == 0)){
+		//printf("logical\n");
 		disassembled = DisassembleLogicalImmediateInstr(instruction);
+	}
+	// Move wide (immediate)
+	else if((op0 >> 1) == 1 && ((op1 >> 1) == 1)){
+		//printf("move wide\n");
+		disassembled = DisassembleMoveWideImmediateInstr(instruction);
+	}
+	// Bitfield
+	// op0 == 0b11
+	else if(op0 == 0x3 && (op1 >> 1) == 0){
+		//printf("Bitfield\n");
+
+		disassembled = DisassembleBitfieldInstruction(instruction);
 	
-	
+	}
+	else{
+		printf("Unknown\n");
+	}
 	return disassembled;
 }

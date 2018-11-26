@@ -29,7 +29,7 @@ int main(int argc, char **argp, const char **envp){
 
 	//addinstr("mov x7, x4", 0xAA0403E7);
 	//addinstr("add x0, x0, x1", 0x8B010000);
-/*	addinstr("add x0, x0, #0xfe", 0x9103F800, 0);
+	addinstr("add x0, x0, #0xfe", 0x9103F800, 0);
 	addinstr("add x0, x0, #8388608", 0x91600000, 0);
 	addinstr("adds x0, x0, #0xfe", 0xB103F800, 0);
 	addinstr("add w0, w0, #0xfe", 0x1103F800, 0);
@@ -65,11 +65,34 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("eor x24, x8, #-0x400000", 0xD26AA518, 0);
 	addinstr("ands x0, x1, #0x6", 0xF27F0420, 0);
 	addinstr("ands w5, w4, #-0x4", 0x721E7485, 0);
-*/
 
 	addinstr("adrp x8, #0x100046000 @ 0x10000a7e8", 0x900001e8, 0x10000a7e8);
 	addinstr("adrp x1, #0x10000a000 @ 0x10000a79c", 0x90000001, 0x10000a79c);
 	addinstr("sub sp, sp, #0x80", 0xd10203ff, 0);
+	
+
+	addinstr("movn w0, #39333", 0x129334A0, 0);
+	addinstr("movn x5, #65535", 0x929FFFE5, 0);
+	addinstr("movn x19, #3443, lsl #32", 0x92C1AE73, 0);
+	addinstr("movn w2, #20, lsl #16", 0x12A00282, 0);
+	addinstr("movn x2, #20, lsl #16", 0x92A00282, 0);
+
+	addinstr("movz w0, #40, lsl #16", 0x52A00500, 0);
+	addinstr("movz x6, #9833, lsl #48", 0xD2E4CD26, 0);
+	addinstr("movz x16, #34335, lsl #32", 0xD2D0C3F0, 0);
+	addinstr("movz w4, #2292", 0x52811E84, 0);
+	addinstr("movz x21, #2", 0xD2800055, 0);
+
+	addinstr("movk w5, #4943, lsl #16", 0x72A269E5, 0);
+	addinstr("movk x10, #2321, lsl #48", 0xF2E1222A, 0);
+	addinstr("movk x8, #4848, lsl #32", 0xF2C25E08, 0);
+	addinstr("movk x25, #0", 0xF2800019, 0);
+	addinstr("movk w23, #2", 0x72800057, 0);
+
+	addinstr("sbfm x0, x2, #4, #5", 0x93441440, 0);
+	addinstr("sbfm w3, w14, #4, #6", 0x130419C3, 0);
+	addinstr("sbfm x31, x2, #4, #34", 0x9344885F, 0);
+	addinstr("sbfm x31, x2, #4, #0x3f", 0x9344FC5F, 0);
 
 
 	struct node_t *current = instructions->front;
@@ -79,6 +102,7 @@ int main(int argc, char **argp, const char **envp){
 		printf("Disassembling %s (aka %#x)... ", ti->name, ti->hex);
 		struct instruction *i = instruction_new(ti->hex, ti->PC);
 		char *ret = ArmadilloDisassemble(i);
+		instruction_free(i);
 		printf("Disassembled: %s\n\n", ret);
 		free(ret);
 
