@@ -29,7 +29,7 @@ int main(int argc, char **argp, const char **envp){
 
 	//addinstr("mov x7, x4", 0xAA0403E7);
 	//addinstr("add x0, x0, x1", 0x8B010000);
-/*	addinstr("add x0, x0, #0xfe", 0x9103F800, 0);
+	addinstr("add x0, x0, #0xfe", 0x9103F800, 0);
 	addinstr("add x0, x0, #8388608", 0x91600000, 0);
 	addinstr("adds x0, x0, #0xfe", 0xB103F800, 0);
 	addinstr("add w0, w0, #0xfe", 0x1103F800, 0);
@@ -44,8 +44,8 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("subs wzr, w3, #8192", 0x7140087F, 0);
 	addinstr("subs xzr, x14, #4192", 0xF14005DF, 0);
 	addinstr("subs xzr, sp, #2048", 0xF12003FF, 0);
-*/
-	/*addinstr("and x0, x2, #4", 0x927E0040, 0);
+
+	addinstr("and x0, x2, #4", 0x927E0040, 0);
 	addinstr("and x6, x18, #-16", 0x927CEE46, 0);
 	addinstr("and x25, x22, #8388608", 0x926902D9, 0);
 	addinstr("and x25, x22, #-4194304", 0x926AA6D9, 0);
@@ -104,10 +104,10 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("sbfm x2, x20, #0, #15", 0x93403E82, 0);
 	addinstr("sbfm w3, w4, #0, #31", 0x13007C83, 0);
 	addinstr("sbfm x19, x9, #0, #31", 0x93407D3F, 0);
-	*/
+	
 
 
-	/*addinstr("bfm x0, x31, #4, #2", 0xB3440BE0, 0);
+	addinstr("bfm x0, x31, #4, #2", 0xB3440BE0, 0);
     addinstr("bfm w3, w31, #4, #2", 0x33040BE3, 0);
     addinstr("bfm x31, x2, #4, #34", 0xB344885F, 0);
     addinstr("bfm x0, x2, #22, #31", 0xB3567C40, 0);
@@ -122,7 +122,7 @@ int main(int argc, char **argp, const char **envp){
     addinstr("bfm x2, x20, #0, #15", 0xB3403E82, 0);
     addinstr("bfm w3, w4, #0, #31", 0x33007C83, 0);
     addinstr("bfm x19, x9, #0, #31", 0xB3407D33, 0);
-*/
+
 
 
 	addinstr("ubfm x3, x4, #8, #7", 0xD3481C83, 0);
@@ -145,6 +145,10 @@ int main(int argc, char **argp, const char **envp){
     addinstr("ubfm w5, w9, #0, #15", 0x53003D25, 0);
     addinstr("ubfm x16, x13, #0, #15", 0xD3403DB0, 0);
 
+	addinstr("extr x5, x2, x11, #3", 0x93CB0C45, 0);
+    addinstr("extr w6, w8, w1, #25", 0x13816506, 0);
+    addinstr("extr x20, x3, x3, #32", 0x93C38074, 0);
+    addinstr("extr w1, w13, w13, #1", 0x138D05A1, 0);
 
 	struct node_t *current = instructions->front;
 

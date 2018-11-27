@@ -33,6 +33,8 @@ char *ArmadilloDisassemble(struct instruction *instr){
 	//printf("DataProcessingFloatMask: ");
 	//print_bin(DataProcessingFloatMask);
 
+	if(op0 == 0)
+		return strdup(".undefined");
 	if((op0 >> 1) == DataProcessingImmediateMask){
 		//printf("***DataProcessingImmediate\n");
 		disassembled = DataProcessingImmediateDisassemble(instr);

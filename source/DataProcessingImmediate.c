@@ -422,19 +422,65 @@ char *DisassembleBitfieldInstruction(struct instruction *instruction){
 	return disassembled;
 }
 
+char *DisassembleExtractInstruction(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int imms = getbitsinrange(instruction->hex, 10, 6);
+	unsigned int o0 = getbitsinrange(instruction->hex, 21, 1);
+	unsigned int n = getbitsinrange(instruction->hex, 22, 1);
+	unsigned int op21 = getbitsinrange(instruction->hex, 29, 2);
+	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
+	
+	// unallocated
+	if(n != sf)
+		return strdup(".undefined");
+	
+	// unallocated
+	if(sf == 0 && ((imms >> 5) & 1) == 1)
+		return strdup(".undefined");
+
+	const char **registers = ARM64_GeneralRegisters;
+
+	if(sf == 0)
+		registers = ARM64_32BitGeneralRegisters;
+
+	unsigned int rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int rm = getbitsinrange(instruction->hex, 16, 5);
+
+	if(op21 == 0 && (n == 0 || n == 1) && o0 == 0){
+		disassembled = malloc(128);
+
+		// ror (immediate) is used in this case
+		if(rn == rm)
+			sprintf(disassembled, "ror %s, %s, #%#x", registers[rd], registers[rn], imms);
+		// normal extr
+		else
+			sprintf(disassembled, "extr %s, %s, %s, #%#x", registers[rd], registers[rn], registers[rm], imms);
+	}
+	// unallocated
+	else
+		return strdup(".undefined");
+
+	if(!disassembled)
+		return strdup(".unknown");
+
+	return disassembled;
+}
+
 char *DataProcessingImmediateDisassemble(struct instruction *instruction){
 	unsigned int op0 = getbitsinrange(instruction->hex, 24, 2);
 	unsigned int op1 = getbitsinrange(instruction->hex, 22, 2);
 	
 	char *disassembled = NULL;
-	
-	//print_bin(op0, -1);
-	//print_bin(op1, -1);
 
 	// PC-rel. addressing
 	// This is the only case where op0 is 0
 	if(op0 == 0)
 		disassembled = DisassemblePCRelativeAddressingInstr(instruction);
+	// Add/subtract (immediate, with tags) - unallocated
+	else if(op0 == 1 && (op1 >> 1) == 1)
+		return strdup(".undefined");
 	// Add/subtract (immediate)
 	else if(op0 == 1 && (op1 >> 1) != 1){
 		//printf("add/subtract\n");
@@ -447,7 +493,7 @@ char *DataProcessingImmediateDisassemble(struct instruction *instruction){
 		disassembled = DisassembleLogicalImmediateInstr(instruction);
 	}
 	// Move wide (immediate)
-	else if((op0 >> 1) == 1 && ((op1 >> 1) == 1)){
+	else if(op0 == 0x2 && ((op1 >> 1) == 1)){
 		//printf("move wide\n");
 		disassembled = DisassembleMoveWideImmediateInstr(instruction);
 	}
@@ -457,7 +503,11 @@ char *DataProcessingImmediateDisassemble(struct instruction *instruction){
 		//printf("Bitfield\n");
 
 		disassembled = DisassembleBitfieldInstruction(instruction);
+	}
+	else if(op0 == 0x3 && (op1 >> 1) == 1){
+		//printf("Extract\n");
 	
+		disassembled = DisassembleExtractInstruction(instruction);
 	}
 	else{
 		printf("Unknown\n");
