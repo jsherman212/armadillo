@@ -1,5 +1,6 @@
 CC=clang
-CFLAGS=-g
+CFLAGS=-g -fsanitize=address
+LDFLAGS=-fsanitize=address
 SRCDIR=source
 
 OBJECT_FILES = $(SRCDIR)/armadillo.o \
@@ -11,7 +12,7 @@ OBJECT_FILES = $(SRCDIR)/armadillo.o \
 			   $(SRCDIR)/utils.o
 
 armadillo : $(OBJECT_FILES)
-	$(CC) $(OBJECT_FILES) -o armadillo
+	$(CC) $(OBJECT_FILES) $(LDFLAGS) -o armadillo
 
 $(SRCDIR)/%.o : $(SRCDIR)/%.c $(SRCDIR)/%.h
 	$(CC) $(CFLAGS) -c $< -o $@

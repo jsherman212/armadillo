@@ -59,6 +59,8 @@ char *ArmadilloDisassemble(struct instruction *instr){
 	}
 	//printf("\n");	
 	
+	//printf("ArmadilloDisassemble: ret = %p\n", disassembled);
+
 	if(!disassembled)
 		return strdup(".unknown");
 

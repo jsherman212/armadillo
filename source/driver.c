@@ -29,7 +29,7 @@ int main(int argc, char **argp, const char **envp){
 
 	//addinstr("mov x7, x4", 0xAA0403E7);
 	//addinstr("add x0, x0, x1", 0x8B010000);
-	addinstr("add x0, x0, #0xfe", 0x9103F800, 0);
+/*	addinstr("add x0, x0, #0xfe", 0x9103F800, 0);
 	addinstr("add x0, x0, #8388608", 0x91600000, 0);
 	addinstr("adds x0, x0, #0xfe", 0xB103F800, 0);
 	addinstr("add w0, w0, #0xfe", 0x1103F800, 0);
@@ -44,8 +44,8 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("subs wzr, w3, #8192", 0x7140087F, 0);
 	addinstr("subs xzr, x14, #4192", 0xF14005DF, 0);
 	addinstr("subs xzr, sp, #2048", 0xF12003FF, 0);
-
-	addinstr("and x0, x2, #4", 0x927E0040, 0);
+*/
+	/*addinstr("and x0, x2, #4", 0x927E0040, 0);
 	addinstr("and x6, x18, #-16", 0x927CEE46, 0);
 	addinstr("and x25, x22, #8388608", 0x926902D9, 0);
 	addinstr("and x25, x22, #-4194304", 0x926AA6D9, 0);
@@ -92,7 +92,58 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("sbfm x0, x2, #4, #5", 0x93441440, 0);
 	addinstr("sbfm w3, w14, #4, #6", 0x130419C3, 0);
 	addinstr("sbfm x31, x2, #4, #34", 0x9344885F, 0);
+	addinstr("sbfm x0, x2, #22, #31", 0x93567C40, 0);
 	addinstr("sbfm x31, x2, #4, #0x3f", 0x9344FC5F, 0);
+	addinstr("sbfm w31, w2, #4, #0x1f", 0x13047C5F, 0);
+	addinstr("sbfm x4, x14, #4, #2", 0x934409C4, 0);
+	addinstr("sbfm x8, x1, #32, #24", 0x93606028, 0);
+	addinstr("sbfm w21, w13, #16, #8", 0x131021B5, 0);
+	addinstr("sbfm x4, x12, #0, #7", 0x93401D84, 0);
+	addinstr("sbfm w5, w1, #0, #7", 0x13001C25, 0);
+	addinstr("sbfm w0, w6, #0, #15", 0x13003CC0, 0);
+	addinstr("sbfm x2, x20, #0, #15", 0x93403E82, 0);
+	addinstr("sbfm w3, w4, #0, #31", 0x13007C83, 0);
+	addinstr("sbfm x19, x9, #0, #31", 0x93407D3F, 0);
+	*/
+
+
+	/*addinstr("bfm x0, x31, #4, #2", 0xB3440BE0, 0);
+    addinstr("bfm w3, w31, #4, #2", 0x33040BE3, 0);
+    addinstr("bfm x31, x2, #4, #34", 0xB344885F, 0);
+    addinstr("bfm x0, x2, #22, #31", 0xB3567C40, 0);
+    addinstr("bfm x31, x2, #4, #8", 0xB344205F, 0);
+    addinstr("bfm w31, w2, #4, #0x1f", 0x33047C5F, 0);
+    addinstr("bfm x4, x14, #4, #2", 0xB34409C4, 0);
+    addinstr("bfm x8, x1, #32, #24", 0xB3606028, 0);
+    addinstr("bfm w21, w13, #16, #8", 0x331021B5, 0);
+    addinstr("bfm x4, x12, #0, #7", 0xB3401D84, 0);
+    addinstr("bfm w5, w1, #0, #7", 0x33001C25, 0);
+    addinstr("bfm w0, w6, #0, #15", 0x33003CC0, 0);
+    addinstr("bfm x2, x20, #0, #15", 0xB3403E82, 0);
+    addinstr("bfm w3, w4, #0, #31", 0x33007C83, 0);
+    addinstr("bfm x19, x9, #0, #31", 0xB3407D33, 0);
+*/
+
+
+	addinstr("ubfm x3, x4, #8, #7", 0xD3481C83, 0);
+    addinstr("ubfm w4, w1, #15, #14", 0x530F3824, 0);
+    addinstr("ubfm x0, x31, #4, #2", 0xD3440BE0, 0);
+    addinstr("ubfm w3, w31, #4, #2", 0x53040BE3, 0);
+    addinstr("ubfm x31, x2, #4, #34", 0xD344885F, 0);
+    addinstr("ubfm x0, x2, #22, #31", 0xD3567C40, 0);
+    addinstr("ubfm x31, x2, #4, #8", 0xD344205F, 0);
+    addinstr("ubfm w31, w2, #4, #0x1f", 0x53047C5F, 0);
+    addinstr("ubfm x4, x14, #4, #2", 0xD34409C4, 0);
+    addinstr("ubfm x8, x1, #32, #24", 0xD3606028, 0);
+    addinstr("ubfm w21, w13, #16, #8", 0x531021B5, 0);
+    addinstr("ubfm x4, x12, #0, #7", 0xD3401D84, 0);
+    addinstr("ubfm w5, w1, #0, #7", 0x53001C25, 0);
+    addinstr("ubfm w0, w6, #5, #15", 0x53053CC0, 0);
+    addinstr("ubfm x2, x20, #0, #15", 0xD3403E82, 0);
+    addinstr("ubfm w3, w4, #0, #31", 0x53007C83, 0);
+    addinstr("ubfm x19, x9, #0, #31", 0xD3407D33, 0);
+    addinstr("ubfm w5, w9, #0, #15", 0x53003D25, 0);
+    addinstr("ubfm x16, x13, #0, #15", 0xD3403DB0, 0);
 
 
 	struct node_t *current = instructions->front;
@@ -102,6 +153,7 @@ int main(int argc, char **argp, const char **envp){
 		printf("Disassembling %s (aka %#x)... ", ti->name, ti->hex);
 		struct instruction *i = instruction_new(ti->hex, ti->PC);
 		char *ret = ArmadilloDisassemble(i);
+		//printf("ret = %p\n", ret);
 		instruction_free(i);
 		printf("Disassembled: %s\n\n", ret);
 		free(ret);
