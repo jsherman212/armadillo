@@ -5,6 +5,7 @@ SRCDIR=source
 
 OBJECT_FILES = $(SRCDIR)/armadillo.o \
 			   $(SRCDIR)/bits.o \
+			   $(SRCDIR)/BranchExcSys.c \
 			   $(SRCDIR)/DataProcessingImmediate.o \
 			   $(SRCDIR)/driver.o \
 			   $(SRCDIR)/instruction.o \

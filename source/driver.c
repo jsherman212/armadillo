@@ -1,6 +1,5 @@
 #include "armadillo.h"
 #include "linkedlist.h"
-#include "instruction.h"
 
 struct testinstr {
 	const char *name;
@@ -29,7 +28,7 @@ int main(int argc, char **argp, const char **envp){
 
 	//addinstr("mov x7, x4", 0xAA0403E7);
 	//addinstr("add x0, x0, x1", 0x8B010000);
-	addinstr("add x0, x0, #0xfe", 0x9103F800, 0);
+	/*addinstr("add x0, x0, #0xfe", 0x9103F800, 0);
 	addinstr("add x0, x0, #8388608", 0x91600000, 0);
 	addinstr("adds x0, x0, #0xfe", 0xB103F800, 0);
 	addinstr("add w0, w0, #0xfe", 0x1103F800, 0);
@@ -149,6 +148,27 @@ int main(int argc, char **argp, const char **envp){
     addinstr("extr w6, w8, w1, #25", 0x13816506, 0);
     addinstr("extr x20, x3, x3, #32", 0x93C38074, 0);
     addinstr("extr w1, w13, w13, #1", 0x138D05A1, 0);
+	*/
+	
+	//addinstr("b #0x40 @ 0x100007f30", 0x14000010, 0x100007f30);
+/*	addinstr("b.eq #0x50 @ 0x100007f28", 0x54000280, 0x100007f28);
+	addinstr("b.ne #-0x880 @ 0x100007f2c", 0x54FFBC01, 0x100007f2c);
+	addinstr("b.cs #0x90 @ 0x100007f30", 0x54000482, 0x100007f30);
+	addinstr("b.cc #0x8290 @ 0x100007f34", 0x54041483, 0x100007f34);
+	addinstr("b.al #0x3990 @ 0x100007f34", 0x5401CC8E, 0x100007f34);
+*/
+
+	/*addinstr("svc #40", 0xD4000501, 0);
+	addinstr("smc #4", 0xD4000083, 0);
+	addinstr("hvc #0", 0xD4000002, 0);*/
+
+	/*addinstr("brk #4", 0xD4200080, 0);
+	addinstr("hlt #80", 0xD4400A00, 0);
+*/
+
+	addinstr("dcps1 #4", 0xD4A00081, 0);
+	addinstr("dcps2 #8", 0xD4A00102, 0);
+	addinstr("dcps3 #12", 0xD4A00183, 0);
 
 	struct node_t *current = instructions->front;
 
