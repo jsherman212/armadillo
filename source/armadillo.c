@@ -42,7 +42,7 @@ char *ArmadilloDisassemble(struct instruction *instr){
 		//printf("***DataProcessingImmediate - %s\n", DPIret);
 	}
 	else if(op0 == (op0 & BranchExcSystemMask)){
-		printf("***BranchExcSystemMask\n");
+		//printf("***BranchExcSystemMask\n");
 		disassembled = BranchExcSysDisassemble(instr);
 	}
 	else if(op0 == (op0 & LoadsAndStoresMask)){

@@ -166,9 +166,56 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("hlt #80", 0xD4400A00, 0);
 */
 
-	addinstr("dcps1 #4", 0xD4A00081, 0);
+/*	addinstr("dcps1 #4", 0xD4A00081, 0);
 	addinstr("dcps2 #8", 0xD4A00102, 0);
 	addinstr("dcps3 #12", 0xD4A00183, 0);
+*/
+
+/*	addinstr("nop", 0xD503201F, 0);
+	addinstr("yield", 0xD503203F, 0);
+	addinstr("wfe", 0xD503205F, 0);
+	addinstr("wfi", 0xD503207F, 0);
+	addinstr("sev", 0xD503209F, 0);
+	addinstr("sevl", 0xD50320BF, 0);
+*/
+	/*addinstr("xpaclri", 0xd50320ff, 0);
+	addinstr("xpacd x5", 0xdac147e5, 0);
+	addinstr("xpaci x19", 0xdac143f3, 0);
+	*/
+
+	
+	/* 0x100007f2c      1f2103d5       pacia1716                  ; [00] -r-x section size 44 named 0.__TEXT.__text
+|           0x100007f30      5f2103d5       pacib1716
+|           0x100007f34      9f2103d5       autia1716
+|           0x100007f38      df2103d5       autib1716 */
+
+	/*addinstr("pacia1716", 0xd503211f, 0);
+	addinstr("pacib1716", 0xd503215f, 0);
+	addinstr("autia1716", 0xd503219f, 0);
+	addinstr("autib1716", 0xd50321df, 0);
+	*/
+//1f2203d5       esb
+//	addinstr("esb", 0xd503221f, 0);
+
+/*
+ *            0x100007f1c      1f2303d5       paciaz                     ; [00] -r-x section size 60 named 0.__TEXT.__text
+|           0x100007f20      3f2303d5       paciasp
+|           0x100007f24      5f2303d5       pacibz
+|           0x100007f28      7f2303d5       pacibsp
+|           0x100007f2c      9f2303d5       autiaz
+|           0x100007f30      bf2303d5       autiasp
+|           0x100007f34      df2303d5       autibz
+|           0x100007f38      ff2303d5       autibsp
+*/
+
+	addinstr("paciaz", 0xd503231f, 0);
+	addinstr("paciasp", 0xd503233f, 0);
+	addinstr("pacibz", 0xd503235f, 0);
+	addinstr("pacibsp", 0xd503237f, 0);
+	addinstr("autiaz", 0xd503239f, 0);
+	addinstr("autiasp", 0xd50323bf, 0);
+	addinstr("autibz", 0xd50323df, 0);
+	addinstr("autibsp", 0xd50323ff, 0);
 
 	struct node_t *current = instructions->front;
 

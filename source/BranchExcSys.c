@@ -94,12 +94,79 @@ char *DisassembleExcGenInstr(struct instruction *instruction){
 	return disassembled;
 }
 
+char *DisassembleHintInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int op2 = getbitsinrange(instruction->hex, 5, 3);
+	unsigned int CRm = getbitsinrange(instruction->hex, 8, 4);
+
+	if(CRm == 0){
+		disassembled = malloc(128);
+		
+		// out of xpacd, xpaci, and xpaclri, xpaclri is the only instruction that falls under system category
+		const char *table[] = { "nop", "yield", "wfe", "wfi", "sev", "sevl", NULL, "xpaclri" };
+
+		sprintf(disassembled, "%s", table[op2]);
+	}
+	else if(CRm == 1){
+		disassembled = malloc(128);
+		
+		// op2 == 0, pacia1716 
+		// op2 == 2, pacib1716
+		// op2 == 4, autia1716
+		// op2 == 6, autib1716
+		const char *table[] = { "pacia1716", NULL, "pacib1716", NULL, "autia1716", NULL, "autib1716" };
+
+		sprintf(disassembled, "%s", table[op2]);
+	}
+	else if(CRm == 2){
+		disassembled = malloc(128);
+
+		// op2 == 0, esb
+		// op2 == 1, psb csync
+		// op2 == 2, tsb csync
+		// op2 == 4, csdb
+		const char *table[] = { "esb", "psb csync", "tsb csync", NULL, "csdb" };
+
+		sprintf(disassembled, "%s", table[op2]);
+	}
+	else if(CRm == 3){
+		disassembled = malloc(128);
+	
+		// op2 == 0, paciaz
+		// op2 == 1, paciasp
+		// op2 == 2, pacibz
+		// op2 == 3, pacibsp
+		// op2 == 4, autiaz
+		// op2 == 5, autiasp
+		// op2 == 6, autibz
+		// op2 == 7, autibsp
+		const char *table[] = { "paciaz", "paciasp", "pacibz", "pacibsp", "autiaz", "autiasp", "autibz", "autibsp" };
+
+		sprintf(disassembled, "%s", table[op2]);
+	}
+	// some kind of hint instruction?
+	else{
+		disassembled = malloc(128);
+
+		sprintf(disassembled, "hint #%#x", (CRm << 4) | op2);
+	}
+
+
+	if(!disassembled)
+		return strdup(".unknown");
+
+	return disassembled;
+}
+
 char *BranchExcSysDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 	
 	unsigned int op2 = getbitsinrange(instruction->hex, 0, 5);
 	unsigned int op1 = getbitsinrange(instruction->hex, 12, 14);
 	unsigned int op0 = getbitsinrange(instruction->hex, 29, 3);
+	
+	//printf("op0 %#x op1 %#x op2 %#x\n", op0, op1, op2);
 
 	//print_bin(op2, -1);
 	//print_bin(op1, -1);
@@ -116,6 +183,11 @@ char *BranchExcSysDisassemble(struct instruction *instruction){
 	else if(op0 == 0x6 && (op1 >> 12) == 0){
 		//printf("exception generation\n");
 		disassembled = DisassembleExcGenInstr(instruction);
+	}
+	// Hints
+	else if(op0 == 0x6 && op1 == 0x1032 && op2 == 0x1f){
+		//printf("Hint\n");
+		disassembled = DisassembleHintInstr(instruction);
 	}
 	else
 		return strdup(".undefined");
