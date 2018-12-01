@@ -159,6 +159,92 @@ char *DisassembleHintInstr(struct instruction *instruction){
 	return disassembled;
 }
 
+char *DisassembleBarrierInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int op2 = getbitsinrange(instruction->hex, 5, 3);
+	unsigned int CRm = getbitsinrange(instruction->hex, 8, 4);
+
+	if(Rt == 0x1f){
+		if(op2 == 2){
+			disassembled = malloc(128);
+			sprintf(disassembled, "clrex #%#x", CRm);
+		}
+		else if(op2 == 5 || (op2 == 4 && CRm != 0)){
+			disassembled = malloc(128);
+			
+			const char *options[] = { "#0x0", "oshld", "oshst", "osh", "#0x4", "nshld", "nshst", "nsh", 
+									"#0x8", "ishld", "ishst", "ish", "#0x12", "ld", "st", "sy" };
+
+			const char *instr = op2 == 5 ? "dmb" : "dsb";
+
+			sprintf(disassembled, "%s %s", instr, options[CRm]);
+		}
+		else if(op2 == 6){
+			disassembled = malloc(128);
+
+			if(CRm == 0xf)
+				sprintf(disassembled, "isb sy");
+			else
+				sprintf(disassembled, "isb #%#x", CRm);
+		}
+		// SSBB and PSSBB
+		else if(op2 == 4){
+			if(CRm == 0){
+				disassembled = malloc(128);
+				sprintf(disassembled, "ssbb");
+			}
+			else if(CRm == 4){
+				disassembled = malloc(128);
+				sprintf(disassembled, "pssbb");
+			}
+		}
+	}
+	else
+		return strdup(".undefined");
+
+	if(!disassembled)
+		return strdup(".unknown");
+	
+	return disassembled;
+}
+
+char *DisassemblePSTATEInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	printf("PSTATE\n");
+
+	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int op2 = getbitsinrange(instruction->hex, 5, 3);
+	unsigned int CRm = getbitsinrange(instruction->hex, 8, 4);
+	unsigned int op1 = getbitsinrange(instruction->hex, 16, 3);
+
+	if(Rt == 0x1f){
+		disassembled = malloc(128);
+		
+		if(op1 == 0 && op2 == 0)
+			sprintf(disassembled, "cfinv");
+		else{
+			if(op1 == 0){
+				const char *table[] = { NULL, NULL, NULL, "uao", "pan", "spsel" };
+				sprintf(disassembled, "msr %s, #%#x", table[op2], CRm);
+			}
+			else{
+				const char *table[] = { NULL, NULL, "dit", NULL, NULL, NULL, "daifset", "daifclr" };
+				sprintf(disassembled, "msr %s, #%#x", table[op2], CRm);
+			}
+		}
+	}
+	else
+		return strdup(".undefined");
+
+	if(!disassembled)
+		return strdup(".unknown");
+
+	return disassembled;
+}
+
 char *BranchExcSysDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 	
@@ -174,6 +260,9 @@ char *BranchExcSysDisassemble(struct instruction *instruction){
 
 //	printf("op1 >> 14 = %d\n", (op1 >> 14) & 1);
 	
+	print_bin(op1 >> 12, -1);
+	print_bin(op1 >> 2, -1);
+
 	// Conditional branch (immediate)
 	if(op0 == 0x2 && (op1 >> 13) == 0){
 		//printf("b.cond\n");
@@ -188,6 +277,16 @@ char *BranchExcSysDisassemble(struct instruction *instruction){
 	else if(op0 == 0x6 && op1 == 0x1032 && op2 == 0x1f){
 		//printf("Hint\n");
 		disassembled = DisassembleHintInstr(instruction);
+	}
+	// Barriers
+	else if(op0 == 0x6 && op1 == 0x1033){
+		//printf("Barriers\n");
+		disassembled = DisassembleBarrierInstr(instruction);
+	}
+	// PSTATE
+	else if(op0 == 0x6 && ((op1 >> 12 == 1) && (((op1 >> 2) & 1) == 1))){
+		printf("pstate\n");
+		disassembled = DisassemblePSTATEInstr(instruction);
 	}
 	else
 		return strdup(".undefined");

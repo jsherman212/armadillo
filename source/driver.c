@@ -189,11 +189,11 @@ int main(int argc, char **argp, const char **envp){
 |           0x100007f34      9f2103d5       autia1716
 |           0x100007f38      df2103d5       autib1716 */
 
-	/*addinstr("pacia1716", 0xd503211f, 0);
+/*	addinstr("pacia1716", 0xd503211f, 0);
 	addinstr("pacib1716", 0xd503215f, 0);
 	addinstr("autia1716", 0xd503219f, 0);
 	addinstr("autib1716", 0xd50321df, 0);
-	*/
+*/	
 //1f2203d5       esb
 //	addinstr("esb", 0xd503221f, 0);
 
@@ -208,7 +208,7 @@ int main(int argc, char **argp, const char **envp){
 |           0x100007f38      ff2303d5       autibsp
 */
 
-	addinstr("paciaz", 0xd503231f, 0);
+/*	addinstr("paciaz", 0xd503231f, 0);
 	addinstr("paciasp", 0xd503233f, 0);
 	addinstr("pacibz", 0xd503235f, 0);
 	addinstr("pacibsp", 0xd503237f, 0);
@@ -216,6 +216,19 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("autiasp", 0xd50323bf, 0);
 	addinstr("autibz", 0xd50323df, 0);
 	addinstr("autibsp", 0xd50323ff, 0);
+*/
+
+	
+	//addinstr("clrex #5", 0xD503355F, 0);
+	addinstr("dmb ish", 0xD5033BBF, 0);
+	addinstr("dmb osh", 0xD50333BF, 0);
+	addinstr("dmb sy", 0xD5033FBF, 0);
+	addinstr("dmb oshld", 0xD50331BF, 0);
+	addinstr("isb sy", 0xD5033FDF, 0);
+	addinstr("isb #5", 0xD50335DF, 0);
+	addinstr("dsb ish", 0xD5033B9F, 0);
+	addinstr("dsb #8", 0xD503389F, 0);
+	addinstr("msr SPSel, #3", 0xD50043BF, 0);
 
 	struct node_t *current = instructions->front;
 
@@ -227,7 +240,7 @@ int main(int argc, char **argp, const char **envp){
 		//printf("ret = %p\n", ret);
 		instruction_free(i);
 		printf("Disassembled: %s\n\n", ret);
-		free(ret);
+ 		free(ret);
 
 		current = current->next;
 	}
