@@ -230,6 +230,18 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("dsb #8", 0xD503389F, 0);
 	addinstr("msr SPSel, #3", 0xD50043BF, 0);
 
+
+	addinstr("sys #3, C7, C1, #4, x0", 0xD50B7180, 0);	
+	addinstr("at s1e1r, x0", 0xD5087800, 0);
+	addinstr("tlbi IPAS2E1IS, x4", 0xD50C8024, 0);
+
+
+	addinstr("ic ivau, x0", 0xD50B7520, 0);
+	addinstr("ic iallu", 0xD508751F, 0);
+	addinstr("dc CIVAC, x14", 0xD50B7E2E, 0);
+
+	addinstr("sysl x4, #5, C4, C3, #4", 0xD52D4384, 0);
+
 	struct node_t *current = instructions->front;
 
 	while(current){
