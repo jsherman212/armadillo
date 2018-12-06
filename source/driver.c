@@ -167,6 +167,7 @@ int main(int argc, char **argp, const char **envp){
 */
 
 /*	addinstr("dcps1 #4", 0xD4A00081, 0);
+ *	
 	addinstr("dcps2 #8", 0xD4A00102, 0);
 	addinstr("dcps3 #12", 0xD4A00183, 0);
 */
@@ -241,6 +242,10 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("dc CIVAC, x14", 0xD50B7E2E, 0);
 
 	addinstr("sysl x4, #5, C4, C3, #4", 0xD52D4384, 0);
+	addinstr("msr ACTLR_EL1, x5", 0xD5181025, 0);
+	addinstr("msr DBGWCR5_EL1, x11", 0xD51005EB, 0);
+	addinstr("mrs x23, DBGWCR5_EL1", 0xD53005F7, 0);
+
 
 	struct node_t *current = instructions->front;
 
