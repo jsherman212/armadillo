@@ -1516,6 +1516,114 @@ char *DisassembleSystemRegisterMoveInstr(struct instruction *instruction){
 	return disassembled;
 }
 
+char *DisassembleUnconditionalBranchInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int op4 = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int op3 = getbitsinrange(instruction->hex, 10, 6);
+	unsigned int op2 = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int opc = getbitsinrange(instruction->hex, 21, 4);
+
+	if(op2 != 0x1f)
+		return strdup(".undefined");
+
+	// BR, BRAAZ, BRABZ
+	if(opc == 0){
+		// BR
+		if(op3 == 0 && op4 == 0){
+			disassembled = malloc(128);
+			sprintf(disassembled, "br %s", ARM64_GeneralRegisters[Rn]);
+		}
+		// BRAAZ or BRABZ
+		else if(op4 == 0x1f){
+			disassembled = malloc(128);
+			
+			const char *instr = op3 == 0x2 ? "braaz" : "brabz";
+			
+			sprintf(disassembled, "%s %s", instr, ARM64_GeneralRegisters[Rn]);
+		}
+		else
+			return strdup(".undefined");
+	}
+	// BLR, BLRAAZ, BLRABZ
+	else if(opc == 1){
+		// BLR
+		if(op3 == 0 && op4 == 0){
+			disassembled = malloc(128);
+			sprintf(disassembled, "blr %s", ARM64_GeneralRegisters[Rn]);
+		}
+		// BLRAAZ or BLRABZ
+		else if(op4 == 0x1f){
+			disassembled = malloc(128);
+
+			const char *instr = op3 == 0x2 ? "blraaz" : "blrabz";
+
+			sprintf(disassembled, "%s %s", instr, ARM64_GeneralRegisters[Rn]);
+		}
+		else
+			return strdup(".undefined");
+	}
+	// RET, RETAA, RETAB
+	else if(opc == 2){
+		if(op3 == 0 && op4 == 0)
+			return strdup("ret");
+		
+		if(op3 == 0x2)
+			return strdup("retaa");
+
+		if(op3 == 0x3)
+			return strdup("retab");
+	
+		return strdup(".undefined");
+	}
+	// ERET, ERETAA, ERETAB
+	else if(opc == 4){
+		if(op3 == 0 && op4 == 0)
+			return strdup("eret");
+		
+		if(op3 == 0x2)
+			return strdup("eretaa");
+
+		if(op3 == 0x3)
+			return strdup("eretab");
+	
+		return strdup(".undefined");
+	}
+	// DRPS
+	else if(opc == 5 && op2 == 0x1f && op3 == 0 && Rn == 0x1f && op4 == 0)
+		return strdup("drps");
+	// BRAA or BRAB
+	else if(opc == 8){
+		disassembled = malloc(128);
+
+		const char *instr = "braa";
+
+		if(op3 == 3)
+			instr = "brab";
+
+		sprintf(disassembled, "%s %s, %s", instr, ARM64_GeneralRegisters[Rn], op4 == 0x1f ? "sp" : ARM64_GeneralRegisters[op4]);
+	}
+	// BLRAA, BLRAB
+	else if(opc == 9){
+		disassembled = malloc(128);
+
+		const char *instr = "blraa";
+
+		if(op3 == 3)
+			instr = "blrab";
+
+		sprintf(disassembled, "%s %s, %s", instr, ARM64_GeneralRegisters[Rn], op4 == 0x1f ? "sp" : ARM64_GeneralRegisters[op4]);
+	}
+	else
+		return strdup(".undefined");
+
+	if(!disassembled)
+		return strdup(".unknown");
+
+	return disassembled;
+}
+
 char *BranchExcSysDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 	
@@ -1571,6 +1679,11 @@ char *BranchExcSysDisassemble(struct instruction *instruction){
 	else if(op0 == 0x6 && (op1 >> 10) == 0x4 && ((op1 >> 8) & 1) == 1){
 		printf("system register move\n");
 		disassembled = DisassembleSystemRegisterMoveInstr(instruction);
+	}
+	// Unconditional branch (register)
+	else if(op0 == 0x6 && ((op1 >> 13) & 1) == 1){
+		printf("Unconditional branch (register)\n");
+		disassembled = DisassembleUnconditionalBranchInstr(instruction);
 	}
 	else
 		return strdup(".undefined");

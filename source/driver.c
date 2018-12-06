@@ -221,7 +221,7 @@ int main(int argc, char **argp, const char **envp){
 
 	
 	//addinstr("clrex #5", 0xD503355F, 0);
-	addinstr("dmb ish", 0xD5033BBF, 0);
+	/*addinstr("dmb ish", 0xD5033BBF, 0);
 	addinstr("dmb osh", 0xD50333BF, 0);
 	addinstr("dmb sy", 0xD5033FBF, 0);
 	addinstr("dmb oshld", 0xD50331BF, 0);
@@ -240,13 +240,58 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ic ivau, x0", 0xD50B7520, 0);
 	addinstr("ic iallu", 0xD508751F, 0);
 	addinstr("dc CIVAC, x14", 0xD50B7E2E, 0);
-
+	*/
 	addinstr("sysl x4, #5, C4, C3, #4", 0xD52D4384, 0);
 	addinstr("msr ACTLR_EL1, x5", 0xD5181025, 0);
 	addinstr("msr DBGWCR5_EL1, x11", 0xD51005EB, 0);
 	addinstr("mrs x23, DBGWCR5_EL1", 0xD53005F7, 0);
+	addinstr("br x9", 0xD61F0120, 0);
+	addinstr("braaz x22", 0xd61f0adf, 0);
+	addinstr("brabz x13", 0xd61f0dbf, 0);
+
+	/*
+	 *   0x100007f30      20003fd6       blr x1
+|           0x100007f34      9f083fd6       blraaz x4
+|           0x100007f38      bf0c3fd6       blrabz x5
+
+*/
+
+	addinstr("blr x1", 0xD63F0020, 0);
+	addinstr("blraaz x4", 0xd63f089f, 0);
+	addinstr("blrabz x5", 0xd63f0cbf, 0);
+	addinstr("ret", 0xD65F03C0, 0);
+	addinstr("retaa", 0xd65f0bff, 0);
+	addinstr("retab", 0xd65f0fff, 0);
+	addinstr("eret", 0xD69F03E0, 0);
+	addinstr("eretaa", 0xd69f0bff, 0);
+	addinstr("eretab", 0xd69f0fff, 0);
+	addinstr("drps", 0xD6BF03E0, 0);
 
 
+	/*
+	 *  0x100007f2c      39081fd7       braa x1, x25               ; [00] -r-x section size 44 named 0.__TEXT.__text
+|           0x100007f30      9f081fd7       braa x4, sp
+|           0x100007f34      c10c1fd7       brab x6, x1
+|           0x100007f38      1f0d1fd7       brab x8, sp
+*/
+
+	addinstr("braa x1, x25", 0xd71f0839, 0);
+	addinstr("braa x4, sp", 0xd71f089f, 0);
+	addinstr("brab x6, x1", 0xd71f0cc1, 0);
+	addinstr("brab x8, sp", 0xd71f0d1f, 0);
+
+/*			0x100007f2c      39083fd7       blraa x1, x25              ; [00] -r-x section size 44 named 0.__TEXT.__text
+|           0x100007f30      9f083fd7       blraa x4, sp
+|           0x100007f34      c10c3fd7       blrab x6, x1
+|           0x100007f38      1f0d3fd7       blrab x8, sp
+*/
+	addinstr("blraa x1, x25", 0xd73f0839, 0);
+	addinstr("blraa x4, sp", 0xd73f089f, 0);
+	addinstr("blrab x6, x1", 0xd73f0cc1, 0);
+	addinstr("blrab x8, sp", 0xd73f0d1f, 0);
+	
+	
+	
 	struct node_t *current = instructions->front;
 
 	while(current){
