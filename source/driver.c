@@ -167,6 +167,7 @@ int main(int argc, char **argp, const char **envp){
 */
 
 /*	addinstr("dcps1 #4", 0xD4A00081, 0);
+ *
  *	
 	addinstr("dcps2 #8", 0xD4A00102, 0);
 	addinstr("dcps3 #12", 0xD4A00183, 0);
@@ -241,21 +242,21 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ic iallu", 0xD508751F, 0);
 	addinstr("dc CIVAC, x14", 0xD50B7E2E, 0);
 	*/
-	addinstr("sysl x4, #5, C4, C3, #4", 0xD52D4384, 0);
+	/*addinstr("sysl x4, #5, C4, C3, #4", 0xD52D4384, 0);
 	addinstr("msr ACTLR_EL1, x5", 0xD5181025, 0);
 	addinstr("msr DBGWCR5_EL1, x11", 0xD51005EB, 0);
 	addinstr("mrs x23, DBGWCR5_EL1", 0xD53005F7, 0);
 	addinstr("br x9", 0xD61F0120, 0);
 	addinstr("braaz x22", 0xd61f0adf, 0);
 	addinstr("brabz x13", 0xd61f0dbf, 0);
-
+	*/
 	/*
 	 *   0x100007f30      20003fd6       blr x1
 |           0x100007f34      9f083fd6       blraaz x4
 |           0x100007f38      bf0c3fd6       blrabz x5
 
 */
-
+/*
 	addinstr("blr x1", 0xD63F0020, 0);
 	addinstr("blraaz x4", 0xd63f089f, 0);
 	addinstr("blrabz x5", 0xd63f0cbf, 0);
@@ -266,7 +267,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("eretaa", 0xd69f0bff, 0);
 	addinstr("eretab", 0xd69f0fff, 0);
 	addinstr("drps", 0xD6BF03E0, 0);
-
+*/
 
 	/*
 	 *  0x100007f2c      39081fd7       braa x1, x25               ; [00] -r-x section size 44 named 0.__TEXT.__text
@@ -274,24 +275,60 @@ int main(int argc, char **argp, const char **envp){
 |           0x100007f34      c10c1fd7       brab x6, x1
 |           0x100007f38      1f0d1fd7       brab x8, sp
 */
-
+/*
 	addinstr("braa x1, x25", 0xd71f0839, 0);
 	addinstr("braa x4, sp", 0xd71f089f, 0);
 	addinstr("brab x6, x1", 0xd71f0cc1, 0);
 	addinstr("brab x8, sp", 0xd71f0d1f, 0);
-
+*/
 /*			0x100007f2c      39083fd7       blraa x1, x25              ; [00] -r-x section size 44 named 0.__TEXT.__text
 |           0x100007f30      9f083fd7       blraa x4, sp
 |           0x100007f34      c10c3fd7       blrab x6, x1
 |           0x100007f38      1f0d3fd7       blrab x8, sp
 */
+/*
 	addinstr("blraa x1, x25", 0xd73f0839, 0);
 	addinstr("blraa x4, sp", 0xd73f089f, 0);
 	addinstr("blrab x6, x1", 0xd73f0cc1, 0);
 	addinstr("blrab x8, sp", 0xd73f0d1f, 0);
+*/
+/*
+ * :   0x100007f2c      70150014       b 0x10000d4ec              ; [00] -r-x section size 44 named 0.__TEXT.__text
+|       `=< 0x100007f30      2bffff17       b 0x100007bdc
+|           0x100007f34      12000094       bl 0x100007f7c
+|           0x100007f38      40ffff97       bl 0x100007c38
+
+*/
+
+	addinstr("b 0x55c0 @ 0x100007f2c", 0x14001570, 0x100007f2c);
+	addinstr("b -0x354 @ 0x100007f30", 0x17ffff2b, 0x100007f30);
+	addinstr("bl 0x48 @ 0x100007f34", 0x94000012, 0x100007f34);
+	addinstr("bl -0x300 @ 0x100007f38", 0x97ffff40, 0x100007f38);
+	/*
+	 *  0x100007f2c      090200b4       cbz x9, 0x100007f6c        ; [00] -r-x section size 44 named 0.__TEXT.__text
+|           0x100007f30      11e6ffb4       cbz x17, 0x100007bf0
+|           0x100007f34      024800b5       cbnz x2, 0x100008834
+|           0x100007f38      8dfdffb5       cbnz x13, 0x100007ee8
+*/
 	
-	
-	
+	addinstr("cbz x9, #0x40 @ 0x100007f2c", 0xB4000209, 0x100007f2c);
+	addinstr("cbz x17, -0x340 @ 0x100007f30", 0xb4ffe611, 0x100007f30);
+	addinstr("cbnz x2, #0x900 @ 0x100007f34", 0xb5004802, 0x100007f34);
+	addinstr("cbnz x13, -0x50 @ 0x100007f38", 0xB5FFFD8D, 0x100007f38);
+
+/*
+ *  0x100007f2c      09800236       tbz w9, #0, 0x10000cf2c    ; [00] -r-x section size 44 named 0.__TEXT.__text
+|           0x100007f30      11700e36       tbz w17, #1, 0x100004d30
+|           0x100007f34      22000837       tbnz w2, #1, 0x100007f38
+|           0x100007f38      2d200037       tbnz w13, #0, 0x10000833c
+*/
+
+	addinstr("tbz x9, 0x0, 0x5000 @ 0x100007f2c", 0x36028009, 0x100007f2c);
+	addinstr("tbz x17, 0x1, -0x3200 @ 0x100007f30", 0x360e7011, 0x100007f30);
+	addinstr("tbnz x2, 0x1, 0x4 @ 0x100007f34", 0x37080022, 0x100007f34);
+	addinstr("tbnz x13, 0x0, 0x404 @ 0x100007f38", 0x3700202d, 0x100007f38);
+
+
 	struct node_t *current = instructions->front;
 
 	while(current){

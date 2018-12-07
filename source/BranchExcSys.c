@@ -1624,6 +1624,79 @@ char *DisassembleUnconditionalBranchInstr(struct instruction *instruction){
 	return disassembled;
 }
 
+char *DisassembleUnconditionalBranchImmInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int op = getbitsinrange(instruction->hex, 31, 1);
+	unsigned int imm26 = getbitsinrange(instruction->hex, 0, 26);
+
+	const char *type = "b";
+
+	if(op == 1)
+		type = "bl";
+
+	imm26 = sign_extend(imm26 << 2, 28);
+
+	disassembled = malloc(128);
+
+	sprintf(disassembled, "%s #%#lx", type, (signed int)imm26 + instruction->PC);
+
+	return disassembled;
+}
+
+char *DisassembleCompareAndBranchImmediateInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int imm19 = getbitsinrange(instruction->hex, 5, 19);
+	unsigned int op = getbitsinrange(instruction->hex, 24, 1);
+	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
+
+	const char **registers = ARM64_GeneralRegisters;
+
+	if(sf == 0)
+		registers = ARM64_32BitGeneralRegisters;
+
+	imm19 = sign_extend(imm19 << 2, 21);
+
+	const char *instr = op == 0 ? "cbz" : "cbnz";
+
+	disassembled = malloc(128);
+	
+	sprintf(disassembled, "%s %s, #%#lx", instr, registers[Rt], (signed int)imm19 + instruction->PC);
+
+	return disassembled;
+}
+
+char *DisassembleTestAndBranchImmediateInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int imm14 = getbitsinrange(instruction->hex, 5, 14);
+	unsigned int b40 = getbitsinrange(instruction->hex, 19, 5);
+	unsigned int op = getbitsinrange(instruction->hex, 24, 1);
+	unsigned int b5 = getbitsinrange(instruction->hex, 31, 1);
+
+	const char **registers = ARM64_GeneralRegisters;
+
+	if(b5 == 0)
+		registers = ARM64_32BitGeneralRegisters;
+
+	const char *instr = "tbz";
+
+	if(op == 1)
+		instr = "tbnz";
+
+	unsigned int imm = (b5 << 6) | b40;
+	imm14 = sign_extend(imm14 << 2, 16);
+
+	disassembled = malloc(128);
+
+	sprintf(disassembled, "%s %s, #%#x, #%#lx", instr, registers[Rt], imm, (signed int)imm14 + instruction->PC);
+	
+	return disassembled;
+}
+
 char *BranchExcSysDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 	
@@ -1644,6 +1717,7 @@ char *BranchExcSysDisassemble(struct instruction *instruction){
 	
 	//print_bin(op1, 14);
 	//print_bin((op1 << 27) >> 27, -1);
+	//
 
 	// Conditional branch (immediate)
 	if(op0 == 0x2 && (op1 >> 13) == 0){
@@ -1667,23 +1741,38 @@ char *BranchExcSysDisassemble(struct instruction *instruction){
 	}
 	// PSTATE
 	else if(op0 == 0x6 && (op1 << 28) >> 28 == 0x4 && (op1 >> 7) == 0x20){
-		printf("pstate\n");
+		//printf("pstate\n");
 		disassembled = DisassemblePSTATEInstr(instruction);
 	}
 	// System instructions
 	else if(op0 == 0x6 && (op1 >> 10) == 0x4 && ((op1 >> 7) & 1) == 1 && ((op1 >> 8) & 1) != 1){
-		printf("system instruction\n");
+		//printf("system instruction\n");
 		disassembled = DisassembleSystemInstr(instruction);
 	}
 	// System register move
 	else if(op0 == 0x6 && (op1 >> 10) == 0x4 && ((op1 >> 8) & 1) == 1){
-		printf("system register move\n");
+		//printf("system register move\n");
 		disassembled = DisassembleSystemRegisterMoveInstr(instruction);
 	}
 	// Unconditional branch (register)
 	else if(op0 == 0x6 && ((op1 >> 13) & 1) == 1){
-		printf("Unconditional branch (register)\n");
+		//printf("Unconditional branch (register)\n");
 		disassembled = DisassembleUnconditionalBranchInstr(instruction);
+	}
+	// Unconditional branch (immediate)
+	else if((op0 & 1) == 0 && (op0 & 2) == 0){
+		//printf("unconditional branch (immediate)\n");
+		disassembled = DisassembleUnconditionalBranchImmInstr(instruction);
+	}
+	// Compare and branch (immediate)
+	else if((op0 & 1) == 1 && (op0 & 2) == 0 && ((op1 >> 13) & 1) == 0){
+		//printf("compare and branch (immediate)\n");
+		disassembled = DisassembleCompareAndBranchImmediateInstr(instruction);
+	}
+	// Test and branch (immediate)
+	else if((op0 & 1) == 1 && (op0 & 2) == 0 && ((op1 >> 13) & 1) == 1){
+		//printf("Test and branch (immediate)\n");
+		disassembled = DisassembleTestAndBranchImmediateInstr(instruction);
 	}
 	else
 		return strdup(".undefined");
