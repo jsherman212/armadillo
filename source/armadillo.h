@@ -9,6 +9,7 @@
 #include "bits.h"
 #include "DataProcessingImmediate.h"
 #include "BranchExcSys.h"
+#include "LoadsAndStores.h"
 #include "instruction.h"
 
 // try and disassemble given bytes in little endian

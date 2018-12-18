@@ -10,6 +10,7 @@ OBJECT_FILES = $(SRCDIR)/armadillo.o \
 			   $(SRCDIR)/driver.o \
 			   $(SRCDIR)/instruction.o \
 			   $(SRCDIR)/linkedlist.o \
+			   $(SRCDIR)/LoadsAndStores.o \
 			   $(SRCDIR)/utils.o
 
 armadillo : $(OBJECT_FILES)

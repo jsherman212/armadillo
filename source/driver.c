@@ -300,40 +300,60 @@ int main(int argc, char **argp, const char **envp){
 
 */
 
-	addinstr("b 0x55c0 @ 0x100007f2c", 0x14001570, 0x100007f2c);
+/*	addinstr("b 0x55c0 @ 0x100007f2c", 0x14001570, 0x100007f2c);
 	addinstr("b -0x354 @ 0x100007f30", 0x17ffff2b, 0x100007f30);
 	addinstr("bl 0x48 @ 0x100007f34", 0x94000012, 0x100007f34);
 	addinstr("bl -0x300 @ 0x100007f38", 0x97ffff40, 0x100007f38);
+*/
 	/*
 	 *  0x100007f2c      090200b4       cbz x9, 0x100007f6c        ; [00] -r-x section size 44 named 0.__TEXT.__text
 |           0x100007f30      11e6ffb4       cbz x17, 0x100007bf0
 |           0x100007f34      024800b5       cbnz x2, 0x100008834
 |           0x100007f38      8dfdffb5       cbnz x13, 0x100007ee8
 */
-	
+/*	
 	addinstr("cbz x9, #0x40 @ 0x100007f2c", 0xB4000209, 0x100007f2c);
 	addinstr("cbz x17, -0x340 @ 0x100007f30", 0xb4ffe611, 0x100007f30);
 	addinstr("cbnz x2, #0x900 @ 0x100007f34", 0xb5004802, 0x100007f34);
 	addinstr("cbnz x13, -0x50 @ 0x100007f38", 0xB5FFFD8D, 0x100007f38);
-
+*/
 /*
  *  0x100007f2c      09800236       tbz w9, #0, 0x10000cf2c    ; [00] -r-x section size 44 named 0.__TEXT.__text
 |           0x100007f30      11700e36       tbz w17, #1, 0x100004d30
 |           0x100007f34      22000837       tbnz w2, #1, 0x100007f38
 |           0x100007f38      2d200037       tbnz w13, #0, 0x10000833c
 */
-
+/*
 	addinstr("tbz x9, 0x0, 0x5000 @ 0x100007f2c", 0x36028009, 0x100007f2c);
 	addinstr("tbz x17, 0x1, -0x3200 @ 0x100007f30", 0x360e7011, 0x100007f30);
 	addinstr("tbnz x2, 0x1, 0x4 @ 0x100007f34", 0x37080022, 0x100007f34);
 	addinstr("tbnz x13, 0x0, 0x404 @ 0x100007f38", 0x3700202d, 0x100007f38);
-
+*/
+	
+/*	addinstr("st1 {v4.1d}, [x8]", 0x0C007D04, 0);
+	addinstr("ld1 {v9.1d}, [x2]", 0x0C407C49, 0);
+	addinstr("ld2 {v9.4s, v10.4s}, [x16]", 0x4C408A09, 0);
+	addinstr("st2 {v4.4s, v5.4s}, [sp]", 0x4C008BE4, 0);
+	addinstr("ld3 {v20.4h, v21.4h, v22.4h}, [x7]", 0x0C4044F4, 0);
+	addinstr("st3 {v0.8b, v1.8b, v2.8b}, [sp]", 0x0C0043E0, 0);
+	addinstr("ld4 {v13.8b, v14.8b, v15.8b, v16.8b}, [sp]", 0x0C4003ED, 0);
+	addinstr("st4 {v4.16b, v5.16b, v6.16b, v7.16b}, [x14]", 0x4C0001C4, 0);
+	addinstr("st3 {v0.8b, v1.8b, v2.8b}, [sp], x0", 0x0C8043E0, 0);
+	addinstr("st3 {v22.8b, v23.8b, v24.8b}, [x16], #24", 0x0C9F4216, 0);
+	addinstr("ld1 {v20.2s, v21.2s, v22.2s, v23.2s}, [x21], #32", 0x0CDF2AB4, 0);
+	addinstr("st2 {v2.8h, v3.8h}, [x4], x16", 0x4C908482, 0);
+	addinstr("st1 {v2.2s}, [sp], #8", 0x0C9F7BE2, 0);
+*/
+	addinstr("st1 {v4.b}[6], [x22]", 0x0D001AC4, 0);
+	addinstr("st3 {v1.d, v2.d, v3.d}[0], [x5], #24", 0x0D9FA4A1, 0);
+	addinstr("ld4 {v11.h, v12.h, v13.h, v14.h}[1], [sp], #8", 0x0DFF6BEB, 0);
+	addinstr("ld2 {v22.s, v23.s}[3], [x3]", 0x4D609076, 0);
 
 	struct node_t *current = instructions->front;
 
 	while(current){
 		struct testinstr *ti = (struct testinstr *)current->data;
-		printf("Disassembling %s (aka %#x)... ", ti->name, ti->hex);
+		printf("Disassembling %s (aka 0x%08x)... ", ti->name, ti->hex);
 		struct instruction *i = instruction_new(ti->hex, ti->PC);
 		char *ret = ArmadilloDisassemble(i);
 		//printf("ret = %p\n", ret);

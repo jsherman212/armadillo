@@ -11,7 +11,7 @@ char *ArmadilloDisassemble(struct instruction *instr){
 
 	//printf("Got op0: ");
 	//print_bin(op0, -1);
-	//printf("\n");	
+	//printf("\n");
 	
 	unsigned int DataProcessingImmediateMask = (1 << 3) >> 1/*| 1*/;
 	//printf("DataProcessingImmediateMask: ");
@@ -45,8 +45,9 @@ char *ArmadilloDisassemble(struct instruction *instr){
 		//printf("***BranchExcSystemMask\n");
 		disassembled = BranchExcSysDisassemble(instr);
 	}
-	else if(op0 == (op0 & LoadsAndStoresMask)){
-		printf("***LoadsAndStoresMask\n");
+	else if((op0 >> 2) == 1 && (op0 & 1) == 0){
+		//printf("***LoadsAndStoresMask\n");
+		disassembled = LoadsAndStoresDisassemble(instr);
 	}
 	else if(op0 == (op0 & DataProcessingRegisterMask)){
 		printf("***DataProcessingRegister\n");
