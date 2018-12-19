@@ -297,9 +297,8 @@ char *DisassembleLoadStoreSingleStructuresInstr(struct instruction *instruction,
 		if(postidx){
 			if(Rm != 0x1f)
 				sprintf(disassembled, "%s, %s", disassembled, ARM64_GeneralRegisters[Rm]);
-			else{
+			else
 				sprintf(disassembled, "%s, #%d", disassembled, ldstimms[selem] * selem);
-			}
 		}
 	}
 	
@@ -308,6 +307,153 @@ char *DisassembleLoadStoreSingleStructuresInstr(struct instruction *instruction,
 
 	return disassembled;
 }
+
+/***********************
+
+00:0:0:0:0:-
+STXRB <Ws>, <Wt>, [<Xn|SP>{,#0}] 
+
+01:0:0:0:0:-
+STXRH <Ws>, <Wt>, [<Xn|SP>{,#0}] 
+
+10:0:0:0:0:-
+STXR <Ws>, <Wt>, [<Xn|SP>{,#0}] 
+
+11:0:0:0:0:-
+STXR <Ws>, <Xt>, [<Xn|SP>{,#0}] 
+
+-----------------------
+
+00:0:0:0:1:-
+STLXRB <Ws>, <Wt>, [<Xn|SP>{,#0}] 
+
+01:0:0:0:1:-
+STLXRH <Ws>, <Wt>, [<Xn|SP>{,#0}] 
+
+10:0:0:0:1:-
+STLXR <Ws>, <Wt>, [<Xn|SP>{,#0}] 
+
+11:0:0:0:1-
+STLXR <Ws>, <Xt>, [<Xn|SP>{,#0}] 
+
+-----------------------
+
+10:0:0:1:0:-
+STXP <Ws>, <Wt1>, <Wt2>, [<Xn|SP>{,#0}] 
+
+11:0:0:1:0:-
+STXP <Ws>, <Xt1>, <Xt2>, [<Xn|SP>{,#0}] 
+
+-----------------------
+
+10:0:0:1:1:-
+STLXP <Ws>, <Wt1>, <Wt2>, [<Xn|SP>{,#0}] 
+
+11:0:0:1:1:-
+STLXP <Ws>, <Xt1>, <Xt2>, [<Xn|SP>{,#0}] 
+
+-----------------------
+
+00:0:1:0:0:-
+LDXRB <Wt>, [<Xn|SP>{,#0}] 
+
+01:0:1:0:0:-
+LDXRH <Wt>, [<Xn|SP>{,#0}]
+
+10:0:1:0:0:-
+LDXR <Wt>, [<Xn|SP>{,#0}] 
+
+11:0:1:0:0:-
+LDXR <Xt>, [<Xn|SP>{,#0}] 
+
+-----------------------
+
+00:0:1:0:1:-
+LDAXRB <Wt>, [<Xn|SP>{,#0}] 
+
+01:0:1:0:1:-
+LDAXRH <Wt>, [<Xn|SP>{,#0}] 
+
+10:0:1:0:1:-
+LDAXR <Wt>, [<Xn|SP>{,#0}] 
+
+11:0:1:0:1:-
+LDAXR <Xt>, [<Xn|SP>{,#0}] 
+
+-----------------------
+
+10:0:1:1:0:-
+LDXP <Wt1>, <Wt2>, [<Xn|SP>{,#0}]
+
+11:0:1:1:0:-
+LDXP <Xt1>, <Xt2>, [<Xn|SP>{,#0}] 
+
+-----------------------
+
+10:0:1:1:1:-
+LDAXP <Wt1>, <Wt2>, [<Xn|SP>{,#0}] 
+
+11:0:1:1:1:-
+LDAXP <Xt1>, <Xt2>, [<Xn|SP>{,#0}] 
+
+-----------------------
+
+00:1:0:0:0:-
+STLLRB <Wt>, [<Xn|SP>{,#0}] 
+
+01:1:0:0:0:-
+STLLRH <Wt>, [<Xn|SP>{,#0}] 
+
+10:1:0:0:0:-
+STLLR <Wt>, [<Xn|SP>{,#0}] 
+
+11:1:0:0:0:-
+STLLR <Xt>, [<Xn|SP>{,#0}] 
+
+-----------------------
+
+00:1:0:0:1:-
+STLRB <Wt>, [<Xn|SP>{,#0}] 
+
+01:1:0:0:1:-
+STLRH <Wt>, [<Xn|SP>{,#0}] 
+
+10:1:0:0:1:-
+STLR <Wt>, [<Xn|SP>{,#0}] 
+
+11:1:0:0:1-
+STLR <Xt>, [<Xn|SP>{,#0}] 
+
+-----------------------
+
+00:1:1:0:0:-
+LDLARB <Wt>, [<Xn|SP>{,#0}] 
+
+01:1:1:0:0:-
+LDLARH <Wt>, [<Xn|SP>{,#0}] 
+
+10:1:1:0:0:-
+LDLAR <Wt>, [<Xn|SP>{,#0}] 
+
+11:1:1:0:0:-
+LDLAR <Xt>, [<Xn|SP>{,#0}] 
+
+-----------------------
+
+00:1:1:0:1:-
+LDARB <Wt>, [<Xn|SP>{,#0}] 
+
+01:1:1:0:1:-
+LDARH <Wt>, [<Xn|SP>{,#0}] 
+
+10:1:1:0:1:-
+LDAR <Wt>, [<Xn|SP>{,#0}] 
+
+11:1:1:0:1-
+LDAR <Xt>, [<Xn|SP>{,#0}] 
+
+-----------------------
+***********************/
 
 char *DisassembleLoadAndStoreExclusiveInstr(struct instruction *instruction){
 	char *disassembled = NULL;
@@ -451,6 +597,70 @@ char *DisassembleLoadAndStoreExclusiveInstr(struct instruction *instruction){
 		sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
 	}
 
+	return disassembled;
+}
+
+char *DisassembleLoadAndStoreLiteralInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int imm19 = getbitsinrange(instruction->hex, 5, 19);
+	unsigned int V = getbitsinrange(instruction->hex, 26, 1);
+	unsigned int opc = getbitsinrange(instruction->hex, 30, 2);
+
+	if(opc == 3 && V == 1)
+		return strdup(".undefined");
+
+	const char **general_registers = ARM64_GeneralRegisters;
+	const char **flt_registers = ARM64_VectorQRegisters;
+
+	if(opc == 0){
+		general_registers = ARM64_32BitGeneralRegisters;
+		flt_registers = ARM64_VectorSinglePrecisionRegisters;
+	}
+	else if(opc == 1)
+		flt_registers = ARM64_VectorDoublePrecisionRegisters;
+	
+	if(opc == 3 && V == 0){
+		disassembled = malloc(128);
+
+		const char *types[] = {"PLD", "PLI", "PST"};
+		const char *targets[] = {"L1", "L2", "L3"};
+		const char *policies[] = {"KEEP", "STRM"};
+
+		unsigned int type = getbitsinrange(Rt, 3, 1);
+		unsigned int target = getbitsinrange(Rt, 1, 1);
+		unsigned int policy = Rt & 1;
+
+		imm19 = sign_extend(imm19, 19);
+
+		if(type > 2 || target > 2 || policy > 1)
+			sprintf(disassembled, "prfm #%#x, #%#lx", Rt, (signed int)imm19 + instruction->PC);
+		else
+			sprintf(disassembled, "prfm %s%s%s, #%#lx", types[type], targets[target], policies[policy], (signed int)imm19 + instruction->PC);
+	}
+	else{
+		const char *instr = "ldr";
+
+		if(opc == 2 && V == 0)
+			instr = "ldrsw";
+
+		if(V == 0){
+			disassembled = malloc(128);
+
+			imm19 = sign_extend((imm19 << 2), 21);
+			
+			sprintf(disassembled, "%s %s, #%#lx", instr, general_registers[Rt], (signed int)imm19 + instruction->PC);
+		}
+		else{
+			disassembled = malloc(128);
+
+			imm19 = sign_extend((imm19 << 2), 21);
+			
+			sprintf(disassembled, "%s %s, #%#lx", instr, flt_registers[Rt], (signed int)imm19 + instruction->PC);
+		}
+	}
+
 	if(!disassembled)
 		return strdup(".unknown");
 
@@ -480,6 +690,9 @@ char *LoadsAndStoresDisassemble(struct instruction *instruction){
 	}
 	else if(((op0 & 1) == 0 && (op0 & 2) == 0) && op1 == 0 && (op2 >> 1) == 0){
 		disassembled = DisassembleLoadAndStoreExclusiveInstr(instruction);
+	}
+	else if(((op0 & 2) == 0 && (op0 & 1) == 1) && (op2 >> 1) == 0){
+		disassembled = DisassembleLoadAndStoreLiteralInstr(instruction);
 	}
 	else
 		return strdup(".undefined");

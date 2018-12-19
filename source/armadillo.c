@@ -45,7 +45,7 @@ char *ArmadilloDisassemble(struct instruction *instr){
 		//printf("***BranchExcSystemMask\n");
 		disassembled = BranchExcSysDisassemble(instr);
 	}
-	else if((op0 >> 2) == 1 && (op0 & 1) == 0){
+	else if(((op0 >> 2) & 1) == 1 && (op0 & 1) == 0){
 		//printf("***LoadsAndStoresMask\n");
 		disassembled = LoadsAndStoresDisassemble(instr);
 	}
