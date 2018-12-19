@@ -309,6 +309,154 @@ char *DisassembleLoadStoreSingleStructuresInstr(struct instruction *instruction,
 	return disassembled;
 }
 
+char *DisassembleLoadAndStoreExclusiveInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int Rt2 = getbitsinrange(instruction->hex, 10, 5);
+	unsigned int o0 = getbitsinrange(instruction->hex, 15, 1);
+	unsigned int Rs = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int o1 = getbitsinrange(instruction->hex, 21, 1);
+	unsigned int L = getbitsinrange(instruction->hex, 22, 1);
+	unsigned int o2 = getbitsinrange(instruction->hex, 23, 1);
+	unsigned int size = getbitsinrange(instruction->hex, 30, 2);
+	unsigned int sz = getbitsinrange(instruction->hex, 30, 1);
+
+	unsigned int encoding = (o2 << 3) | (L << 2) | (o1 << 1) | o0;
+
+	const char **registers = ARM64_32BitGeneralRegisters;
+
+	if(size == 3)
+		registers = ARM64_GeneralRegisters;
+	
+	disassembled = malloc(128);
+	sprintf(disassembled, ".unknown");
+	
+	if(encoding == 0){
+		// another stxr in case it is the 64 bit version
+		const char *instr_tbl[] = {"stxrb", "stxrh", "stxr", "stxr"};
+		
+		const char *_Rs = ARM64_32BitGeneralRegisters[Rs];
+		const char *_Rt = registers[Rt];
+		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+
+		sprintf(disassembled, "%s %s, %s, [%s]", instr_tbl[size], _Rs, _Rt, _Rn);
+	}
+	else if(encoding == 1){
+		const char *instr_tbl[] = {"stlxrb", "stlxrh", "stlxr", "stlxr"};
+
+		const char *_Rs = ARM64_32BitGeneralRegisters[Rs];
+		const char *_Rt = registers[Rt];
+		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+
+		sprintf(disassembled, "%s %s, %s, [%s]", instr_tbl[size], _Rs, _Rt, _Rn);
+	}
+	else if(encoding == 2 || encoding == 3){
+		const char *_Rs = ARM64_32BitGeneralRegisters[Rs];
+		const char *_Rt1 = registers[Rt];
+		const char *_Rt2 = registers[Rt2];
+		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+
+		sprintf(disassembled, "%s %s, %s, %s, [%s]", encoding == 2 ? "stxp" : "stlxp", _Rs, _Rt1, _Rt2, _Rn);
+	}
+	else if(encoding == 4){
+		const char *instr_tbl[] = {"ldxrb", "ldxrh", "ldxr", "ldxr"};
+		
+		const char *_Rt = registers[Rt];
+		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+
+		sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
+	}
+	else if(encoding == 5){
+		const char *instr_tbl[] = {"ldaxrb", "ldaxrh", "ldaxr", "ldaxr"};
+		
+		const char *_Rt = registers[Rt];
+		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+
+		sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
+	}
+	else if(encoding == 6 || encoding == 7){
+		if(Rt2 == 0x1f){
+			if(sz == 1)
+				registers = ARM64_GeneralRegisters;
+
+			const char *_Rs = registers[Rs];
+			const char *_Rs2 = registers[Rs + 1];
+			const char *_Rt = registers[Rt];
+			const char *_Rt2 = registers[Rt + 1];
+			const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+
+			sprintf(disassembled, "%s %s, %s, %s, %s, [%s]", encoding == 6 ? "caspa" : "caspal", _Rs, _Rs2, _Rt, _Rt2, _Rn);
+		}
+		else{
+			const char *_Rt1 = registers[Rt];
+			const char *_Rt2 = registers[Rt2];
+			const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+			
+			sprintf(disassembled, "%s %s, %s, [%s]", encoding == 6 ? "ldxp" : "ldaxp", _Rt1, _Rt2, _Rn);
+		}
+	}
+	else if(encoding == 8){
+		const char *instr_tbl[] = {"stllrb", "stllrh", "stllr", "stllr"};
+
+		const char *_Rt = registers[Rt];
+		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+
+		sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
+	}
+	else if(encoding == 9){
+		const char *instr_tbl[] = {"stlrb", "stlrh", "stlr", "stlr"};
+
+		const char *_Rt = registers[Rt];
+		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+
+		sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
+	}
+	else if((encoding == 10 || encoding == 11 || encoding == 14 || encoding == 15) && Rt2 == 0x1f){
+		const char **registers = ARM64_32BitGeneralRegisters;
+
+		if(size == 3)
+			registers = ARM64_GeneralRegisters;
+		
+		const char *_Rs = registers[Rs];
+		const char *_Rt = registers[Rt];
+		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+
+		const char *instr = size == 1 ? "cash" : "cas";
+
+		if(encoding == 11)
+			instr = (size == 2 || size == 3) ? "casl" : "caslh";
+		else if(encoding == 14)
+			instr = (size == 2 || size == 3) ? "casa" : "casah";
+		else if(encoding == 15)
+			instr = (size == 2 || size == 3) ? "casal" : "casalh";
+
+		sprintf(disassembled, "%s %s, %s, [%s]", instr, _Rs, _Rt, _Rn);
+	}
+	else if(encoding == 12){
+		const char *instr_tbl[] = {"ldlarb", "ldlarh", "ldlar", "ldlar"};
+
+		const char *_Rt = registers[Rt];
+		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+
+		sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
+	}
+	else if(encoding == 13){
+		const char *instr_tbl[] = {"ldarb", "ldarh", "ldar", "ldar"};
+
+		const char *_Rt = registers[Rt];
+		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+
+		sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
+	}
+
+	if(!disassembled)
+		return strdup(".unknown");
+
+	return disassembled;
+}
+
 char *LoadsAndStoresDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -330,6 +478,13 @@ char *LoadsAndStoresDisassemble(struct instruction *instruction){
 	else if((((op0 & 1) == 0 && (op0 & 2) == 0 && (op0 & 8) == 0) && op1 == 1 && (op2 == 2 || op2 == 3))){
 		disassembled = DisassembleLoadStoreSingleStructuresInstr(instruction, op2 == 2 ? 0 : 1);
 	}
+	else if(((op0 & 1) == 0 && (op0 & 2) == 0) && op1 == 0 && (op2 >> 1) == 0){
+		disassembled = DisassembleLoadAndStoreExclusiveInstr(instruction);
+	}
+	else
+		return strdup(".undefined");
+	
+	
 	if(!disassembled)
 		return strdup(".unknown");
 

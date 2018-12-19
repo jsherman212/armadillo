@@ -358,6 +358,31 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ld3r {v15.2d, v16.2d, v17.2d}, [x1], #24", 0x4DDFEC2F, 0);
 */
 
+	addinstr("stxrb w2, w4, [x3]", 0x08027C64, 0);
+	addinstr("stlxrb w4, w22, [sp]", 0x0804FFF6, 0);
+	addinstr("stxrh w24, w0, [x23]", 0x48187EE0, 0);
+	addinstr("stlxrh w5, w3, [x12]", 0x4805FD83, 0);
+	addinstr("stxr w13, w9, [sp]", 0x880D7FE9, 0);
+	addinstr("stlxr w2, w28, [x14]", 0x8802FDDC, 0);
+	addinstr("stlxr w2, x28, [x14]", 0xC802FDDC, 0);
+	addinstr("stxp w3, w5, w2, [x4]", 0x88230885, 0);
+	addinstr("stlxp w1, x15, x12, [x21]", 0xC821B2AF, 0);
+	addinstr("ldxr x5, [x3]", 0xC85F7C65, 0);
+	addinstr("ldxrh w2, [sp]", 0x485F7FE2, 0);
+	addinstr("ldaxrh w10, [x3]", 0x485FFC6A, 0);
+	addinstr("ldxp w13, w2, [x3]", 0x887F086D, 0);
+	addinstr("stllr w2, [x3]", 0x889f7c62, 0);
+	addinstr("ldlarb w3, [x4]", 0x08df7c83, 0);
+	addinstr("caspa x6, x7, x2, x3, [x8]", 0x48667d02, 0);
+	addinstr("caspal x6, x7, x2, x3, [x8]", 0x4866fd02, 0);
+	addinstr("cash w5, w6, [x4]", 0x48a57c86, 0);
+	addinstr("caslh w5, w6, [x4]", 0x48a5fc86, 0);
+	addinstr("casah w5, w6, [x4]", 0x48e57c86, 0);
+	addinstr("casalh w5, w6, [x4]", 0x48e5fc86, 0);
+	addinstr("cas w5, w6, [x4]", 0x88a57c86, 0);
+	addinstr("cas x5, x6, [x4]", 0xc8a57c86, 0);
+	addinstr("casl x5, x6, [x4]", 0xc8a5fc86, 0);
+
 	struct node_t *current = instructions->front;
 
 	while(current){
