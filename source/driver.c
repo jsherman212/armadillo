@@ -329,8 +329,8 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("tbnz x2, 0x1, 0x4 @ 0x100007f34", 0x37080022, 0x100007f34);
 	addinstr("tbnz x13, 0x0, 0x404 @ 0x100007f38", 0x3700202d, 0x100007f38);
 */
-	
-/*	addinstr("st1 {v4.1d}, [x8]", 0x0C007D04, 0);
+	/*
+	addinstr("st1 {v4.1d}, [x8]", 0x0C007D04, 0);
 	addinstr("ld1 {v9.1d}, [x2]", 0x0C407C49, 0);
 	addinstr("ld2 {v9.4s, v10.4s}, [x16]", 0x4C408A09, 0);
 	addinstr("st2 {v4.4s, v5.4s}, [sp]", 0x4C008BE4, 0);
@@ -343,11 +343,20 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ld1 {v20.2s, v21.2s, v22.2s, v23.2s}, [x21], #32", 0x0CDF2AB4, 0);
 	addinstr("st2 {v2.8h, v3.8h}, [x4], x16", 0x4C908482, 0);
 	addinstr("st1 {v2.2s}, [sp], #8", 0x0C9F7BE2, 0);
+	addinstr("st1 {v4.2s, v5.2s}, [x20]", 0x0C00AA84, 0);
 */
+
+	/*
 	addinstr("st1 {v4.b}[6], [x22]", 0x0D001AC4, 0);
 	addinstr("st3 {v1.d, v2.d, v3.d}[0], [x5], #24", 0x0D9FA4A1, 0);
+	addinstr("st3 {v11.d, v12.d, v13.d}[1], [x2], x4", 0x4D84A44B, 0);
 	addinstr("ld4 {v11.h, v12.h, v13.h, v14.h}[1], [sp], #8", 0x0DFF6BEB, 0);
 	addinstr("ld2 {v22.s, v23.s}[3], [x3]", 0x4D609076, 0);
+	addinstr("ld4r {v20.2s, v21.2s, v22.2s, v23.2s}, [x21]", 0x0D60EAB4, 0);
+	addinstr("ld1r {v2.4h}, [x2], #2", 0x0DDFC442, 0);
+	addinstr("ld2r {v28.2s, v29.2s}, [sp], x20", 0x0DF4CBFC, 0);
+	addinstr("ld3r {v15.2d, v16.2d, v17.2d}, [x1], #24", 0x4DDFEC2F, 0);
+*/
 
 	struct node_t *current = instructions->front;
 
