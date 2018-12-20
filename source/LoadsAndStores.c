@@ -667,6 +667,62 @@ char *DisassembleLoadAndStoreLiteralInstr(struct instruction *instruction){
 	return disassembled;
 }
 
+char *DisassembleLoadAndStoreNoAllocatePairOffsetInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int Rt2 = getbitsinrange(instruction->hex, 10, 5);
+	int imm7 = getbitsinrange(instruction->hex, 15, 7);
+	unsigned int L = getbitsinrange(instruction->hex, 22, 1);
+	unsigned int V = getbitsinrange(instruction->hex, 26, 1);
+	unsigned int opc = getbitsinrange(instruction->hex, 30, 2);
+
+	if(opc == 1 && V == 0)
+		return strdup(".undefined");
+	else if(opc == 3)
+		return strdup(".undefined");
+
+	const char **registers = ARM64_32BitGeneralRegisters;
+
+	if(opc == 0)
+		registers = V == 0 ? registers : ARM64_VectorSinglePrecisionRegisters;
+	else if(opc == 1)
+		registers = ARM64_VectorDoublePrecisionRegisters;
+	else if(opc == 2)
+		registers = V == 0 ? ARM64_GeneralRegisters : ARM64_VectorQRegisters;
+
+	disassembled = malloc(128);
+	bzero(disassembled, 128);
+
+	int scale = 0;
+
+	// if V is 0, we're not dealing with floating point registers
+	if(V == 0)
+		scale = 2 + (opc >> 1);
+	else
+		scale = 2 + opc;
+
+	imm7 = sign_extend(imm7, 7) << scale;
+	
+	const char *instr = "stnp";
+
+	if(L == 1)
+		instr = "ldnp";
+
+	const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+
+	sprintf(disassembled, "%s %s, %s, [%s", instr, registers[Rt], registers[Rt2], _Rn);
+
+	// check whether or not we need to append an immediate
+	if(imm7 == 0)
+		sprintf(disassembled, "%s]", disassembled);
+	else
+		sprintf(disassembled, "%s, #%#x]", disassembled, imm7);
+	
+	return disassembled;
+}
+
 char *LoadsAndStoresDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -675,13 +731,18 @@ char *LoadsAndStoresDisassemble(struct instruction *instruction){
 	unsigned int op2 = getbitsinrange(instruction->hex, 23, 2);
 	unsigned int op3 = getbitsinrange(instruction->hex, 16, 6);
 	unsigned int op4 = getbitsinrange(instruction->hex, 10, 2);
-/*
+
+	/*
 	print_bin(op0, 4);
 	print_bin(op1, 1);
 	print_bin(op2, 2);
 	print_bin(op3, 6);
 	print_bin(op4, 2);
-*/
+
+	print_bin(op0 & 2, 1);
+	print_bin(op0 & 1, 1);
+	*/
+
 	if(((op0 & 1) == 0 && (op0 & 2) == 0 && (op0 & 8) == 0) && op1 == 1 && (op2 == 0 || op2 == 1) && (op3 >> 5) == 0){
 		disassembled = DisassembleLoadStoreMultStructuresInstr(instruction, op2);
 	}
@@ -693,6 +754,9 @@ char *LoadsAndStoresDisassemble(struct instruction *instruction){
 	}
 	else if(((op0 & 2) == 0 && (op0 & 1) == 1) && (op2 >> 1) == 0){
 		disassembled = DisassembleLoadAndStoreLiteralInstr(instruction);
+	}
+	else if(((op0 & 2) == 2 && (op0 & 1) == 0) && op2 == 0){
+		disassembled = DisassembleLoadAndStoreNoAllocatePairOffsetInstr(instruction);	
 	}
 	else
 		return strdup(".undefined");

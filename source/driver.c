@@ -384,7 +384,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("cas x5, x6, [x4]", 0xc8a57c86, 0);
 	addinstr("casl x5, x6, [x4]", 0xc8a5fc86, 0);
 */
-
+/*
 	addinstr("ldr x4, #0x20 @ 0x100007f30", 0x58000104, 0x100007f30);
 	addinstr("ldr x16, #-0x474 @ 0x100007f34", 0x58ffdc70, 0x100007f34);
 	addinstr("ldr w2, #0x40000 @ 0x100007f38", 0x18200002, 0x100007f38);
@@ -393,6 +393,14 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ldr q13, #-0x400 @ 0x100007f28", 0x9cffe00d, 0x100007f28);
 	addinstr("ldr d3, #0x90 @ 0x100007f2c", 0x5c000483, 0x100007f2c);
 	addinstr("ldrsw x18, #0x78 @ 0x100007f20", 0x980003d2, 0x100007f20);
+*/
+
+	addinstr("stnp x2, x1, [x24, #-304]", 0xA82D0702, 0);
+	addinstr("stnp w5, w2, [sp]", 0x28000BE5, 0);
+	addinstr("ldnp q2, q3, [x3, #992]", 0xAC5F0C62, 0);
+	addinstr("ldnp s22, s23, [x15, #-256]", 0x2C605DF6, 0);
+	
+
 
 	struct node_t *current = instructions->front;
 
