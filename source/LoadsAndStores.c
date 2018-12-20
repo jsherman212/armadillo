@@ -667,7 +667,7 @@ char *DisassembleLoadAndStoreLiteralInstr(struct instruction *instruction){
 	return disassembled;
 }
 
-char *DisassembleLoadAndStoreNoAllocatePairOffsetInstr(struct instruction *instruction){
+char *DisassembleLoadAndStoreRegisterPairInstr(struct instruction *instruction, int kind){
 	char *disassembled = NULL;
 
 	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
@@ -677,18 +677,13 @@ char *DisassembleLoadAndStoreNoAllocatePairOffsetInstr(struct instruction *instr
 	unsigned int L = getbitsinrange(instruction->hex, 22, 1);
 	unsigned int V = getbitsinrange(instruction->hex, 26, 1);
 	unsigned int opc = getbitsinrange(instruction->hex, 30, 2);
-
-	if(opc == 1 && V == 0)
-		return strdup(".undefined");
-	else if(opc == 3)
-		return strdup(".undefined");
-
+	
 	const char **registers = ARM64_32BitGeneralRegisters;
 
 	if(opc == 0)
 		registers = V == 0 ? registers : ARM64_VectorSinglePrecisionRegisters;
 	else if(opc == 1)
-		registers = ARM64_VectorDoublePrecisionRegisters;
+		registers = L == 1 ? ARM64_GeneralRegisters : ARM64_VectorDoublePrecisionRegisters;
 	else if(opc == 2)
 		registers = V == 0 ? ARM64_GeneralRegisters : ARM64_VectorQRegisters;
 
@@ -705,20 +700,29 @@ char *DisassembleLoadAndStoreNoAllocatePairOffsetInstr(struct instruction *instr
 
 	imm7 = sign_extend(imm7, 7) << scale;
 	
-	const char *instr = "stnp";
+	char *instr = malloc(8);
+	sprintf(instr, "st");
 
 	if(L == 1)
-		instr = "ldnp";
+		sprintf(instr, "%s", (V == 0 && opc == 1) ? "ldpsw" : "ld");
+
+	if(strcmp(instr, "ldpsw") != 0)
+		sprintf(instr, "%s%sp", instr, kind == NO_ALLOCATE ? "n" : "");
 
 	const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
 
 	sprintf(disassembled, "%s %s, %s, [%s", instr, registers[Rt], registers[Rt2], _Rn);
+	free(instr);
 
 	// check whether or not we need to append an immediate
 	if(imm7 == 0)
 		sprintf(disassembled, "%s]", disassembled);
-	else
+	else if(kind == POST_INDEXED)
+		sprintf(disassembled, "%s], #%#x", disassembled, imm7);
+	else if(kind == OFFSET || kind == NO_ALLOCATE)
 		sprintf(disassembled, "%s, #%#x]", disassembled, imm7);
+	else if(kind == PRE_INDEXED)
+		sprintf(disassembled, "%s, #%#x]!", disassembled, imm7);
 	
 	return disassembled;
 }
@@ -755,9 +759,12 @@ char *LoadsAndStoresDisassemble(struct instruction *instruction){
 	else if(((op0 & 2) == 0 && (op0 & 1) == 1) && (op2 >> 1) == 0){
 		disassembled = DisassembleLoadAndStoreLiteralInstr(instruction);
 	}
-	else if(((op0 & 2) == 2 && (op0 & 1) == 0) && op2 == 0){
-		disassembled = DisassembleLoadAndStoreNoAllocatePairOffsetInstr(instruction);	
+	else if(((op0 & 2) == 2 && (op0 & 1) == 0) && (op2 >= 0 && op2 <= 3)){
+		disassembled = DisassembleLoadAndStoreRegisterPairInstr(instruction, op2);	
 	}
+	//else if(((op0 & 2) == 2 && (op0 & 1) == 0) && (op2 == 1 || op2 == 2 || op2 == 3)){
+	//	disassembled = DisassembleLoadAndStoreRegisterPairInstr(instruction, op2);
+	//}
 	else
 		return strdup(".undefined");
 	

@@ -399,7 +399,11 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("stnp w5, w2, [sp]", 0x28000BE5, 0);
 	addinstr("ldnp q2, q3, [x3, #992]", 0xAC5F0C62, 0);
 	addinstr("ldnp s22, s23, [x15, #-256]", 0x2C605DF6, 0);
-	
+	addinstr("ldpsw x1, x2, [x15, #32]", 0x694409E1, 0);
+	addinstr("stp x6, x2, [x1], #32", 0xA8820826, 0);
+	addinstr("stp d7, d22, [sp, #208]!", 0x6D8D5BE7, 0);
+	addinstr("stp d7, d22, [sp, #-208]!", 0x6DB35BE7, 0);
+	addinstr("ldp x16, x4, [x4, #24]", 0xA9419090, 0);
 
 
 	struct node_t *current = instructions->front;
