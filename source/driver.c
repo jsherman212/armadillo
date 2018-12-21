@@ -453,6 +453,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ldaprh w1, [x19]", 0x78bfc261, 0);
 */
 
+		/*
 	addinstr("strb w4, [x4, w5, sxtw]", 0x3825C884, 0);
 	addinstr("strb w1, [x4, x9, lsl #0]", 0x38297881, 0);
 	addinstr("strb w1, [x4, x9]", 0x38296881, 0);
@@ -468,7 +469,12 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("str q3, [x6, x4, sxtx #4]", 0x3CA4F8C3, 0);
 	addinstr("str b8, [x15, x1, lsl #0]", 0x3C2179E8, 0);
 	addinstr("str b13, [x0, x20]", 0x3C34680D, 0);
-	
+	*/
+
+	addinstr("ldraa x9, [x2, #0x308]", 0xf8261449, 0);
+	addinstr("ldraa x21, [sp, #-0x8]!", 0xf87ffff5, 0);
+	addinstr("ldrab x1, [x5, #0xa0]", 0xf8a144a1, 0);
+	addinstr("ldrab x14, [x19, #0x10]!", 0xf8a02e6e, 0);
 	
 	//addinstr("ldnp d1, d27, [x19, -0x1c0]", 0x6c646e61, 0);
 	

@@ -1353,6 +1353,45 @@ char *DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *instruction
 	return disassembled;
 }
 
+char *DisassembleLoadAndStorePACInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int W = getbitsinrange(instruction->hex, 11, 1);
+	unsigned int imm9 = getbitsinrange(instruction->hex, 12, 9);
+	unsigned int S = getbitsinrange(instruction->hex, 22, 1);
+	unsigned int M = getbitsinrange(instruction->hex, 23, 1);
+	unsigned int V = getbitsinrange(instruction->hex, 26, 1);
+	unsigned int size = getbitsinrange(instruction->hex, 30, 2);
+
+	if(size != 3)
+		return strdup(".undefined");
+
+	int use_key_A = M == 0;
+	unsigned int S10 = (S << 9) | imm9;
+	
+	S10 = sign_extend(S10, 10);
+	S10 <<= 3;
+
+	char *instr = malloc(8);
+	sprintf(instr, "ldra");
+
+	if(use_key_A)
+		strcat(instr, "a");
+	else
+		strcat(instr, "b");
+
+	const char *_Rt = ARM64_GeneralRegisters[Rt];
+	const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+
+	disassembled = malloc(128);
+
+	sprintf(disassembled, "%s %s, [%s, #%#x]%s", instr, _Rt, _Rn, S10, W == 1 ? "!" : "");
+	
+	return disassembled;
+}
+
 char *LoadsAndStoresDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -1395,16 +1434,14 @@ char *LoadsAndStoresDisassemble(struct instruction *instruction){
 	else if((((op0 >> 1) & 1) == 1 && (op0 & 1) == 1) && (op2 >> 1) == 0 && (op3 >> 5) == 1 && op4 == 2){
 		disassembled = DisassembleLoadAndStoreRegisterOffsetInstr(instruction);
 	}
+	else if((((op0 >> 1) & 1) == 1 && (op0 & 1) == 1) && (op2 >> 1) == 0 && (op3 >> 5) == 1 && (op4 & 1) == 1){
+		disassembled = DisassembleLoadAndStorePACInstr(instruction);
+	}
 	else if((((op0 >> 1) & 1) == 1 && (op0 & 1) == 1) && (op2 >> 1) == 1){
-		//printf("*****unsigned immediate\n");
 		disassembled = DisassembleLoadAndStoreRegisterInstr(instruction, UNSIGNED_IMMEDIATE);
 	}
-	//else if(((op0 & 2) == 2 && (op0 & 1) == 0) && (op2 == 1 || op2 == 2 || op2 == 3)){
-	//	disassembled = DisassembleLoadAndStoreRegisterPairInstr(instruction, op2);
-	//}
 	else
 		return strdup(".undefined");
-	
 	
 	if(!disassembled)
 		return strdup(".unknown");
