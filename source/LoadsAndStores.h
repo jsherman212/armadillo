@@ -49,7 +49,7 @@ static const char *unscaled_instr_tbl[] = {
 	"stur",
 	"ldur" };
 
-static const char *pre_post_idx_instr_tbl[] = {
+static const char *pre_post_unsigned_register_idx_instr_tbl[] = {
 	"strb",
 	"ldrb",
 	"ldrsb",

@@ -1,7 +1,6 @@
 #include "armadillo.h"
 
-
-char *ArmadilloDisassemble(struct instruction *instr){
+char *_ArmadilloDisassemble(struct instruction *instr){
 	printf("\n");
 	
 	// very first thing to do is get the encoding for this instruction
@@ -67,5 +66,12 @@ char *ArmadilloDisassemble(struct instruction *instr){
 	if(!disassembled)
 		return strdup(".unknown");
 
+	return disassembled;
+}
+
+char *ArmadilloDisassemble(unsigned int hex, unsigned long PC){
+	struct instruction *instr = instruction_new(hex, PC);
+	char *disassembled = _ArmadilloDisassemble(instr);
+	free(instr);
 	return disassembled;
 }

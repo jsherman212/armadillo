@@ -6,7 +6,10 @@ static const char *ARM64_GeneralRegisters[] = {
 	"x7", "x8", "x9", "x10", "x11", "x12",
 	"x13", "x14", "x15", "x16", "x17", "x18",
 	"x19", "x20", "x21", "x22", "x23", "x24",
-	"x25", "x26", "x27", "x28", "fp", "lr", "xzr" };
+	"x25", "x26", "x27", "x28", "x29", "x30", "xzr" };
+
+// X29 = fp
+// X30 = lr
 
 static const char *ARM64_32BitGeneralRegisters[] = {
 	"w0", "w1", "w2", "w3", "w4", "w5", "w6",

@@ -12,8 +12,11 @@
 #include "LoadsAndStores.h"
 #include "instruction.h"
 
+// client calls this
+char *ArmadilloDisassemble(unsigned int hex, unsigned long PC);
+
 // try and disassemble given bytes in little endian
 // returns a string with the instruction
-char *ArmadilloDisassemble(struct instruction *instr);
+char *_ArmadilloDisassemble(struct instruction *instr);
 
 #endif

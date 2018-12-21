@@ -16,8 +16,9 @@ char *DisassemblePCRelativeAddressingInstr(struct instruction *instruction){
 	if(op == 0){
 		imm = (immhi << 2) | immlo;
 
-		if(is_negative(imm, 21))
-			imm = sign_extend2(imm, 21);
+		//if(is_negative(imm, 21))
+		//	imm = sign_extend2(imm, 21);
+		imm = sign_extend(imm, 21);
 
 		imm += instruction->PC;
 	}
@@ -231,14 +232,14 @@ char *DisassembleMoveWideImmediateInstr(struct instruction *instruction){
 		else
 			usealias = !(IsZero(imm16) && hw != 0);
 
-		unsigned long result = ~(imm16 << shift);
+		/*unsigned */long result = ~(imm16 << shift);
 		
 		// mov (inverted wide immediate) is used in this case
 		if(usealias)
 			// if we are dealing with 32 bit, cut off the top 32 bits of result
-			sprintf(disassembled, "mov %s, #%#lx", registers[rd], sf == 0 ? ((result << 32) >> 32) : result);
+			sprintf(disassembled, "movn %s, #%#lx", registers[rd], sf == 0 ? ~((result << 32) >> 32) : ~result);
 		else{
-			sprintf(disassembled, "movn %s, #%#lx", registers[rd], imm16);
+			sprintf(disassembled, "mov %s, #%#lx", registers[rd], imm16);
 
 			if(shift != 0){
 				char *lslstr = malloc(64);

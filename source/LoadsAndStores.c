@@ -683,7 +683,7 @@ char *DisassembleLoadAndStoreRegisterPairInstr(struct instruction *instruction, 
 	if(opc == 0)
 		registers = V == 0 ? registers : ARM64_VectorSinglePrecisionRegisters;
 	else if(opc == 1)
-		registers = L == 1 ? ARM64_GeneralRegisters : ARM64_VectorDoublePrecisionRegisters;
+		registers = V == 0/*L==1*/ ? ARM64_GeneralRegisters : ARM64_VectorDoublePrecisionRegisters;
 	else if(opc == 2)
 		registers = V == 0 ? ARM64_GeneralRegisters : ARM64_VectorQRegisters;
 
@@ -732,7 +732,8 @@ char *DisassembleLoadAndStoreRegisterInstr(struct instruction *instruction, int 
 
 	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
 	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
-	int imm9 = getbitsinrange(instruction->hex, 12, 9);
+	int imm12 = getbitsinrange(instruction->hex, 10, 12);
+	int imm9 = imm12 >> 2;
 	unsigned int opc = getbitsinrange(instruction->hex, 22, 2);
 	unsigned int V = getbitsinrange(instruction->hex, 26, 1);
 	unsigned int size = getbitsinrange(instruction->hex, 30, 2);
@@ -756,8 +757,8 @@ char *DisassembleLoadAndStoreRegisterInstr(struct instruction *instruction, int 
 
 	const char **instr_tbl = unscaled_instr_tbl;
 
-	if(kind == IMMEDIATE_POST_INDEXED || kind == IMMEDIATE_PRE_INDEXED)
-		instr_tbl = pre_post_idx_instr_tbl;
+	if(kind == UNSIGNED_IMMEDIATE || kind == IMMEDIATE_POST_INDEXED || kind == IMMEDIATE_PRE_INDEXED)
+		instr_tbl = pre_post_unsigned_register_idx_instr_tbl;
 	else if(kind == UNPRIVILEGED)
 		instr_tbl = unprivileged_instr_tbl;
 
@@ -798,6 +799,18 @@ char *DisassembleLoadAndStoreRegisterInstr(struct instruction *instruction, int 
 			sprintf(disassembled, "%s]", disassembled);
 		else
 			sprintf(disassembled, "%s, #%#x]", disassembled, imm9);
+	}
+	else if(kind == UNSIGNED_IMMEDIATE){
+		imm12 = sign_extend(imm12, 12);
+
+		if(imm12 == 0)
+			sprintf(disassembled, "%s]", disassembled);
+		else{
+			if((opc >> 1) == 0)
+				imm12 <<= ((opc >> 1) | size);
+			
+			sprintf(disassembled, "%s, #%#x]", disassembled, imm12);
+		}
 	}
 	else if(kind == IMMEDIATE_POST_INDEXED)
 		sprintf(disassembled, "%s], #%#x", disassembled, imm9);
@@ -1156,6 +1169,190 @@ char *DisassembleAtomicMemoryInstr(struct instruction *instruction){
 	return disassembled;
 }
 
+char *decode_reg_extend(unsigned int op){
+	switch(op){
+	case 0x0:
+		return "uxtb";
+	case 0x1:
+		return "uxth";
+	case 0x2:
+		return "uxtw";
+	case 0x3:
+		return "uxtx";
+	case 0x4:
+		return "sxtb";
+	case 0x5:
+		return "sxth";
+	case 0x6:
+		return "sxtw";
+	case 0x7:
+		return "sxtx";
+	default:
+		return NULL;
+	};
+}
+
+char *DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int S = getbitsinrange(instruction->hex, 12, 1);
+	unsigned int option = getbitsinrange(instruction->hex, 13, 3);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int opc = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int V = getbitsinrange(instruction->hex, 26, 1);
+	unsigned int size = getbitsinrange(instruction->hex, 30, 2);
+
+	const char **general_registers = ARM64_32BitGeneralRegisters;
+	const char **flt_registers = ARM64_VectorQRegisters;
+	
+	int _64bit = 0;
+	int amount = 0;
+	
+	// default to 128 bit
+	int flt_amount = S == 0 ? 0 : 4;
+
+	if(V == 0 && (opc == 2 || size == 3)){
+		general_registers = ARM64_GeneralRegisters;
+		_64bit = 1;
+	}
+	else if(V == 1){
+		if(size == 0 && opc != 2){
+			flt_registers = ARM64_VectorBRegisters;
+			
+			// this doesn't matter here
+			flt_amount = -1;
+		}
+		else if(size == 1){
+			flt_registers = ARM64_VectorHalfPrecisionRegisters;
+			flt_amount = S == 0 ? 0 : 1;
+		}
+		else if(size == 2){
+			flt_registers = ARM64_VectorSinglePrecisionRegisters;
+			flt_amount = S == 0 ? 0 : 2;
+		}
+		else if(size == 3){
+			flt_registers = ARM64_VectorDoublePrecisionRegisters;
+			flt_amount = S == 0 ? 0 : 3;
+		}
+	}
+
+	const char *_Rt = NULL;
+
+	if(V == 1)
+		_Rt = flt_registers[Rt];
+	else
+		_Rt = general_registers[Rt];
+
+	const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+	const char *_Rm = ARM64_32BitGeneralRegisters[Rm];
+
+	if((option & 1) == 1)
+		_Rm = ARM64_GeneralRegisters[Rm];
+	
+	int extended = option != 3 ? 1 : 0;
+	const char *extend = NULL;
+
+	if(extended)
+		extend = decode_reg_extend(option);
+	
+	const char **instr_tbl = pre_post_unsigned_register_idx_instr_tbl;
+	
+	unsigned int instr_idx = (size << 3) | (V << 2) | opc;
+	const char *instr = instr_tbl[instr_idx];
+	
+	if(!instr)
+		return strdup(".undefined");
+	
+	int omit_amount = -1;
+
+	disassembled = malloc(128);
+	sprintf(disassembled, "%s %s, [%s, %s", instr, _Rt, _Rn, _Rm);
+	
+	omit_amount = S == 0 ? 1 : 0;
+	
+	if(V == 0){
+		amount = S;
+		
+		if(strcmp(instr, "strb") == 0 || strcmp(instr, "ldrb") == 0 || strcmp(instr, "ldrsb") == 0){
+			if(omit_amount){
+				if(extended)
+					sprintf(disassembled, "%s, %s]", disassembled, extend);
+				else
+					sprintf(disassembled, "%s]", disassembled);
+			}
+			else if(!omit_amount){
+				if(extended)
+					sprintf(disassembled, "%s, %s #%d]", disassembled, extend, amount);
+				else
+					sprintf(disassembled, "%s, lsl #0]", disassembled);
+			}
+
+			return disassembled;
+		}
+		else if(strcmp(instr, "str") == 0 || strcmp(instr, "ldr") == 0){
+			if(_64bit)
+				amount = S == 0 ? 0 : 3;
+			else
+				amount = S == 0 ? 0 : 2;
+		}
+		else if(strcmp(instr, "ldrsw") == 0)
+			amount = S == 0 ? 0 : 2;
+		
+		if(extended){
+			sprintf(disassembled, "%s, %s", disassembled, extend);
+			
+			if(amount != 0)
+				sprintf(disassembled, "%s #%d]", disassembled, amount);
+			else
+				sprintf(disassembled, "%s]", disassembled);
+		}
+		else{
+			if(amount != 0)
+				sprintf(disassembled, "%s, lsl #%d]", disassembled, amount);
+			else
+				sprintf(disassembled, "%s]", disassembled);
+		}
+
+		return disassembled;
+	}
+	else if(V == 1){
+		if(flt_amount == -1){
+			if(omit_amount){
+				if(extended)
+					sprintf(disassembled, "%s, %s]", disassembled, extend);
+				else
+					sprintf(disassembled, "%s]", disassembled);
+			}
+			else if(!omit_amount){
+				if(extended)
+					sprintf(disassembled, "%s, %s #%d]", disassembled, extend, flt_amount);
+				else
+					sprintf(disassembled, "%s, lsl #0]", disassembled);
+			}
+		}
+		else if(extended){
+			sprintf(disassembled, "%s, %s", disassembled, extend);
+
+			if(flt_amount != 0)
+				sprintf(disassembled, "%s #%d]", disassembled, flt_amount);
+			else
+				sprintf(disassembled, "%s]", disassembled);
+		}
+		else if(!extended){
+			if(flt_amount != 0)
+				sprintf(disassembled, "%s, lsl #%d]", disassembled, flt_amount);
+			else
+				sprintf(disassembled, "%s]", disassembled);
+		}
+
+		return disassembled;
+	}
+	
+	return disassembled;
+}
+
 char *LoadsAndStoresDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -1195,9 +1392,12 @@ char *LoadsAndStoresDisassemble(struct instruction *instruction){
 	else if((((op0 >> 1) & 1) == 1 && (op0 & 1) == 1) && (op2 >> 1) == 0 && (op3 >> 5) == 1 && op4 == 0){
 		disassembled = DisassembleAtomicMemoryInstr(instruction);
 	}
+	else if((((op0 >> 1) & 1) == 1 && (op0 & 1) == 1) && (op2 >> 1) == 0 && (op3 >> 5) == 1 && op4 == 2){
+		disassembled = DisassembleLoadAndStoreRegisterOffsetInstr(instruction);
+	}
 	else if((((op0 >> 1) & 1) == 1 && (op0 & 1) == 1) && (op2 >> 1) == 1){
-		printf("*****unsigned immediate\n");
-		//disassembled = DisassembleLoadAndStoreRegisterInstr(instruction, UNSIGNED_IMMEDIATE);
+		//printf("*****unsigned immediate\n");
+		disassembled = DisassembleLoadAndStoreRegisterInstr(instruction, UNSIGNED_IMMEDIATE);
 	}
 	//else if(((op0 & 2) == 2 && (op0 & 1) == 0) && (op2 == 1 || op2 == 2 || op2 == 3)){
 	//	disassembled = DisassembleLoadAndStoreRegisterPairInstr(instruction, op2);

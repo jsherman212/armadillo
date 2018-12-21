@@ -25,6 +25,7 @@ void addinstr(const char *name, unsigned int hex, unsigned long PC){
 int main(int argc, char **argp, const char **envp){
 	instructions = linkedlist_new();
 
+//addinstr("adrp x1, #0x10000a000 @ 0x10000a79c", 0x90000001, 0x10000a79c);
 
 	//addinstr("mov x7, x4", 0xAA0403E7);
 	//addinstr("add x0, x0, x1", 0x8B010000);
@@ -407,7 +408,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ldp x16, x4, [x4, #24]", 0xA9419090, 0);
 	*/
 
-		/*
+/*
 	addinstr("sturb w3, [x5, #255]", 0x380FF0A3, 0);
 	addinstr("sturb w16, [sp]", 0x380003F0, 0);
 	addinstr("sturb w1, [x2, #-4]", 0x381FC041, 0);
@@ -421,14 +422,14 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ldursh w3, [x14, #4]", 0x78C041C3, 0);
 	addinstr("stur x5, [sp]", 0xF80003E5, 0);
 	addinstr("stur w19, [x2, #10]", 0xB800A053, 0);
-//	addinstr("strb w8, [x8]", 0x39000108, 0);
+	addinstr("strb w8, [x8]", 0x39000108, 0);
 	addinstr("strb w2, [x12], #4", 0x38004582, 0);
 	addinstr("strb w13, [x0, #40]!", 0x38028C0D, 0);
-	//addinstr("ldrsb w1, [x5, #4]", 0x39C010A1, 0);
-	//addinstr("str h6, [x0, #34]", 0x7D004406, 0);
-	//addinstr("str x18, [x0, #0x340]", 0xF901A012, 0);
+	addinstr("ldrsb w1, [x5, #4]", 0x39C010A1, 0);
+	addinstr("str h6, [x0, #34]", 0x7D004406, 0);
+	addinstr("str x18, [x0, #0x340]", 0xF901A012, 0);
 	addinstr("ldur s9, [x4, #-0x40]", 0xBC5C0089, 0);
-//	addinstr("ldr x24, [x5, #0x390]", 0xF941C8B8, 0);
+	addinstr("ldr x24, [x5, #0x390]", 0xF941C8B8, 0);
 	addinstr("ldtrsb x0, [x0]", 0x38800800, 0);
 	addinstr("sttr x5, [x3, #0x30]", 0xF8030865, 0);
 	addinstr("ldtrb w9, [x5, #1]", 0x384018A9, 0);
@@ -436,8 +437,13 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ldur b9, [x4, #-0x40]", 0x3C5C0089, 0);
 	addinstr("ldur d9, [x4, #-0x40]", 0xFC5C0089, 0);
 	addinstr("ldur q9, [x4, #-0x40]", 0x3CDC0089, 0);
+	addinstr("ldr x8, [x8, 0x120]", 0xf9409108, 0);
+	addinstr("stp x29, x30, [sp, 0x70]", 0xa9077bfd, 0);
+	addinstr("str w12, [x13, 0x1c]", 0xb9001dac, 0);
+	addinstr("stur w8, [x29, -0x64]", 0xb819c3a8, 0);
+	addinstr("str wzr, [x8, 0xc]", 0xb9000d1f, 0);
 */
-
+		/*
 	addinstr("ldaddab w9, w10, [x4]", 0x38a9008a, 0);
 	addinstr("swpalh w5, w2, [sp]", 0x78e583e2, 0);
 	addinstr("ldclr w20, w21, [x6]", 0xb83410d5, 0);
@@ -445,6 +451,27 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ldapr w5, [sp]", 0xb8bfc3e5, 0);
 	addinstr("ldaprb w19, [x3]", 0x38bfc073, 0);
 	addinstr("ldaprh w1, [x19]", 0x78bfc261, 0);
+*/
+
+	addinstr("strb w4, [x4, w5, sxtw]", 0x3825C884, 0);
+	addinstr("strb w1, [x4, x9, lsl #0]", 0x38297881, 0);
+	addinstr("strb w1, [x4, x9]", 0x38296881, 0);
+	addinstr("ldr b8, [sp, x4, sxtx]", 0x3C64EBE8, 0);
+	addinstr("str h12, [x18, x3, lsl #1]", 0x7C237A4C, 0);
+	addinstr("ldr s24, [sp, w14, sxtw]", 0xBC6ECBF8, 0);
+	addinstr("ldr d16, [x9, w1, uxtw]", 0xFC614930, 0);
+	addinstr("str x15, [x3, x18, lsl #3]", 0xF832786F, 0);
+	addinstr("ldr w3, [x14, x8]", 0xB86869C3, 0);
+	addinstr("ldr x1, [x14, x8, sxtx]", 0xF868E9C1, 0);
+	addinstr("ldrsw x0, [sp, x3, sxtx #2]", 0xB8A3FBE0, 0);
+	addinstr("ldrb w4, [x6, x20, lsl #0]", 0x387478C4, 0);
+	addinstr("str q3, [x6, x4, sxtx #4]", 0x3CA4F8C3, 0);
+	addinstr("str b8, [x15, x1, lsl #0]", 0x3C2179E8, 0);
+	addinstr("str b13, [x0, x20]", 0x3C34680D, 0);
+	
+	
+	//addinstr("ldnp d1, d27, [x19, -0x1c0]", 0x6c646e61, 0);
+	
 
 	struct node_t *current = instructions->front;
 
@@ -452,7 +479,7 @@ int main(int argc, char **argp, const char **envp){
 		struct testinstr *ti = (struct testinstr *)current->data;
 		printf("Disassembling %s (aka 0x%08x)... ", ti->name, ti->hex);
 		struct instruction *i = instruction_new(ti->hex, ti->PC);
-		char *ret = ArmadilloDisassemble(i);
+		char *ret = _ArmadilloDisassemble(i);
 		//printf("ret = %p\n", ret);
 		instruction_free(i);
 		printf("Disassembled: %s\n\n", ret);
