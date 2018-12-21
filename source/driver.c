@@ -395,6 +395,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ldrsw x18, #0x78 @ 0x100007f20", 0x980003d2, 0x100007f20);
 */
 
+	/*
 	addinstr("stnp x2, x1, [x24, #-304]", 0xA82D0702, 0);
 	addinstr("stnp w5, w2, [sp]", 0x28000BE5, 0);
 	addinstr("ldnp q2, q3, [x3, #992]", 0xAC5F0C62, 0);
@@ -404,7 +405,46 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("stp d7, d22, [sp, #208]!", 0x6D8D5BE7, 0);
 	addinstr("stp d7, d22, [sp, #-208]!", 0x6DB35BE7, 0);
 	addinstr("ldp x16, x4, [x4, #24]", 0xA9419090, 0);
+	*/
 
+		/*
+	addinstr("sturb w3, [x5, #255]", 0x380FF0A3, 0);
+	addinstr("sturb w16, [sp]", 0x380003F0, 0);
+	addinstr("sturb w1, [x2, #-4]", 0x381FC041, 0);
+	addinstr("ldursb w6, [x10]", 0x38C00146, 0);
+	addinstr("ldursb w22, [x9, #26]", 0x38C1A136, 0);
+	addinstr("stur h4, [x5]", 0x7C0000A4, 0);
+	addinstr("stur s13, [sp]", 0xBC0003ED, 0);
+	addinstr("stur d22, [x1, #4]", 0xFC004036, 0);
+	addinstr("stur q3, [x12, #-40]", 0x3C9D8183, 0);
+	addinstr("ldursw x0, [x4]", 0xB8800080, 0);
+	addinstr("ldursh w3, [x14, #4]", 0x78C041C3, 0);
+	addinstr("stur x5, [sp]", 0xF80003E5, 0);
+	addinstr("stur w19, [x2, #10]", 0xB800A053, 0);
+//	addinstr("strb w8, [x8]", 0x39000108, 0);
+	addinstr("strb w2, [x12], #4", 0x38004582, 0);
+	addinstr("strb w13, [x0, #40]!", 0x38028C0D, 0);
+	//addinstr("ldrsb w1, [x5, #4]", 0x39C010A1, 0);
+	//addinstr("str h6, [x0, #34]", 0x7D004406, 0);
+	//addinstr("str x18, [x0, #0x340]", 0xF901A012, 0);
+	addinstr("ldur s9, [x4, #-0x40]", 0xBC5C0089, 0);
+//	addinstr("ldr x24, [x5, #0x390]", 0xF941C8B8, 0);
+	addinstr("ldtrsb x0, [x0]", 0x38800800, 0);
+	addinstr("sttr x5, [x3, #0x30]", 0xF8030865, 0);
+	addinstr("ldtrb w9, [x5, #1]", 0x384018A9, 0);
+	addinstr("ldur h9, [x4, #-0x40]", 0x7C5C0089, 0);
+	addinstr("ldur b9, [x4, #-0x40]", 0x3C5C0089, 0);
+	addinstr("ldur d9, [x4, #-0x40]", 0xFC5C0089, 0);
+	addinstr("ldur q9, [x4, #-0x40]", 0x3CDC0089, 0);
+*/
+
+	addinstr("ldaddab w9, w10, [x4]", 0x38a9008a, 0);
+	addinstr("swpalh w5, w2, [sp]", 0x78e583e2, 0);
+	addinstr("ldclr w20, w21, [x6]", 0xb83410d5, 0);
+	addinstr("swpl x5, x4, [x21]", 0xf86582a4, 0);
+	addinstr("ldapr w5, [sp]", 0xb8bfc3e5, 0);
+	addinstr("ldaprb w19, [x3]", 0x38bfc073, 0);
+	addinstr("ldaprh w1, [x19]", 0x78bfc261, 0);
 
 	struct node_t *current = instructions->front;
 

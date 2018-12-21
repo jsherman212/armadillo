@@ -727,6 +727,435 @@ char *DisassembleLoadAndStoreRegisterPairInstr(struct instruction *instruction, 
 	return disassembled;
 }
 
+char *DisassembleLoadAndStoreRegisterInstr(struct instruction *instruction, int kind){
+	char *disassembled = NULL;
+
+	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	int imm9 = getbitsinrange(instruction->hex, 12, 9);
+	unsigned int opc = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int V = getbitsinrange(instruction->hex, 26, 1);
+	unsigned int size = getbitsinrange(instruction->hex, 30, 2);
+
+	const char **registers = ARM64_32BitGeneralRegisters;
+
+	if(V == 0 && (opc == 2 || size == 3))
+		registers = ARM64_GeneralRegisters;
+	else if(V == 1){
+		if(size == 0 && (opc == 0 || opc == 1))
+			registers = ARM64_VectorBRegisters;
+		else if(size == 0 && (opc == 2 || opc == 3))
+			registers = ARM64_VectorQRegisters;
+		else if(size == 1 && (opc == 0 || opc == 1))
+			registers = ARM64_VectorHalfPrecisionRegisters;
+		else if(size == 2 && (opc == 0 || opc == 1))
+			registers = ARM64_VectorSinglePrecisionRegisters;
+		else if(size == 3 && (opc == 0 || opc == 1))
+			registers = ARM64_VectorDoublePrecisionRegisters;
+	}
+
+	const char **instr_tbl = unscaled_instr_tbl;
+
+	if(kind == IMMEDIATE_POST_INDEXED || kind == IMMEDIATE_PRE_INDEXED)
+		instr_tbl = pre_post_idx_instr_tbl;
+	else if(kind == UNPRIVILEGED)
+		instr_tbl = unprivileged_instr_tbl;
+
+	unsigned int instr_idx = (size << 3) | (V << 2) | opc;
+	
+	const char *instr = instr_tbl[instr_idx];
+
+	if(!instr)
+		return strdup(".undefined");
+
+	imm9 = sign_extend(imm9, 9);
+
+	disassembled = malloc(128);
+	
+	const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+
+	if(strcmp(instr, "prfm") == 0){
+		const char *types[] = {"PLD", "PLI", "PST"};
+		const char *targets[] = {"L1", "L2", "L3"};
+		const char *policies[] = {"KEEP", "STRM"};
+
+		unsigned int type = getbitsinrange(Rt, 3, 1);
+		unsigned int target = getbitsinrange(Rt, 1, 1);
+		unsigned int policy = Rt & 1;
+
+		if(type > 2 || target > 2 || policy > 1)
+			sprintf(disassembled, "%s #%#x, #%#lx", instr, Rt, imm9 + instruction->PC);
+		else
+			sprintf(disassembled, "%s %s%s%s, #%#lx", instr, types[type], targets[target], policies[policy], imm9 + instruction->PC);
+
+		return disassembled;
+	}
+
+	sprintf(disassembled, "%s %s, [%s", instr, registers[Rt], _Rn);
+	
+	if(kind == UNSCALED_IMMEDIATE || kind == UNPRIVILEGED){
+		if(imm9 == 0)
+			sprintf(disassembled, "%s]", disassembled);
+		else
+			sprintf(disassembled, "%s, #%#x]", disassembled, imm9);
+	}
+	else if(kind == IMMEDIATE_POST_INDEXED)
+		sprintf(disassembled, "%s], #%#x", disassembled, imm9);
+	else if(kind == IMMEDIATE_PRE_INDEXED)
+		sprintf(disassembled, "%s, #%#x]!", disassembled, imm9);
+	
+	return disassembled;
+}
+
+char *get_atomic_memory_instr(unsigned int size, unsigned int V, unsigned int A, unsigned int R, unsigned int o3, unsigned int opc){
+	unsigned int encoding = size << 7;
+	encoding |= V << 6;
+	encoding |= A << 5;
+	encoding |= R << 4;
+	encoding |= o3 << 3;
+	encoding |= opc;
+
+	// auto generated
+	// [a-zA-Z0-9]+(?=\s?variant)
+	switch(encoding){
+	case 0x0:
+		return "ldaddb";
+	case 0x1:
+		return "ldclrb";
+	case 0x2:
+		return "ldeorb";
+	case 0x3:
+		return "ldsetb";
+	case 0x4:
+		return "ldsmaxb";
+	case 0x5:
+		return "ldsminb";
+	case 0x6:
+		return "ldumaxb";
+	case 0x7:
+		return "lduminb";
+	case 0x8:
+		return "swpb";
+	case 0x10:
+		return "ldaddlb";
+	case 0x11:
+		return "ldclrlb";
+	case 0x12:
+		return "ldeorlb";
+	case 0x13:
+		return "ldsetlb";
+	case 0x14:
+		return "ldsmaxlb";
+	case 0x15:
+		return "ldsminlb";
+	case 0x16:
+		return "ldumaxlb";
+	case 0x17:
+		return "lduminlb";
+	case 0x18:
+		return "swplb";
+	case 0x20:
+		return "ldaddab";
+	case 0x21:
+		return "ldclrab";
+	case 0x22:
+		return "ldeorab";
+	case 0x23:
+		return "ldsetab";
+	case 0x24:
+		return "ldsmaxab";
+	case 0x25:
+		return "ldsminab";
+	case 0x26:
+		return "ldumaxab";
+	case 0x27:
+		return "lduminab";
+	case 0x28:
+		return "swpab";
+	case 0x2c:
+		return "ldaprb";
+	case 0x30:
+		return "ldaddalb";
+	case 0x31:
+		return "ldclralb";
+	case 0x32:
+		return "ldeoralb";
+	case 0x33:
+		return "ldsetalb";
+	case 0x34:
+		return "ldsmaxalb";
+	case 0x35:
+		return "ldsminalb";
+	case 0x36:
+		return "ldumaxalb";
+	case 0x37:
+		return "lduminalb";
+	case 0x38:
+		return "swpalb";
+	case 0x80:
+		return "ldaddh";
+	case 0x81:
+		return "ldclrh";
+	case 0x82:
+		return "ldeorh";
+	case 0x83:
+		return "ldseth";
+	case 0x84:
+		return "ldsmaxh";
+	case 0x85:
+		return "ldsminh";
+	case 0x86:
+		return "ldumaxh";
+	case 0x87:
+		return "lduminh";
+	case 0x88:
+		return "swph";
+	case 0x90:
+		return "ldaddlh";
+	case 0x91:
+		return "ldclrlh";
+	case 0x92:
+		return "ldeorlh";
+	case 0x93:
+		return "ldsetlh";
+	case 0x94:
+		return "ldsmaxlh";
+	case 0x95:
+		return "ldsminlh";
+	case 0x96:
+		return "ldumaxlh";
+	case 0x97:
+		return "lduminlh";
+	case 0x98:
+		return "swplh";
+	case 0xa0:
+		return "ldaddah";
+	case 0xa1:
+		return "ldclrah";
+	case 0xa2:
+		return "ldeorah";
+	case 0xa3:
+		return "ldsetah";
+	case 0xa4:
+		return "ldsmaxah";
+	case 0xa5:
+		return "ldsminah";
+	case 0xa6:
+		return "ldumaxah";
+	case 0xa7:
+		return "lduminah";
+	case 0xa8:
+		return "swpah";
+	case 0xac:
+		return "ldaprh";
+	case 0xb0:
+		return "ldaddalh";
+	case 0xb1:
+		return "ldclralh";
+	case 0xb2:
+		return "ldeoralh";
+	case 0xb3:
+		return "ldsetalh";
+	case 0xb4:
+		return "ldsmaxalh";
+	case 0xb5:
+		return "ldsminalh";
+	case 0xb6:
+		return "ldumaxalh";
+	case 0xb7:
+		return "lduminalh";
+	case 0xb8:
+		return "swpalh";
+	case 0x100:
+		return "ldadd";
+	case 0x101:
+		return "ldclr";
+	case 0x102:
+		return "ldeor";
+	case 0x103:
+		return "ldset";
+	case 0x104:
+		return "ldsmax";
+	case 0x105:
+		return "ldsmin";
+	case 0x106:
+		return "ldumax";
+	case 0x107:
+		return "ldumin";
+	case 0x108:
+		return "swp";
+	case 0x110:
+		return "ldaddl";
+	case 0x111:
+		return "ldclrl";
+	case 0x112:
+		return "ldeorl";
+	case 0x113:
+		return "ldsetl";
+	case 0x114:
+		return "ldsmaxl";
+	case 0x115:
+		return "ldsminl";
+	case 0x116:
+		return "ldumaxl";
+	case 0x117:
+		return "lduminl";
+	case 0x118:
+		return "swpl";
+	case 0x120:
+		return "ldadda";
+	case 0x121:
+		return "ldclra";
+	case 0x122:
+		return "ldeora";
+	case 0x123:
+		return "ldseta";
+	case 0x124:
+		return "ldsmaxa";
+	case 0x125:
+		return "ldsmina";
+	case 0x126:
+		return "ldumaxa";
+	case 0x127:
+		return "ldumina";
+	case 0x128:
+		return "swpa";
+	case 0x12c:
+		return "ldapr";
+	case 0x130:
+		return "ldaddal";
+	case 0x131:
+		return "ldclral";
+	case 0x132:
+		return "ldeoral";
+	case 0x133:
+		return "ldsetal";
+	case 0x134:
+		return "ldsmaxal";
+	case 0x135:
+		return "ldsminal";
+	case 0x136:
+		return "ldumaxal";
+	case 0x137:
+		return "lduminal";
+	case 0x138:
+		return "swpal";
+	case 0x180:
+		return "ldadd";
+	case 0x181:
+		return "ldclr";
+	case 0x182:
+		return "ldeor";
+	case 0x183:
+		return "ldset";
+	case 0x184:
+		return "ldsmax";
+	case 0x185:
+		return "ldsmin";
+	case 0x186:
+		return "ldumax";
+	case 0x187:
+		return "ldumin";
+	case 0x188:
+		return "swp";
+	case 0x190:
+		return "ldaddl";
+	case 0x191:
+		return "ldclrl";
+	case 0x192:
+		return "ldeorl";
+	case 0x193:
+		return "ldsetl";
+	case 0x194:
+		return "ldsmaxl";
+	case 0x195:
+		return "ldsminl";
+	case 0x196:
+		return "ldumaxl";
+	case 0x197:
+		return "lduminl";
+	case 0x198:
+		return "swpl";
+	case 0x1a0:
+		return "ldadda";
+	case 0x1a1:
+		return "ldclra";
+	case 0x1a2:
+		return "ldeora";
+	case 0x1a3:
+		return "ldseta";
+	case 0x1a4:
+		return "ldsmaxa";
+	case 0x1a5:
+		return "ldsmina";
+	case 0x1a6:
+		return "ldumaxa";
+	case 0x1a7:
+		return "ldumina";
+	case 0x1a8:
+		return "swpa";
+	case 0x1ac:
+		return "ldapr";
+	case 0x1b0:
+		return "ldaddal";
+	case 0x1b1:
+		return "ldclral";
+	case 0x1b2:
+		return "ldeoral";
+	case 0x1b3:
+		return "ldsetal";
+	case 0x1b4:
+		return "ldsmaxal";
+	case 0x1b5:
+		return "ldsminal";
+	case 0x1b6:
+		return "ldumaxal";
+	case 0x1b7:
+		return "lduminal";
+	case 0x1b8:
+		return "swpal";
+	default:
+		return NULL;
+	};
+}
+
+char *DisassembleAtomicMemoryInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int opc = getbitsinrange(instruction->hex, 12, 3);
+	unsigned int o3 = getbitsinrange(instruction->hex, 15, 1);
+	unsigned int Rs = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int R = getbitsinrange(instruction->hex, 22, 1);
+	unsigned int A = getbitsinrange(instruction->hex, 23, 1);
+	unsigned int V = getbitsinrange(instruction->hex, 26, 1);
+	unsigned int size = getbitsinrange(instruction->hex, 30, 2);
+
+	const char *instr = get_atomic_memory_instr(size, V, A, R, o3, opc);
+	
+	if(!instr)
+		return strdup(".undefined");
+	
+	const char **registers = ARM64_32BitGeneralRegisters;
+
+	if(size == 3)
+		registers = ARM64_GeneralRegisters;
+
+	const char *_Rs = registers[Rs];
+	const char *_Rt = registers[Rt];
+	const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+	
+	disassembled = malloc(128);
+
+	if(strcmp(instr, "ldapr") != 0 && strcmp(instr, "ldaprb") != 0 && strcmp(instr, "ldaprh") != 0)
+		sprintf(disassembled, "%s %s, %s, [%s]", instr, _Rs, _Rt, _Rn);
+	else
+		sprintf(disassembled, "%s %s, [%s]", instr, _Rt, _Rn);
+	
+	return disassembled;
+}
+
 char *LoadsAndStoresDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -736,31 +1165,39 @@ char *LoadsAndStoresDisassemble(struct instruction *instruction){
 	unsigned int op3 = getbitsinrange(instruction->hex, 16, 6);
 	unsigned int op4 = getbitsinrange(instruction->hex, 10, 2);
 
-	/*
-	print_bin(op0, 4);
-	print_bin(op1, 1);
-	print_bin(op2, 2);
-	print_bin(op3, 6);
-	print_bin(op4, 2);
+	
+	//print_bin(op0, 4);
+	//print_bin(op1, 1);
+	//print_bin(op2, 2);
+	//print_bin(op3, 6);
+	//print_bin(op4, 2);
 
-	print_bin(op0 & 2, 1);
-	print_bin(op0 & 1, 1);
-	*/
+	//print_bin(op0 & 2, 1);
+	//print_bin(op0 & 1, 1);
+	
+	//print_bin((op0 >> 1) & 1, 1);
+	//print_bin(op0 & 1, 1);
+	//print_bin(op2 >> 1, 1);
 
-	if(((op0 & 1) == 0 && (op0 & 2) == 0 && (op0 & 8) == 0) && op1 == 1 && (op2 == 0 || op2 == 1) && (op3 >> 5) == 0){
+	if(((op0 & 1) == 0 && (op0 & 2) == 0 && (op0 & 8) == 0) && op1 == 1 && (op2 == 0 || op2 == 1) && (op3 >> 5) == 0)
 		disassembled = DisassembleLoadStoreMultStructuresInstr(instruction, op2);
-	}
-	else if((((op0 & 1) == 0 && (op0 & 2) == 0 && (op0 & 8) == 0) && op1 == 1 && (op2 == 2 || op2 == 3))){
+	else if((((op0 & 1) == 0 && (op0 & 2) == 0 && (op0 & 8) == 0) && op1 == 1 && (op2 == 2 || op2 == 3)))
 		disassembled = DisassembleLoadStoreSingleStructuresInstr(instruction, op2 == 2 ? 0 : 1);
-	}
-	else if(((op0 & 1) == 0 && (op0 & 2) == 0) && op1 == 0 && (op2 >> 1) == 0){
+	else if(((op0 & 1) == 0 && (op0 & 2) == 0) && op1 == 0 && (op2 >> 1) == 0)
 		disassembled = DisassembleLoadAndStoreExclusiveInstr(instruction);
-	}
-	else if(((op0 & 2) == 0 && (op0 & 1) == 1) && (op2 >> 1) == 0){
+	else if(((op0 & 2) == 0 && (op0 & 1) == 1) && (op2 >> 1) == 0)
 		disassembled = DisassembleLoadAndStoreLiteralInstr(instruction);
-	}
-	else if(((op0 & 2) == 2 && (op0 & 1) == 0) && (op2 >= 0 && op2 <= 3)){
+	else if(((op0 & 2) == 2 && (op0 & 1) == 0) && (op2 >= 0 && op2 <= 3))
 		disassembled = DisassembleLoadAndStoreRegisterPairInstr(instruction, op2);	
+	else if((((op0 >> 1) & 1) == 1 && (op0 & 1) == 1) && (op2 >> 1) == 0 && (op3 >> 5) == 0 && (op4 >= 0 && op4 <= 3)){
+		disassembled = DisassembleLoadAndStoreRegisterInstr(instruction, op4);
+	}
+	else if((((op0 >> 1) & 1) == 1 && (op0 & 1) == 1) && (op2 >> 1) == 0 && (op3 >> 5) == 1 && op4 == 0){
+		disassembled = DisassembleAtomicMemoryInstr(instruction);
+	}
+	else if((((op0 >> 1) & 1) == 1 && (op0 & 1) == 1) && (op2 >> 1) == 1){
+		printf("*****unsigned immediate\n");
+		//disassembled = DisassembleLoadAndStoreRegisterInstr(instruction, UNSIGNED_IMMEDIATE);
 	}
 	//else if(((op0 & 2) == 2 && (op0 & 1) == 0) && (op2 == 1 || op2 == 2 || op2 == 3)){
 	//	disassembled = DisassembleLoadAndStoreRegisterPairInstr(instruction, op2);
