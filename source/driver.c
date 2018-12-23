@@ -526,7 +526,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("subs xzr, x14, x2", 0xEB0201DF, 0);
 	addinstr("subs x27, xzr, x1, lsr #44", 0xEB41B3FB, 0);
 */
-	addinstr("add x4, sp, w3, lsl #0", 0x8B2363E4, 0);
+	/*addinstr("add x4, sp, w3, lsl #0", 0x8B2363E4, 0);
 	addinstr("add wsp, w4, w2, uxth #4", 0x0B22309F, 0);
 	addinstr("add x21, x4, w2, sxtb #2", 0x8B228895, 0);
 	// should simplify to add sp, x4, x5
@@ -545,7 +545,11 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("subs xzr, x3, x12, lsl #0", 0xEB0C007F, 0);
 	addinstr("subs xzr, x3, x12, lsl #3", 0xEB0C0C7F, 0);
 	addinstr("sub x4, sp, w3, lsl #0", 0xCB2363E4, 0);
-	
+	*/
+
+	addinstr("sbcs x4, xzr, x5", 0xFA0503E4, 0);
+	addinstr("adc w3, w2, w1", 0x1A010043, 0);
+	addinstr("sbcs x4, x14, x3", 0xFA0301C4, 0);
 
 	struct node_t *current = instructions->front;
 

@@ -330,6 +330,50 @@ char *DisassembleAddSubtractShiftedOrExtendedInstr(struct instruction *instructi
 	return disassembled;
 }
 
+char *DisassembleAddSubtractCarryInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int S = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int op = getbitsinrange(instruction->hex, 30, 1);
+	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
+
+	const char **registers = ARM64_32BitGeneralRegisters;
+
+	if(sf == 1)
+		registers = ARM64_GeneralRegisters;
+
+	unsigned int encoding = (sf << 2) | (op << 1) | S;
+
+	const char *instr_tbl[] = {"adc", "adcs", "sdc", "sdcs"};
+	const char *instr = NULL;
+
+	if(sf == 0)
+		instr = instr_tbl[encoding];
+	else
+		instr = instr_tbl[encoding - 4];
+
+	const char *_Rd = registers[Rd];
+	const char *_Rn = registers[Rn];
+	const char *_Rm = registers[Rm];
+
+	disassembled = malloc(128);
+
+	if(strcmp(instr, "sdc") == 0 && Rn == 0x1f)
+		sprintf(disassembled, "ngc %s, %s", _Rd, _Rm);
+	else if(strcmp(instr, "sdcs") == 0 && Rn == 0x1f)
+		sprintf(disassembled, "ngcs %s, %s", _Rd, _Rm);
+	else
+		sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
+
+	if(!disassembled)
+		return strdup(".unknown");
+
+	return disassembled;
+}
+
 char *DataProcessingRegisterDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -351,6 +395,9 @@ char *DataProcessingRegisterDisassemble(struct instruction *instruction){
 	}
 	else if((op2 & 8) == 8 && ((op2 & 1) == 1 || (op2 & 1) == 0) && op1 == 0){
 		disassembled = DisassembleAddSubtractShiftedOrExtendedInstr(instruction, (op2 & 1));
+	}
+	else if(op1 == 1 && op2 == 0 && op3 == 0){
+		disassembled = DisassembleAddSubtractCarryInstr(instruction);
 	}
 	else
 		return strdup(".undefined");
