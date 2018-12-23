@@ -374,6 +374,27 @@ char *DisassembleAddSubtractCarryInstr(struct instruction *instruction){
 	return disassembled;
 }
 
+char *DisassembleRotateRightIntoFlagsInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+	
+	unsigned int mask = getbitsinrange(instruction->hex, 0, 4);
+	unsigned int o2 = getbitsinrange(instruction->hex, 4, 1);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int imm6 = getbitsinrange(instruction->hex, 15, 6);
+	unsigned int S = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int op = getbitsinrange(instruction->hex, 30, 1);
+	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
+
+	disassembled = malloc(128);
+
+	if(sf == 1 && op == 0 && S == 1 && o2 == 0){
+		sprintf(disassembled, "rmif %s, #%#x, #%d", ARM64_GeneralRegisters[Rn], imm6, mask);
+		return disassembled;
+	}
+	else
+		return strdup(".undefined");
+}
+
 char *DataProcessingRegisterDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -398,6 +419,9 @@ char *DataProcessingRegisterDisassemble(struct instruction *instruction){
 	}
 	else if(op1 == 1 && op2 == 0 && op3 == 0){
 		disassembled = DisassembleAddSubtractCarryInstr(instruction);
+	}
+	else if(op1 == 1 && op2 == 0 && ((op3 & ~0x20) == 1)){
+		disassembled = DisassembleRotateRightIntoFlagsInstr(instruction);
 	}
 	else
 		return strdup(".undefined");
