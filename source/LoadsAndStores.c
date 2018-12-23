@@ -1388,7 +1388,9 @@ char *DisassembleLoadAndStorePACInstr(struct instruction *instruction){
 	disassembled = malloc(128);
 
 	sprintf(disassembled, "%s %s, [%s, #%#x]%s", instr, _Rt, _Rn, S10, W == 1 ? "!" : "");
-	
+
+	free(instr);	
+
 	return disassembled;
 }
 

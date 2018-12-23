@@ -32,6 +32,8 @@ char *_ArmadilloDisassemble(struct instruction *instr){
 	//printf("DataProcessingFloatMask: ");
 	//print_bin(DataProcessingFloatMask);
 
+	//print_bin((op0 & ~0x8), 4);
+
 	if(op0 == 0)
 		return strdup(".undefined");
 	if((op0 >> 1) == DataProcessingImmediateMask){
@@ -48,9 +50,9 @@ char *_ArmadilloDisassemble(struct instruction *instr){
 		//printf("***LoadsAndStoresMask\n");
 		disassembled = LoadsAndStoresDisassemble(instr);
 	}
-	else if(op0 == (op0 & DataProcessingRegisterMask)){
-		printf("***DataProcessingRegister\n");
-
+	else if((op0 & ~0x8) == 5){//== (op0 & DataProcessingRegisterMask)){
+		//printf("***DataProcessingRegister\n");
+		disassembled = DataProcessingRegisterDisassemble(instr);
 	}
 	else if(op0 == (op0 & DataProcessingFloatMask)){
 		printf("***DataProcessingFloatMask\n");

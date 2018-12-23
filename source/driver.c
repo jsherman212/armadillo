@@ -471,13 +471,18 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("str b13, [x0, x20]", 0x3C34680D, 0);
 	*/
 
-	addinstr("ldraa x9, [x2, #0x308]", 0xf8261449, 0);
+	/*addinstr("ldraa x9, [x2, #0x308]", 0xf8261449, 0);
 	addinstr("ldraa x21, [sp, #-0x8]!", 0xf87ffff5, 0);
 	addinstr("ldrab x1, [x5, #0xa0]", 0xf8a144a1, 0);
 	addinstr("ldrab x14, [x19, #0x10]!", 0xf8a02e6e, 0);
-	
+	*/
 	//addinstr("ldnp d1, d27, [x19, -0x1c0]", 0x6c646e61, 0);
 	
+	addinstr("pacga x4, x2, x20", 0x9ad43044, 0);
+	addinstr("crc32cw w4, w2, w4", 0x1AC45844, 0);
+	addinstr("pacga x13, x22, sp", 0x9adf32cd, 0);
+	addinstr("rorv x3, x1, x20", 0x9AD42C23, 0);
+	addinstr("sdiv w1, w2, w3", 0x1AC30C41, 0);
 
 	struct node_t *current = instructions->front;
 
@@ -496,32 +501,5 @@ int main(int argc, char **argp, const char **envp){
 
 	linkedlist_free(instructions);
 
-	/*unsigned int instrs[] = { 0xAA0403E7, 0x8B010000, 0x9103F800, 0x91600000, 0xB103F800, 0x1103F800, 0x1143F800, 0x110003E3, 0xAA1C03E7, 0x10020017, 0x10FE0017, 0xB0001A24, 0xB0FFDDF5, 0x9000003E, 0x90FFFFFE, 0x3000002F, 0x70FFFFC3 };
-	const char *instrstrs[] = { "mov x7, x4", 
-								"add x0, x0, x1",
-								"add x0, x0, #0xfe",
-								"add x0, x0, #8388608",
-								"adds x0, x0, #0xfe",
-								"add w0, w0, #0xfe",
-								"add w0, w0, #0xfe, lsl #12",
-								"add w3, wsp, #0",
-								"mov x7, x28",
-								"adr x23, 0x4000",
-								"adr x23, -0x4000",
-								"adrp x4, 0x345000",
-   								"adrp x21, -0x443000",
-								"adrp x30, 0x4000",
-								"adrp x30, -0x4000",
-								"adr x15, 0x5",
-								"adr x3, -0x5"
-	};
-
-	for(int i=0; i<sizeof(instrs)/sizeof(unsigned int); i++){
-		printf("Disassembling %s (aka %#x)... ", instrstrs[i], instrs[i]);
-		char *ret = disassemble(instrs[i]);
-		printf("Disassembled: %s\n\n", ret);
-		free(ret);
-	}
-	*/
 	return 0;
 }

@@ -7,10 +7,11 @@
 #include <unistd.h>
 
 #include "bits.h"
+#include "instruction.h"
 #include "DataProcessingImmediate.h"
 #include "BranchExcSys.h"
 #include "LoadsAndStores.h"
-#include "instruction.h"
+#include "DataProcessingRegister.h"
 
 // client calls this
 char *ArmadilloDisassemble(unsigned int hex, unsigned long PC);
