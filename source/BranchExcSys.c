@@ -152,7 +152,6 @@ char *DisassembleHintInstr(struct instruction *instruction){
 		sprintf(disassembled, "hint #%#x", (CRm << 4) | op2);
 	}
 
-
 	if(!disassembled)
 		return strdup(".unknown");
 

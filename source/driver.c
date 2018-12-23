@@ -478,11 +478,29 @@ int main(int argc, char **argp, const char **envp){
 	*/
 	//addinstr("ldnp d1, d27, [x19, -0x1c0]", 0x6c646e61, 0);
 	
-	addinstr("pacga x4, x2, x20", 0x9ad43044, 0);
+	/*addinstr("pacga x4, x2, x20", 0x9ad43044, 0);
 	addinstr("crc32cw w4, w2, w4", 0x1AC45844, 0);
 	addinstr("pacga x13, x22, sp", 0x9adf32cd, 0);
 	addinstr("rorv x3, x1, x20", 0x9AD42C23, 0);
 	addinstr("sdiv w1, w2, w3", 0x1AC30C41, 0);
+*/
+
+	addinstr("rbit w4, w2", 0x5AC00044, 0);
+	addinstr("cls w13, w1", 0x5AC0142D, 0);
+	addinstr("rev32 x4, x3", 0xDAC00864, 0);
+	addinstr("rev w2, w3", 0x5AC00862, 0);
+	addinstr("rev16 x20, x10", 0xDAC00554, 0);
+	addinstr("rev x3, x6", 0xDAC00CC3, 0);
+	addinstr("pacia x5, sp", 0xdac103e5, 0);
+	addinstr("pacdb x13, x4", 0xdac10c8d, 0);
+	addinstr("autib x11, x0", 0xdac1140b, 0);
+	addinstr("autdb x0, sp", 0xdac11fe0, 0);
+	addinstr("paciza xzr", 0xdac123ff, 0);
+	addinstr("pacdzb x4", 0xdac12fe4, 0);
+	addinstr("xpaci x9", 0xdac143e9, 0);
+	addinstr("autdza x22", 0xdac13bf6, 0);
+
+
 
 	struct node_t *current = instructions->front;
 

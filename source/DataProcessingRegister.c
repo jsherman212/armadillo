@@ -45,6 +45,68 @@ char *DisassembleDataProcessingTwoSourceInstr(struct instruction *instruction){
 	return disassembled;
 }
 
+char *DisassembleDataProcessingOneSourceInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+	
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int opcode = getbitsinrange(instruction->hex, 10, 6);
+	unsigned int opcode2 = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int S = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
+
+	const char **registers = ARM64_32BitGeneralRegisters;
+
+	if(sf == 1)
+		registers = ARM64_GeneralRegisters;
+
+	const char *_Rd = registers[Rd];
+	const char *_Rn = NULL;
+
+	if(opcode2 == 1 && opcode < 8)
+		_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+	else
+		_Rn = registers[Rn];
+
+	if(opcode2 == 0){
+		const char *instr_tbl[] = {"rbit", "rev16", "rev", NULL, "clz", "cls"};
+		const char *instr = instr_tbl[opcode];
+
+		if(opcode == 2 && sf == 1)
+			instr = "rev32";
+		else if(opcode == 3 && sf == 1)
+			instr = "rev";
+
+		if(!instr)
+			return strdup(".undefined");
+
+		disassembled = malloc(128);
+		sprintf(disassembled, "%s %s, %s", instr, _Rd, _Rn);
+	}
+	else if(opcode2 == 1 && opcode < 8){
+		const char *instr_tbl[] = {"pacia", "pacib", "pacda", "pacdb", "autia", "autib", "autda", "autdb"};
+		const char *instr = instr_tbl[opcode];
+
+		disassembled = malloc(128);
+		sprintf(disassembled, "%s %s, %s", instr, _Rd, _Rn);
+	}
+	else if(opcode2 == 1 && opcode >= 8 && Rn == 0x1f){
+		// sub 8 to prevent an annoying row of NULL
+		opcode -= 8;
+
+		const char *instr_tbl[] = {"paciza", "pacizb", "pacdza", "pacdzb", "autiza", "autizb", "autdza", "autdzb", "xpaci", "xpacd"};
+		const char *instr = instr_tbl[opcode];
+
+		disassembled = malloc(128);
+		sprintf(disassembled, "%s %s", instr, _Rd);
+	}
+
+	if(!disassembled)
+		return strdup(".unknown");
+	
+	return disassembled;
+}
+
 char *DataProcessingRegisterDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -57,6 +119,9 @@ char *DataProcessingRegisterDisassemble(struct instruction *instruction){
 
 	if(op0 == 0 && op1 == 1 && op2 == 6){
 		disassembled = DisassembleDataProcessingTwoSourceInstr(instruction);
+	}
+	else if(op0 == 1 && op1 == 1 && op2 == 6){
+		disassembled = DisassembleDataProcessingOneSourceInstr(instruction);
 	}
 	else
 		return strdup(".undefined");
