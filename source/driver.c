@@ -547,10 +547,18 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("sub x4, sp, w3, lsl #0", 0xCB2363E4, 0);
 	*/
 
+		/*
 	addinstr("sbcs x4, xzr, x5", 0xFA0503E4, 0);
 	addinstr("adc w3, w2, w1", 0x1A010043, 0);
 	addinstr("sbcs x4, x14, x3", 0xFA0301C4, 0);
+*/
 
+
+	addinstr("ccmn x4, x2, #4, ne", 0xBA421084, 0);
+	addinstr("ccmp w1, w2, #13, pl", 0x7A42502D, 0);
+	addinstr("ccmn x12, #3, #4, eq", 0xBA430984, 0);
+	addinstr("ccmp w1, #15, #0, cc", 0x7A4F3820, 0);
+	
 	struct node_t *current = instructions->front;
 
 	while(current){

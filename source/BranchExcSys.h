@@ -5,12 +5,6 @@
 #include "instruction.h"
 #include "utils.h"
 
-static const char *cond_table[] = { 
-	"eq,ne", "cs,cc", "mi,pl", "vs,vc",
-	"hi,ls", "ge,lt", "gt,le", "al"
-};
-
 char *BranchExcSysDisassemble(struct instruction *instruction);
-
 
 #endif

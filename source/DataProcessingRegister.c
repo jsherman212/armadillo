@@ -411,6 +411,53 @@ char *DisassembleEvaluateIntoFlagsInstr(struct instruction *instruction){
 	return disassembled;
 }
 
+char *DisassembleConditionalCompareInstr(struct instruction *instruction, int kind){
+	char *disassembled = NULL;
+	
+	unsigned int nzcv = getbitsinrange(instruction->hex, 0, 4);
+	unsigned int o3 = getbitsinrange(instruction->hex, 4, 1);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int o2 = getbitsinrange(instruction->hex, 10, 1);
+	unsigned int cond = getbitsinrange(instruction->hex, 12, 4);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int imm5 = Rm;
+	unsigned int S = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int op = getbitsinrange(instruction->hex, 30, 1);
+	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
+
+	const char **registers = ARM64_32BitGeneralRegisters;
+
+	if(sf == 1)
+		registers = ARM64_GeneralRegisters;
+
+	unsigned int encoding = (sf << 2) | (op << 1) | S;
+	
+	const char *instr_tbl[] = {NULL, "ccmn", NULL, "ccmp"};
+	const char *instr = NULL;
+
+	if(sf == 0)
+		instr = instr_tbl[encoding];
+	else
+		instr = instr_tbl[encoding - 4];
+
+	disassembled = malloc(128);
+	
+	sprintf(disassembled, "%s %s", instr, registers[Rn]);
+
+	if(kind == REGISTER)
+		sprintf(disassembled, "%s, %s", disassembled, registers[Rm]);
+	else
+		sprintf(disassembled, "%s, #%d", disassembled, imm5);
+
+	char *_cond = decode_cond(cond);
+
+	sprintf(disassembled, "%s, #%d, %s", disassembled, nzcv, _cond);
+
+	free(_cond);
+	
+	return disassembled;
+}
+
 char *DataProcessingRegisterDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -441,6 +488,9 @@ char *DataProcessingRegisterDisassemble(struct instruction *instruction){
 	}
 	else if(op1 == 1 && op2 == 0 && (op2 & ~0x30) == 2){
 		disassembled = DisassembleEvaluateIntoFlagsInstr(instruction);
+	}
+	else if(op1 == 1 && op2 == 2 && (((op3 >> 1) & 1) == 0 || ((op3 >> 1) & 1) == 1)){
+		disassembled = DisassembleConditionalCompareInstr(instruction, ((op3 >> 1) & 1));
 	}
 	else
 		return strdup(".undefined");

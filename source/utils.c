@@ -131,3 +131,17 @@ char *decode_reg_extend(unsigned int op){
 		return NULL;
 	};
 }
+
+char *decode_cond(unsigned int cond){
+	unsigned int shifted = cond >> 1;
+	char *decoded = malloc(8);
+
+	// three because snprintf writes the NULL byte
+	snprintf(decoded, 3, "%s", cond_table[shifted]);
+
+	// the condition after the comma is used when this condition is met
+	if((cond & 1) == 1 && cond != 0xf)
+		sprintf(decoded, "%s", cond_table[shifted] + 3);
+
+	return decoded;
+}

@@ -8,6 +8,9 @@
 #define SHIFTED 0
 #define EXTENDED 1
 
+#define REGISTER 0
+#define IMMEDIATE 1
+
 char *DataProcessingRegisterDisassemble(struct instruction *instruction);
 
 #endif

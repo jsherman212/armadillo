@@ -12,5 +12,11 @@ int IsOnes(unsigned long x, int n);
 int BFXPreferred(unsigned int sf, unsigned int uns, unsigned int imms, unsigned int immr);
 
 char *decode_reg_extend(unsigned int op);
+char *decode_cond(unsigned int cond);
+
+static const char *cond_table[] = { 
+	"eq,ne", "cs,cc", "mi,pl", "vs,vc",
+	"hi,ls", "ge,lt", "gt,le", "al"
+};
 
 #endif
