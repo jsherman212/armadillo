@@ -484,7 +484,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("rorv x3, x1, x20", 0x9AD42C23, 0);
 	addinstr("sdiv w1, w2, w3", 0x1AC30C41, 0);
 */
-
+/*
 	addinstr("rbit w4, w2", 0x5AC00044, 0);
 	addinstr("cls w13, w1", 0x5AC0142D, 0);
 	addinstr("rev32 x4, x3", 0xDAC00864, 0);
@@ -499,8 +499,36 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("pacdzb x4", 0xdac12fe4, 0);
 	addinstr("xpaci x9", 0xdac143e9, 0);
 	addinstr("autdza x22", 0xdac13bf6, 0);
+*/
+
+		/*
+	addinstr("and w2, w3, w1", 0x0A010062, 0);
+	addinstr("bic x3, x13, x1, lsr #5", 0x8A6115A3, 0);
+	addinstr("orr x3, x2, x1, ror #4", 0xAAC11043, 0);
+	addinstr("orr x15, xzr, x3", 0xAA0303EF, 0);
+	addinstr("orn w13, wzr, w4", 0x2A2403ED, 0);
+	addinstr("eor x4, x2, x9", 0xCA090044, 0);
+	addinstr("eon w4, w5, w6, asr #2", 0x4AA608A4, 0);
+	addinstr("ands x4, x1, x2", 0xEA020024, 0);
+	addinstr("ands wzr, w13, w21", 0x6A1501BF, 0);
+	addinstr("bics x15, x13, x9", 0xEA2901AF, 0);
+	addinstr("orn x2, xzr, x14, asr #43", 0xAAAEAFE2, 0);
+	*/
+	
+	addinstr("add x4, x2, x1", 0x8B010044, 0);
+	addinstr("add x15, x3, x2, lsr #21", 0x8B42546F, 0);
+	addinstr("adds w4, w5, w6", 0x2B0600A4, 0);
+	addinstr("adds x0, x20, x10, asr #60", 0xAB8AF280, 0);
+	addinstr("adds xzr, x13, x1, lsl #4", 0xAB0111BF, 0);
+	addinstr("sub w10, w1, w2", 0x4B02002A, 0);
+	addinstr("sub w13, wzr, w14", 0x4B0E03ED, 0);
+	addinstr("subs x5, x4, x3, lsl #4", 0xEB031085, 0);
+	addinstr("subs xzr, x14, x2", 0xEB0201DF, 0);
+	addinstr("subs x27, xzr, x1, lsr #44", 0xEB41B3FB, 0);
 
 
+
+	
 
 	struct node_t *current = instructions->front;
 
