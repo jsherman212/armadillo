@@ -217,8 +217,6 @@ char *DisassembleAddSubtractShiftedOrExtendedInstr(struct instruction *instructi
 	else
 		instr = instr_tbl[encoding - 4];
 
-	printf("instr: %s\n", instr);
-
 	const char **registers = ARM64_32BitGeneralRegisters;
 
 	if(sf == 1)
@@ -253,43 +251,81 @@ char *DisassembleAddSubtractShiftedOrExtendedInstr(struct instruction *instructi
 	bzero(disassembled, 128);
 
 	if(kind == SHIFTED){
-		if(strcmp(instr, "adds") == 0 && Rd == 0x1f){
+		if(strcmp(instr, "adds") == 0 && Rd == 0x1f)
 			sprintf(disassembled, "cmn %s, %s", _Rn, _Rm);
-
-			if(imm6 != 0)
-				sprintf(disassembled, "%s, %s #%d", disassembled, _shift, imm6);
-		}
-		else if(strcmp(instr, "sub") == 0 && Rn == 0x1f){
+		else if(strcmp(instr, "sub") == 0 && Rn == 0x1f)
 			sprintf(disassembled, "neg %s, %s", _Rd, _Rm);
-
-			if(imm6 != 0)
-				sprintf(disassembled, "%s, %s #%d", disassembled, _shift, imm6);
-		}
 		else if(strcmp(instr, "subs") == 0 && (Rd == 0x1f || Rn == 0x1f)){
-			if(Rd == 0x1f){
+			if(Rd == 0x1f)
 				sprintf(disassembled, "cmp %s, %s", _Rn, _Rm);
-
-				if(imm6 != 0)
-					sprintf(disassembled, "%s, %s #%d", disassembled, _shift, imm6);
-			}
-			else if(Rn == 0x1f){
+			
+			else if(Rn == 0x1f)
 				sprintf(disassembled, "negs %s, %s", _Rd, _Rm);
-
-				if(imm6 != 0)
-					sprintf(disassembled, "%s, %s #%d", disassembled, _shift, imm6);
-			}
 		}
-		else{
+		else
 			sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
-
-			if(imm6 != 0)
-				sprintf(disassembled, "%s, %s #%d", disassembled, _shift, imm6);
-		}
+		
+		if(imm6 != 0)
+			sprintf(disassembled, "%s, %s #%d", disassembled, _shift, imm6);
 	}
 
+	if(kind == EXTENDED){
+		char R = 'w';
 
-	if(!disassembled)
-		return strdup(".unknown");
+		if(option == 3 || option == 7)
+			R = 'x';
+
+		char *extend = decode_reg_extend(option);
+
+		if(strcmp(instr, "add") == 0 || strcmp(instr, "sub") == 0){
+			if(Rd == 0x1f || Rn == 0x1f){
+				if(sf == 0 && option == 2)
+					extend = "lsl";
+				
+				if(sf == 1 && option == 3)
+					extend = "lsl";
+			}
+			
+			sprintf(disassembled, "%s %s, %s, %c%d", instr, _Rd, _Rn, R, Rm);
+			
+			if(imm3 != 0)
+				sprintf(disassembled, "%s, %s #%d", disassembled, extend, imm3);
+		}
+		else{
+			if(Rn == 0x1f){
+				if(sf == 0 && option == 2)
+					extend = "lsl";
+
+				if(sf == 1 && option == 3)
+					extend = "lsl";
+			}
+
+			// check for aliases	
+			if(strcmp(instr, "adds") == 0 && Rd == 0x1f){
+				sprintf(disassembled, "cmn %s, %s, %s", _Rn, _Rm, extend);
+
+				if(imm3 != 0)
+					sprintf(disassembled, "%s #%d", disassembled, imm3);
+			}
+			else if(strcmp(instr, "subs") && Rd == 0x1f){
+				sprintf(disassembled, "cmp %s, %s, %s", _Rn, _Rm, extend);
+
+				if(imm3 != 0)
+					sprintf(disassembled, "%s #%d", disassembled, imm3);
+			}
+			else{
+				sprintf(disassembled, "%s %s, %s, %c%d", instr, _Rd, _Rn, R, Rm);
+				
+				if(imm3 != 0)
+					sprintf(disassembled, "%s, %s #%d", disassembled, extend, imm3);
+				
+				if(imm3 == 0 && Rn == 0x1f){
+					if(R == 'w')
+						strcat(disassembled, ", uxtw");
+				}
+			}
+		}
+	}
 	
 	return disassembled;
 }
@@ -302,7 +338,7 @@ char *DataProcessingRegisterDisassemble(struct instruction *instruction){
 	unsigned int op1 = getbitsinrange(instruction->hex, 28, 1);
 	unsigned int op0 = getbitsinrange(instruction->hex, 30, 1);
 
-	printf("DisassembleDataProcessingRegister\n");
+	//printf("DisassembleDataProcessingRegister\n");
 
 	if(op0 == 0 && op1 == 1 && op2 == 6){
 		disassembled = DisassembleDataProcessingTwoSourceInstr(instruction);

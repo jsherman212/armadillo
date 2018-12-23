@@ -1169,29 +1169,6 @@ char *DisassembleAtomicMemoryInstr(struct instruction *instruction){
 	return disassembled;
 }
 
-char *decode_reg_extend(unsigned int op){
-	switch(op){
-	case 0x0:
-		return "uxtb";
-	case 0x1:
-		return "uxth";
-	case 0x2:
-		return "uxtw";
-	case 0x3:
-		return "uxtx";
-	case 0x4:
-		return "sxtb";
-	case 0x5:
-		return "sxth";
-	case 0x6:
-		return "sxtw";
-	case 0x7:
-		return "sxtx";
-	default:
-		return NULL;
-	};
-}
-
 char *DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *instruction){
 	char *disassembled = NULL;
 

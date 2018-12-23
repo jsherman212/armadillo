@@ -515,7 +515,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("orn x2, xzr, x14, asr #43", 0xAAAEAFE2, 0);
 	*/
 	
-	addinstr("add x4, x2, x1", 0x8B010044, 0);
+/*	addinstr("add x4, x2, x1", 0x8B010044, 0);
 	addinstr("add x15, x3, x2, lsr #21", 0x8B42546F, 0);
 	addinstr("adds w4, w5, w6", 0x2B0600A4, 0);
 	addinstr("adds x0, x20, x10, asr #60", 0xAB8AF280, 0);
@@ -525,9 +525,26 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("subs x5, x4, x3, lsl #4", 0xEB031085, 0);
 	addinstr("subs xzr, x14, x2", 0xEB0201DF, 0);
 	addinstr("subs x27, xzr, x1, lsr #44", 0xEB41B3FB, 0);
-
-
-
+*/
+	addinstr("add x4, sp, w3, lsl #0", 0x8B2363E4, 0);
+	addinstr("add wsp, w4, w2, uxth #4", 0x0B22309F, 0);
+	addinstr("add x21, x4, w2, sxtb #2", 0x8B228895, 0);
+	// should simplify to add sp, x4, x5
+	addinstr("add sp, x4, x5, lsl #0", 0x8B25609F, 0);
+	addinstr("add x4, x12, x2, lsl #0", 0x8B020184, 0);
+	addinstr("adds w3, w1, w5, sxth #3", 0x2B25AC23, 0);
+	addinstr("adds xzr, sp, x3, lsl #4", 0xAB2373FF, 0);
+	addinstr("adds x2, sp, x3, uxtx #4", 0xAB2373E2, 0);
+	addinstr("sub x3, x4, w2, lsl #4", 0xCB227083, 0);
+	addinstr("sub wsp, wsp, w4, lsl #0", 0x4B2443FF, 0);
+	addinstr("sub x12, x1, x3, sxtx #2", 0xCB23E82C, 0);
+	addinstr("sub sp, x4, x2, lsl #4", 0xCB22709F, 0);
+	addinstr("subs x3, sp, w2, lsl #0", 0xEB2243E3, 0);
+	addinstr("subs x20, x21, x1, uxtx #2", 0xEB216AB4, 0);
+	addinstr("subs x4, x2, x2, lsl #0", 0xEB020044, 0);
+	addinstr("subs xzr, x3, x12, lsl #0", 0xEB0C007F, 0);
+	addinstr("subs xzr, x3, x12, lsl #3", 0xEB0C0C7F, 0);
+	addinstr("sub x4, sp, w3, lsl #0", 0xCB2363E4, 0);
 	
 
 	struct node_t *current = instructions->front;
