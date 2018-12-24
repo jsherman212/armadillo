@@ -458,6 +458,130 @@ char *DisassembleConditionalCompareInstr(struct instruction *instruction, int ki
 	return disassembled;
 }
 
+char *DisassembleConditionalSelectInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int op2 = getbitsinrange(instruction->hex, 10, 2);
+	unsigned int cond = getbitsinrange(instruction->hex, 12, 4);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int S = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int op = getbitsinrange(instruction->hex, 30, 1);
+	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
+
+	const char **registers = ARM64_32BitGeneralRegisters;
+
+	if(sf == 1)
+		registers = ARM64_GeneralRegisters;
+
+	unsigned int encoding = (op << 3) | (S << 2) | op2;
+
+	const char *instr_tbl[] = {"csel", "csinc", NULL, NULL, NULL, NULL, NULL, NULL, "csinv", "csneg"};
+	const char *instr = instr_tbl[encoding];
+
+	if(!instr)
+		return strdup(".undefined");
+	
+	const char *_Rd = registers[Rd];
+	const char *_Rn = registers[Rn];
+	const char *_Rm = registers[Rm];
+
+	disassembled = malloc(128);
+
+	if((strcmp(instr, "csinc") == 0 || strcmp(instr, "csinv") == 0) && Rm != 0x1f && (cond >> 1) != 7 && Rn != 0x1f && Rn == Rm){
+		char *_cond = decode_cond(cond & ~0x1);
+		
+		if(strcmp(instr, "csinc") == 0)
+			sprintf(disassembled, "cinc %s, %s, %s", _Rd, _Rn, _cond);
+		else if(strcmp(instr, "csinv") == 0)
+			sprintf(disassembled, "cinv %s, %s, %s", _Rd, _Rn, _cond);
+
+		free(_cond);
+	}
+	else if((strcmp(instr, "csinc") == 0 || strcmp(instr, "csinv")) && Rm == 0x1f && (cond >> 1) != 7 && Rn == 0x1f){
+		char *_cond = decode_cond(cond & ~0x1);
+		
+		if(strcmp(instr, "csinc") == 0)
+			sprintf(disassembled, "cset %s, %s", _Rd, _cond);
+		else if(strcmp(instr, "csinv") == 0)
+			sprintf(disassembled, "csetm %s, %s", _Rd, _cond);
+
+		free(_cond);
+	}
+	else if(strcmp(instr, "csneg") == 0 && (cond >> 1) != 7 && Rn == Rm){
+		char *_cond = decode_cond(cond & ~0x1);
+
+		sprintf(disassembled, "cneg %s, %s, %s", _Rd, _Rn, _cond);
+
+		free(_cond);
+	}
+	else{
+		char *_cond = decode_cond(cond);
+		sprintf(disassembled, "%s %s, %s, %s, %s", instr, _Rd, _Rn, _Rm, _cond);
+		free(_cond);
+	}
+
+	return disassembled;
+}
+
+char *DisassembleDataProcessingThreeSourceInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int Ra = getbitsinrange(instruction->hex, 10, 5);
+	unsigned int o0 = getbitsinrange(instruction->hex, 15, 1);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int op31 = getbitsinrange(instruction->hex, 21, 3);
+	unsigned int op54 = getbitsinrange(instruction->hex, 29, 2);
+	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
+
+	const char **registers = ARM64_32BitGeneralRegisters;
+
+	if(sf == 1)
+		registers = ARM64_GeneralRegisters;
+
+	unsigned int encoding = (op31 << 1) | o0;
+
+	const char *instr_tbl[] = {"madd", "msub", "smaddl", "smsubl", "smulh", NULL,
+								NULL, NULL, NULL, NULL, "umaddl", "umsubl", "umulh"};
+	const char *instr = instr_tbl[encoding];
+
+	if(!instr)
+		return strdup(".undefined");
+
+	const char *_Rd = registers[Rd];
+	const char *_Rn = registers[Rn];
+	const char *_Ra = registers[Ra];
+	const char *_Rm = registers[Rm];
+
+	disassembled = malloc(128);
+
+	if(Ra == 0x1f && strcmp(instr, "smulh") != 0 && strcmp(instr, "umulh") != 0){
+		if(strcmp(instr, "madd") == 0)
+			sprintf(disassembled, "mul %s, %s, %s", _Rd, _Rn, _Rm);
+		else if(strcmp(instr, "msub") == 0)
+			sprintf(disassembled, "mneg %s, %s, %s", _Rd, _Rn, _Rm);
+		else if(strcmp(instr, "smaddl") == 0)
+			sprintf(disassembled, "smull %s, %s, %s", ARM64_GeneralRegisters[Rd], ARM64_32BitGeneralRegisters[Rn], ARM64_32BitGeneralRegisters[Rm]);
+		else if(strcmp(instr, "smsubl") == 0)
+			sprintf(disassembled, "smnegl %s, %s, %s", ARM64_GeneralRegisters[Rd], ARM64_32BitGeneralRegisters[Rn], ARM64_32BitGeneralRegisters[Rm]);
+		else if(strcmp(instr, "umaddl") == 0)
+			sprintf(disassembled, "umull %s, %s, %s", ARM64_GeneralRegisters[Rd], ARM64_32BitGeneralRegisters[Rn], ARM64_32BitGeneralRegisters[Rm]);
+		else if(strcmp(instr, "umsubl") == 0)
+			sprintf(disassembled, "umnegl %s, %s, %s", ARM64_GeneralRegisters[Rd], ARM64_32BitGeneralRegisters[Rn], ARM64_32BitGeneralRegisters[Rm]);
+	}
+	else if(op31 == 0)
+		sprintf(disassembled, "%s %s, %s, %s, %s", instr, _Rd, _Rn, _Rm, _Ra);
+	else if(op31 == 2 || op31 == 6)
+		sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
+	else
+		sprintf(disassembled, "%s %s, %s, %s, %s", instr, ARM64_GeneralRegisters[Rd], ARM64_32BitGeneralRegisters[Rn], ARM64_32BitGeneralRegisters[Rm], ARM64_GeneralRegisters[Ra]);
+
+	return disassembled;
+}
+
 char *DataProcessingRegisterDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -491,6 +615,12 @@ char *DataProcessingRegisterDisassemble(struct instruction *instruction){
 	}
 	else if(op1 == 1 && op2 == 2 && (((op3 >> 1) & 1) == 0 || ((op3 >> 1) & 1) == 1)){
 		disassembled = DisassembleConditionalCompareInstr(instruction, ((op3 >> 1) & 1));
+	}
+	else if(op1 == 1 && op2 == 4){
+		disassembled = DisassembleConditionalSelectInstr(instruction);
+	}
+	else if(op1 == 1 && (op2 >> 3) == 1){
+		disassembled = DisassembleDataProcessingThreeSourceInstr(instruction);
 	}
 	else
 		return strdup(".undefined");
