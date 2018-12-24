@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include "bits.h"
 
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
+
 int DecodeBitMasks(unsigned int N, unsigned int imms, unsigned int immr, int immediate, unsigned long *out);
 int MoveWidePreferred(unsigned int sf, unsigned int immN, unsigned int immr, unsigned int imms);
 int IsZero(unsigned long x);
@@ -13,6 +15,7 @@ int BFXPreferred(unsigned int sf, unsigned int uns, unsigned int imms, unsigned 
 
 char *decode_reg_extend(unsigned int op);
 char *decode_cond(unsigned int cond);
+int check_bounds(int index, int size);
 
 static const char *cond_table[] = { 
 	"eq,ne", "cs,cc", "mi,pl", "vs,vc",

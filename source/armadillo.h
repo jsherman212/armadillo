@@ -12,6 +12,7 @@
 #include "BranchExcSys.h"
 #include "LoadsAndStores.h"
 #include "DataProcessingRegister.h"
+#include "DataProcessingFloatingPoint.h"
 
 // client calls this
 char *ArmadilloDisassemble(unsigned int hex, unsigned long PC);

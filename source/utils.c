@@ -145,3 +145,7 @@ char *decode_cond(unsigned int cond){
 
 	return decoded;
 }
+
+int check_bounds(int index, int size){
+	return index >= 0 && index < size;
+}

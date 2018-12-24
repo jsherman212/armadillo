@@ -54,8 +54,9 @@ char *_ArmadilloDisassemble(struct instruction *instr){
 		//printf("***DataProcessingRegister\n");
 		disassembled = DataProcessingRegisterDisassemble(instr);
 	}
-	else if(op0 == (op0 & DataProcessingFloatMask)){
-		printf("***DataProcessingFloatMask\n");
+	else if((op0 & ~0x8) == 7){//== (op0 & DataProcessingFloatMask)){
+		//printf("***DataProcessingFloatMask\n");
+		disassembled = DataProcessingFloatingPointDisassemble(instr);
 	}
 	else{
 		printf("Unknown decode field \n");
