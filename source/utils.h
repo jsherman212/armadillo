@@ -7,6 +7,7 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
+int LowestSetBit(int number, int n);
 int DecodeBitMasks(unsigned int N, unsigned int imms, unsigned int immr, int immediate, unsigned long *out);
 int MoveWidePreferred(unsigned int sf, unsigned int immN, unsigned int immr, unsigned int imms);
 int IsZero(unsigned long x);

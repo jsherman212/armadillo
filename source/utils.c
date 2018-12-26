@@ -12,6 +12,17 @@ int HighestSetBit(unsigned int number, int n){
 	return ret;
 }
 
+int LowestSetBit(int number, int n){
+	int ret = n;
+
+	for(int i=0; i<n; i++){
+		if(number & (1 << i))
+			return i;
+	}
+
+	return ret;
+}
+
 unsigned long Ones(int len, int N){
 	(void)N;
 	unsigned long ret = 0;

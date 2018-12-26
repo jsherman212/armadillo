@@ -593,10 +593,24 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("aesmc v20.16b, v11.16b", 0x4e286974, 0);
 	addinstr("aesimc v7.16b, v16.16b", 0x4e287a07, 0);
 	*/
-
+	/*
 	addinstr("sha1c q3, s4, v12.4s", 0x5e0c0083, 0);
 	addinstr("sha256su1 v3.4s, v5.4s, v9.4s", 0x5e0960a3, 0);
 	addinstr("sha256h q2, q3, v5.4s", 0x5e054062, 0);
+	*/
+	
+	/*
+	addinstr("sha1h s4, s5", 0x5e2808a4, 0);
+	addinstr("sha1su1 v6.4s, v1.4s", 0x5e281826, 0);
+	addinstr("sha256su0 v19.4s, v8.4s", 0x5e282913, 0);
+	*/
+
+
+	addinstr("mov h0, v0.h[0]", 0x5e020400, 0);
+	addinstr("mov d25, v13.d[1]", 0x5e1805b9, 0);
+	addinstr("mov b13, v8.b[2]", 0x5e05050d, 0);
+	addinstr("mov s2, v19.s[3]", 0x5e1c0662, 0);
+
 
 	struct node_t *current = instructions->front;
 
