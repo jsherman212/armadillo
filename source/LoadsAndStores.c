@@ -15,19 +15,6 @@ int get_post_idx_immediate_offset(int regamount, unsigned int Q){
 	return -1;
 }
 
-const char *get_arrangement(unsigned int size, unsigned int Q){
-	if(size == 0)
-		return Q == 0 ? "8b" : "16b";
-	if(size == 1)
-		return Q == 0 ? "4h" : "8h";
-	if(size == 2)
-		return Q == 0 ? "2s" : "4s";
-	if(size == 3)
-		return Q == 0 ? "1d" : "2d";
-	
-	// should never reach
-	return NULL;
-}
 
 char *DisassembleLoadStoreMultStructuresInstr(struct instruction *instruction, int postidx){
 	char *disassembled = NULL;

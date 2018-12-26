@@ -160,3 +160,17 @@ char *decode_cond(unsigned int cond){
 int check_bounds(int index, int size){
 	return index >= 0 && index < size;
 }
+
+const char *get_arrangement(unsigned int size, unsigned int Q){
+	if(size == 0)
+		return Q == 0 ? "8b" : "16b";
+	if(size == 1)
+		return Q == 0 ? "4h" : "8h";
+	if(size == 2)
+		return Q == 0 ? "2s" : "4s";
+	if(size == 3)
+		return Q == 0 ? "1d" : "2d";
+	
+	// should never reach
+	return NULL;
+}

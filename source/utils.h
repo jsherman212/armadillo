@@ -17,6 +17,7 @@ int BFXPreferred(unsigned int sf, unsigned int uns, unsigned int imms, unsigned 
 char *decode_reg_extend(unsigned int op);
 char *decode_cond(unsigned int cond);
 int check_bounds(int index, int size);
+const char *get_arrangement(unsigned int size, unsigned int Q);
 
 static const char *cond_table[] = { 
 	"eq,ne", "cs,cc", "mi,pl", "vs,vc",

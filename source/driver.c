@@ -606,12 +606,38 @@ int main(int argc, char **argp, const char **envp){
 	*/
 
 
-	addinstr("mov h0, v0.h[0]", 0x5e020400, 0);
+	/*addinstr("mov h0, v0.h[0]", 0x5e020400, 0);
 	addinstr("mov d25, v13.d[1]", 0x5e1805b9, 0);
 	addinstr("mov b13, v8.b[2]", 0x5e05050d, 0);
 	addinstr("mov s2, v19.s[3]", 0x5e1c0662, 0);
+	*/
 
-
+	
+	/*addinstr("fmulx h4, h5, h6", 0x5e461ca4, 0);
+	addinstr("fcmeq h2, h3, h1", 0x5e412462, 0);
+	addinstr("frecps h20, h19, h2", 0x5e423e74, 0);
+	addinstr("frsqrts h3, h4, h5", 0x5ec53c83, 0);
+	addinstr("fcmge h3, h2, h1", 0x7e412443, 0);
+	addinstr("facge h5, h3, h7", 0x7e472c65, 0);
+	addinstr("facgt h3, h4, h5", 0x7ec52c83, 0);
+	*/
+	
+	addinstr("fcvtns h4, h6", 0x5e79a8c4, 0);
+	addinstr("fcmge h4, h3, 0.0", 0x7ef8c864, 0);
+	addinstr("ucvtf h10, h11", 0x7e79d96a, 0);
+	addinstr("frsqrte h11, h12", 0x7ef9d98b, 0);
+	
+	addinstr("fcmgt s4, s5, 0.0", 0x5ea0c8a4, 0);
+	addinstr("fcmgt h4, h3, 0.0", 0x5ef8c864, 0);
+	addinstr("suqadd s4, s5", 0x5EA038A4, 0);
+	addinstr("sqxtn b0, h0", 0x5e214800, 0);
+	addinstr("rev64 v4.2s, v3.2s", 0x0ea00864, 0);
+	addinstr("rev32 v15.8h, v16.8h", 0x6e600a0f, 0);
+	addinstr("frintn v14.4h, v16.4h", 0x0e798a0e, 0);
+	addinstr("sqxtun v3.4h, v6.4s", 0x2e6128c3, 0);
+	addinstr("rbit v0.8b, v1.8b", 0x2e605820, 0);
+	addinstr("ursqrte v6.2s, v5.2s", 0x2ea1c8a6, 0);
+	
 	struct node_t *current = instructions->front;
 
 	while(current){
