@@ -628,7 +628,21 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fcmla v5.4h, v6.4h, v7.4h, #90", 0x2e47ccc5, 0);
 	addinstr("fcmla v5.4h, v6.4h, v7.4h, #180", 0x2e47d4c5, 0);
 	
-	
+
+	addinstr("sqadd s4, s3, s2", 0x5EA20C64, 0);
+	addinstr("sshl v4.8b, v5.8b, v6.8b", 0x0E2644A4, 0);
+	addinstr("cmtst d2, d0, d1", 0x5ee18c02, 0);
+	addinstr("fcmeq s3, s4, s2", 0x5e22e483, 0);
+	addinstr("smax v5.8b, v4.8b, v3.8b", 0x0e236485, 0);
+	addinstr("bic v4.8b, v5.8b, v9.8b", 0x0e691ca4, 0);
+	addinstr("eor v10.16b, v15.16b, v17.16b", 0x6e311dea, 0);
+	addinstr("ushl v19.8h, v7.8h, v4.8h", 0x6e6444f3, 0);
+	addinstr("addp v10.4s, v15.4s, v16.4s", 0x4eb0bdea, 0);
+	addinstr("sqadd v0.16b, v1.16b, v2.16b", 0x4e220c20, 0);
+	addinstr("fminnmp v0.2s, v1.2s, v2.2s", 0x2ea2c420, 0);
+	addinstr("cmge v6.8b, v7.8b, v8.8b", 0x0e283ce6, 0);
+	addinstr("uqshl v0.8h, v0.8h, v0.8h", 0x6e604c00, 0);
+
 	/*addinstr("fcvtns h4, h6", 0x5e79a8c4, 0);
 	addinstr("fcmge h4, h3, 0.0", 0x7ef8c864, 0);
 	addinstr("ucvtf h10, h11", 0x7e79d96a, 0);
