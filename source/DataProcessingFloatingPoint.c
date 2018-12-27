@@ -248,45 +248,22 @@ const char *get_arrangement2(int fp16, unsigned int sz, unsigned int Q){
 char *DisassembleAdvancedSIMDScalarTwoRegisterMiscellaneousInstr(struct instruction *instruction, int scalar, int fp16){
 	char *disassembled = NULL;
 
-	//printf("%s\n", __func__);
-
 	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
 	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
 	unsigned int opcode = getbitsinrange(instruction->hex, 12, 5);
 	unsigned int size = getbitsinrange(instruction->hex, 22, 2);
 	unsigned int sz = (size & 1);
 	unsigned int a = (size >> 1);
-	//unsigned int a = getbitsinrange(instruction->hex, 23, 1);
 	unsigned int U = getbitsinrange(instruction->hex, 29, 1);
 	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
-
-	//const char *_Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
-	//const char *_Rn = ARM64_VectorHalfPrecisionRegisters[Rn];
-
-	//unsigned int encoding = (U << 6) | (a << 5) | opcode;
-
-	unsigned int encoding = (U << 5) | opcode;
-
-	printf("a: %d\n", a);
-	printf("U: %d\n", U);
-	printf("*****scalar: %d, fp16: %d\n", scalar, fp16);
-
+	
 	const char sizes[] = {'b', 'h', 's', 'd'};
 	const char sz_s[] = {'s', 'd'};
 
 	const char *instr = NULL;
 	int add_zero = 0;
 	char V = '\0';
-	const char *T = NULL, *Ta = NULL, *Tb = NULL;
-	
-	//if(!check_bounds(size, ARRAY_SIZE(sizes)))	
-	//	return strdup(".undefined");
-
-	//if(U == 0){
-	//if(scalar == 0){
-		
-	//}
-	//else{
+	const char *T = NULL;
 	
 	if(opcode == 0x0){
 		if(scalar == 1)
@@ -347,18 +324,12 @@ char *DisassembleAdvancedSIMDScalarTwoRegisterMiscellaneousInstr(struct instruct
 	else if(opcode == 0x5){
 		if(scalar == 1)
 			return strdup(".undefined");
-
-		//if(U == 1)
-		//	return strdup(".undefined");
-
+		
 		instr = "cnt";
 
 		if(U == 1)
 			instr = sz == 0 ? "not" : "rbit";
 		
-		//if(scalar == 1 && size != 0)
-		//	return strdup(".undefined");
-
 		T = Q == 0 ? "8b" : "16b";
 	}
 	else if(opcode == 0x6){
@@ -491,8 +462,6 @@ char *DisassembleAdvancedSIMDScalarTwoRegisterMiscellaneousInstr(struct instruct
 				Ta = "4s";
 			else if(size == 2)
 				Ta = "2d";
-
-			//printf("Ta %s Tb %s\n", Ta, Tb);
 
 			sprintf(disassembled, "%s%s %s.%s, %s.%s", instr, Q == 1 ? "2" : "", ARM64_VectorRegisters[Rd], Tb, ARM64_VectorRegisters[Rn], Ta);
 			return disassembled;
@@ -671,41 +640,24 @@ char *DisassembleAdvancedSIMDScalarTwoRegisterMiscellaneousInstr(struct instruct
 		T = get_arrangement2(fp16, sz, Q);
 	}
 	else if(opcode == 0x1a){
-		if(U == 0){
-			if(a == 0)
-				instr = "fcvtns";
-			else
-				instr = "fcvtps";
-		}
-		else{
-			if(a == 0)
-				instr = "fcvtnu";
-			else
-				instr = "fcvtpu";
-		}
+		if(U == 0)
+			instr = a == 0 ? "fcvtns" : "fcvtps";
+		else
+			instr = a == 0 ? "fcvtnu" : "fcvtpu";
 
 		V = sz_s[sz];
 		T = get_arrangement2(fp16, sz, Q);
 	}
 	else if(opcode == 0x1b){
-		if(U == 0){
-			if(a == 0)
-				instr = "fcvtms";
-			else
-				instr = "fcvtzs";
-		}
-		else{
-			if(a == 0)
-				instr = "fcvtmu";
-			else
-				instr = "fcvtzu";
-		}
+		if(U == 0)
+			instr = a == 0 ? "fcvtms" : "fcvtzs";
+		else
+			instr = a == 0 ? "fcvtmu" : "fcvtzu";
 
 		V = sz_s[sz];
 		T = get_arrangement2(fp16, sz, Q);
 	}
 	else if(opcode == 0x1c){
-		//instr = U == 0 ? "fcvtas" : "fcvtau";
 		if(U == 0)
 			instr = a == 0 ? "fcvtas" : "urecpe";
 		else
@@ -715,19 +667,11 @@ char *DisassembleAdvancedSIMDScalarTwoRegisterMiscellaneousInstr(struct instruct
 		T = get_arrangement2(fp16, sz, Q);
 	}
 	else if(opcode == 0x1d){
-		if(U == 0){
-			if(a == 0)
-				instr = "scvtf";
-			else
-				instr = "frecpe";
-		}
-		else{
-			if(a == 0)
-				instr = "ucvtf";
-			else
-				instr = "frsqrte";
-		}
-
+		if(U == 0)
+			instr = a == 0 ? "scvtf" : "frecpe";
+		else
+			instr = a == 0 ? "ucvtf" : "frsqrte";
+		
 		V = sz_s[sz];
 		T = get_arrangement2(fp16, sz, Q);
 	}
@@ -743,8 +687,7 @@ char *DisassembleAdvancedSIMDScalarTwoRegisterMiscellaneousInstr(struct instruct
 		return strdup(".undefined");
 
 	disassembled = malloc(128);
-	bzero(disassembled, 128);
-
+	
 	if(scalar == 0)
 		sprintf(disassembled, "%s %s.%s, %s.%s", instr, ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T);
 	else{
@@ -758,16 +701,6 @@ char *DisassembleAdvancedSIMDScalarTwoRegisterMiscellaneousInstr(struct instruct
 		sprintf(disassembled, "%s, #0.0", disassembled);
 
 	return disassembled;
-	//}
-	/*}
-	else{
-		
-	}*/
-
-	if(!disassembled)
-		return strdup(".unknown");
-
-	return disassembled;
 }
 
 char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
@@ -777,14 +710,11 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	unsigned int op2 = getbitsinrange(instruction->hex, 19, 4);
 	unsigned int op1 = getbitsinrange(instruction->hex, 23, 2);
 	unsigned int op0 = getbitsinrange(instruction->hex, 28, 4);
-
-	//printf("op0 %d\n", op0);
-	//printf("op1 >> 1 %d\n", op1 >> 1);
 	
-	print_bin(op0, 4);
-	print_bin(op1, 2);
-	print_bin(op2, 4);
-	print_bin(op3, 9);
+	//print_bin(op0, 4);
+	//print_bin(op1, 2);
+	//print_bin(op2, 4);
+	//print_bin(op3, 9);
 
 	if(op0 == 4 && (op1 >> 1) == 0 && (op2 & ~0x8) == 5 && (((op3 >> 9) & 1) == 0 && ((op3 >> 8) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
 		disassembled = DisassembleCryptographicAESInstr(instruction);
