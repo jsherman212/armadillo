@@ -163,75 +163,6 @@ char *DisassembleAdvancedSIMDScalarCopyInstr(struct instruction *instruction){
 		return strdup(".undefined");
 }
 
-char *DisassembleAdvancedSIMDScalarThreeSameFP16Instr(struct instruction *instruction){
-	char *disassembled = NULL;
-
-	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
-	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
-	unsigned int opcode = getbitsinrange(instruction->hex, 11, 3);
-	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
-	unsigned int a = getbitsinrange(instruction->hex, 23, 1);
-	unsigned int U = getbitsinrange(instruction->hex, 29, 1);
-
-	const char *_Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
-	const char *_Rn = ARM64_VectorHalfPrecisionRegisters[Rn];
-	const char *_Rm = ARM64_VectorHalfPrecisionRegisters[Rm];
-
-	printf("hi\n");
-
-	if(U == 0 && a == 0){
-		const char *instr_tbl[] = {NULL, NULL, NULL, "fmulx", "fcmeq", NULL, NULL, "frecps"};
-
-		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-			return strdup(".undefined");
-
-		const char *instr = instr_tbl[opcode];
-
-		if(!instr)
-			return strdup(".undefined");
-
-		disassembled = malloc(128);
-		sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
-	}
-	else if(U == 0 && a == 1 && opcode == 7){
-		disassembled = malloc(128);
-		sprintf(disassembled, "frsqrts %s, %s, %s", _Rd, _Rn, _Rm);
-	}
-	else if(U == 1 && a == 0){
-		const char *instr_tbl[] = {NULL, NULL, NULL, NULL, "fcmge", "facge"};
-
-		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-			return strdup(".undefined");
-
-		const char *instr = instr_tbl[opcode];
-
-		if(!instr)
-			return strdup(".undefined");
-
-		disassembled = malloc(128);
-		sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
-	}
-	else if(U == 1 && a == 1){
-		const char *instr_tbl[] = {NULL, NULL, "fabd", NULL, "fcmgt", "facgt"};
-
-		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-			return strdup(".undefined");
-
-		const char *instr = instr_tbl[opcode];
-
-		if(!instr)
-			return strdup(".undefined");
-
-		disassembled = malloc(128);
-		sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
-	}
-
-	if(!disassembled)
-		return strdup(".unknown");
-	
-	return disassembled;
-}
-
 const char *get_arrangement2(int fp16, unsigned int sz, unsigned int Q){
 	if(fp16)
 		return Q == 0 ? "4h" : "8h";
@@ -244,6 +175,289 @@ const char *get_arrangement2(int fp16, unsigned int sz, unsigned int Q){
 			return Q == 0 ? "TODO: reserved" : "2d";
 	}
 }
+
+char *DisassembleAdvancedSIMDScalarThreeSameInstr(struct instruction *instruction, int scalar, int fp16, int extra){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int opcode = getbitsinrange(instruction->hex, 11, 3);
+	unsigned int rot = (opcode & ~0x4);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int size = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int sz = (size & 1);
+	unsigned int a = (size >> 1);
+	//unsigned int sz = getbitsinrange(instruction->hex, 22, 1);
+	//unsigned int a = getbitsinrange(instruction->hex, 23, 1);
+	unsigned int U = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
+
+	//const char *_Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
+	//const char *_Rn = ARM64_VectorHalfPrecisionRegisters[Rn];
+	//const char *_Rm = ARM64_VectorHalfPrecisionRegisters[Rm];
+
+	const char *_Rd = NULL, *_Rn = NULL, *_Rm = NULL;
+
+	printf("*****scalar: %d, fp16: %d, extra: %d\n", scalar, fp16, extra);
+	printf("a: %d\n", a);
+	printf("U: %d\n", U);
+	const char *T = NULL, *instr = NULL;
+	const char *Ta = NULL, *Tb = NULL;
+	char V = '\0';
+	int rotate = 0;
+	int add_rotate = 0;
+
+	if(fp16){
+		if(U == 0 && a == 0){
+			const char **instr_tbl = NULL;
+
+			if(scalar){
+				static const char *_temp_tbl[] = {NULL, NULL, NULL, "fmulx", "fcmeq", NULL, NULL, "frecps"};
+				instr_tbl = _temp_tbl;
+				
+				_Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
+				_Rn = ARM64_VectorHalfPrecisionRegisters[Rn];
+				_Rm = ARM64_VectorHalfPrecisionRegisters[Rm];
+			}
+			else{
+				static const char *_temp_tbl[] = {"fmaxnm", "fmla", "fadd", "fmulx", "fcmeq", NULL, "fmax", "frecps"};
+				instr_tbl = _temp_tbl;
+			
+				_Rd = ARM64_VectorRegisters[Rd];
+				_Rn = ARM64_VectorRegisters[Rn];
+				_Rm = ARM64_VectorRegisters[Rm];
+			}
+			
+			printf("opcode %d\n", opcode);
+			instr = instr_tbl[opcode];
+
+			if(!instr)
+				return strdup(".undefined");
+
+			disassembled = malloc(128);
+			
+			T = get_arrangement2(fp16, sz, Q);
+
+		/*	if(scalar)
+				sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
+			else
+				sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, _Rd, T, _Rn, T, _Rm, T);
+		*/
+		}
+		else if(U == 0 && a == 1){
+			const char **instr_tbl = NULL;
+
+			if(scalar){
+				static const char *_temp_tbl[] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, "frsqrts"};
+				instr_tbl = _temp_tbl;
+				
+				_Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
+				_Rn = ARM64_VectorHalfPrecisionRegisters[Rn];
+				_Rm = ARM64_VectorHalfPrecisionRegisters[Rm];
+			}
+			else{
+				static const char *_temp_tbl[] = {"fminnm", "fmls", "fsub", NULL, NULL, NULL, "fmin", "frsqrts"};
+				instr_tbl = _temp_tbl;
+
+				_Rd = ARM64_VectorRegisters[Rd];
+				_Rn = ARM64_VectorRegisters[Rn];
+				_Rm = ARM64_VectorRegisters[Rm];
+			}
+
+			instr = instr_tbl[opcode];
+
+			if(!instr)
+				return strdup(".undefined");
+			
+			disassembled = malloc(128);
+
+			T = get_arrangement2(fp16, sz, Q);
+
+			/*if(scalar)
+				sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
+			else
+				sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, _Rd, T, _Rn, T, _Rm, T);
+		*/
+		}
+		else if(U == 1 && a == 0){
+			//const char *instr_tbl[] = {NULL, NULL, NULL, NULL, "fcmge", "facge"};
+
+			/*if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+				return strdup(".undefined");
+			*/
+
+			const char **instr_tbl = NULL;
+
+			if(scalar){
+				static const char *_temp_tbl[] = {NULL, NULL, NULL, NULL, "fcmge", "facge"};
+				instr_tbl = _temp_tbl;
+
+				_Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
+				_Rn = ARM64_VectorHalfPrecisionRegisters[Rn];
+				_Rm = ARM64_VectorHalfPrecisionRegisters[Rm];
+			}
+			else{
+				static const char *_temp_tbl[] = {"fmaxnmp", NULL, "faddp", "fmul", "fcmge", "facge", "fmaxp", "fdiv"};
+				instr_tbl = _temp_tbl;
+
+				_Rd = ARM64_VectorRegisters[Rd];
+				_Rn = ARM64_VectorRegisters[Rn];
+				_Rm = ARM64_VectorRegisters[Rm];
+			}
+
+			instr = instr_tbl[opcode];
+
+			if(!instr)
+				return strdup(".undefined");
+
+			disassembled = malloc(128);
+			
+			T = get_arrangement2(fp16, sz, Q);
+
+		/*	if(scalar)
+				sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
+			else
+				sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, _Rd, T, _Rn, T, _Rm, T);
+		*/
+		}
+		else if(U == 1 && a == 1){
+			const char **instr_tbl = NULL;
+
+			if(scalar){
+				static const char *_temp_tbl[] = {NULL, NULL, "fabd", NULL, "fcmgt", "facgt"};
+				instr_tbl = _temp_tbl;
+
+				_Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
+				_Rn = ARM64_VectorHalfPrecisionRegisters[Rn];
+				_Rm = ARM64_VectorHalfPrecisionRegisters[Rm];
+			}
+			else{
+				static const char *_temp_tbl[] = {"fminnmp", NULL, "fabd", NULL, "fcmgt", "facgt", "fminp"};
+				instr_tbl = _temp_tbl;
+
+				_Rd = ARM64_VectorRegisters[Rd];
+				_Rn = ARM64_VectorRegisters[Rn];
+				_Rm = ARM64_VectorRegisters[Rm];
+			}
+
+			instr = instr_tbl[opcode];
+
+			if(!instr)
+				return strdup(".undefined");
+
+			disassembled = malloc(128);
+
+			T = get_arrangement2(fp16, sz, Q);
+		}
+		
+		if(scalar)
+			sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
+		else
+			sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, _Rd, T, _Rn, T, _Rm, T);
+	
+		return disassembled;
+	}
+	else if(extra){
+		// opcode is different with these instructions
+		opcode = getbitsinrange(instruction->hex, 11, 4);
+		printf("opcode %d\n", opcode);
+		if(opcode == 0x2 && (U == 0 || U == 1)){
+			instr = U == 0 ? "sdot" : "udot";
+
+			Ta = Q == 0 ? "2s" : "4s";
+			Tb = Q == 0 ? "8b" : "16b";
+			
+			_Rd = ARM64_VectorRegisters[Rd];
+			_Rn = ARM64_VectorRegisters[Rn];
+			_Rm = ARM64_VectorRegisters[Rm];
+			
+			disassembled = malloc(128);
+			sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, _Rd, Ta, _Rn, Tb, _Rm, Tb);
+			
+			return disassembled;
+		}
+		else{// if(opcode != 0x2){
+			printf("hello\n");
+			
+			if(opcode == 0x0){
+				if(size == 0 || size == 3)
+					return strdup(".undefined");
+
+				instr = "sqrdmlah";
+				
+				V = size == 1 ? 'h' : 's';
+				T = get_arrangement(size, Q);
+
+				_Rd = ARM64_VectorRegisters[Rd];
+				_Rn = ARM64_VectorRegisters[Rn];
+				_Rm = ARM64_VectorRegisters[Rm];
+			}
+			else if(opcode == 0x1){
+				if(size == 0 || size == 3)
+					return strdup(".undefined");
+
+				instr = "sqrdmlsh";
+
+				V = size == 1 ? 'h' : 's';
+				T = get_arrangement(size, Q);
+
+				_Rd = ARM64_VectorRegisters[Rd];
+				_Rn = ARM64_VectorRegisters[Rn];
+				_Rm = ARM64_VectorRegisters[Rm];
+			}
+			else if((opcode >= 0x8 && opcode <= 0xb) || (opcode >= 0xc && opcode <= 0xe)){
+				if(size == 0)
+					return strdup(".undefined");
+
+				if(size == 3 && Q == 0)
+					return strdup(".undefined");
+
+				add_rotate = 1;
+
+				instr = (opcode >= 0x8 && opcode <= 0xb) ? "fcmla" : "fcadd";
+
+				T = get_arrangement(size, Q);
+
+				_Rd = ARM64_VectorRegisters[Rd];
+				_Rn = ARM64_VectorRegisters[Rn];
+				_Rm = ARM64_VectorRegisters[Rm];
+				
+				if(strcmp(instr, "fcmla") == 0){
+					if(rot == 0)
+						rot = 0;
+					else if(rot == 1)
+						rot = 90;
+					else if(rot == 2)
+						rot = 180;
+					else
+						rot = 270;
+				}
+				else
+					rot = rot == 0 ? 90 : 270;
+
+				printf("rot: %d\n", rot);
+			}
+
+			disassembled = malloc(128);
+			
+			if(scalar)
+				sprintf(disassembled, "%s %c%d, %c%d, %c%d", instr, V, Rd, V, Rn, V, Rm);
+			else
+				sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, _Rd, T, _Rn, T, _Rm, T);
+
+			if(add_rotate)
+				sprintf(disassembled, "%s, #%d", disassembled, rot);
+
+			return disassembled;
+		}
+	}
+
+	if(!disassembled)
+		return strdup(".unknown");
+	
+	return disassembled;
+}
+
 
 char *DisassembleAdvancedSIMDScalarTwoRegisterMiscellaneousInstr(struct instruction *instruction, int scalar, int fp16){
 	char *disassembled = NULL;
@@ -711,10 +925,10 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	unsigned int op1 = getbitsinrange(instruction->hex, 23, 2);
 	unsigned int op0 = getbitsinrange(instruction->hex, 28, 4);
 	
-	//print_bin(op0, 4);
-	//print_bin(op1, 2);
-	//print_bin(op2, 4);
-	//print_bin(op3, 9);
+	print_bin(op0, 4);
+	print_bin(op1, 2);
+	print_bin(op2, 4);
+	print_bin(op3, 9);
 
 	if(op0 == 4 && (op1 >> 1) == 0 && (op2 & ~0x8) == 5 && (((op3 >> 9) & 1) == 0 && ((op3 >> 8) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
 		disassembled = DisassembleCryptographicAESInstr(instruction);
@@ -728,8 +942,8 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	else if((op0 & ~0x2) == 5 && op1 == 0 && (op2 >> 2) == 0 && (((op3 >> 5) & 1) == 0 && (op3 & 1) == 1)){
 		disassembled = DisassembleAdvancedSIMDScalarCopyInstr(instruction);
 	}
-	else if((op0 & ~0x2) == 5 && (op1 >> 1) == 0 && (op2 >> 2) == 2 && (((op3 >> 5) & 1) == 0 && ((op3 >> 4) & 1) == 0 && (op3 & 1) == 1)){
-		disassembled = DisassembleAdvancedSIMDScalarThreeSameFP16Instr(instruction);
+	else if(((op0 & ~0x2) == 5 || ((op0 >> 3) == 0 && (op0 & 1) == 0)) && (op1 >> 1) == 0 && ((op2 >> 2) == 2 || ((op2 >> 2) & 1) == 0) && ((((op3 >> 5) & 1) == 0 && ((op3 >> 4) & 1) == 0 && (op3 & 1) == 1) || (((op3 >> 5) & 1) == 1 && (op3 & 1) == 1))){
+		disassembled = DisassembleAdvancedSIMDScalarThreeSameInstr(instruction, (op0 & 1), (((op3 >> 5) & 1) == 0 && ((op3 >> 4) & 1) == 0 && (op3 & 1) == 1), ((op3 >> 5) & 1) == 1 && (op3 & 1) == 1);
 	}
 	else if(((op0 & ~0x2) == 5 || ((op0 >> 3) == 0 && (op0 & 1) == 0)) && (op1 >> 1) == 0 && (op2 == 15 || (op2 & ~0x8) == 4) && (((op3 >> 8) & 1) == 0 && ((op3 >> 7) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
 		disassembled = DisassembleAdvancedSIMDScalarTwoRegisterMiscellaneousInstr(instruction, (op0 & 1), op2 == 15);
