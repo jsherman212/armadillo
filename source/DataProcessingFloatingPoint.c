@@ -176,7 +176,7 @@ const char *get_arrangement2(int fp16, unsigned int sz, unsigned int Q){
 	}
 }
 
-char *DisassembleAdvancedSIMDScalarThreeSameInstr(struct instruction *instruction, int scalar, int fp16, int extra){
+char *DisassembleAdvancedSIMDThreeSameInstr(struct instruction *instruction, int scalar, int fp16, int extra){
 	char *disassembled = NULL;
 
 	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
@@ -455,7 +455,6 @@ char *DisassembleAdvancedSIMDScalarThreeSameInstr(struct instruction *instructio
 		}
 	}
 	else{
-		// TODO: check for size conditions not applying to non-scalar
 		printf("other type\n");
 		
 		opcode = getbitsinrange(instruction->hex, 11, 5);
@@ -874,8 +873,7 @@ char *DisassembleAdvancedSIMDScalarThreeSameInstr(struct instruction *instructio
 		}
 		
 		disassembled = malloc(128);
-		bzero(disassembled, 128);
-
+		
 		if(scalar)
 			sprintf(disassembled, "%s %c%d, %c%d, %c%d", instr, V, Rd, V, Rn, V, Rm);
 		else
@@ -888,8 +886,7 @@ char *DisassembleAdvancedSIMDScalarThreeSameInstr(struct instruction *instructio
 	return disassembled;
 }
 
-
-char *DisassembleAdvancedSIMDScalarTwoRegisterMiscellaneousInstr(struct instruction *instruction, int scalar, int fp16){
+char *DisassembleAdvancedSIMDTwoRegisterMiscellaneousInstr(struct instruction *instruction, int scalar, int fp16){
 	char *disassembled = NULL;
 
 	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
@@ -1347,6 +1344,122 @@ char *DisassembleAdvancedSIMDScalarTwoRegisterMiscellaneousInstr(struct instruct
 	return disassembled;
 }
 
+char *DisassembleAdvancedSIMDThreeDifferentInstr(struct instruction *instruction, int scalar){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int opcode = getbitsinrange(instruction->hex, 12, 4);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int size = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int U = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
+
+	printf("*****scalar %d\n", scalar);
+/*	
+	if(!scalar && size == 3)
+		return strdup(".undefined");
+*/
+	const char *instr = NULL;
+	char Va = '\0', Vb = '\0';
+	const char *Ta = NULL, *Tb = NULL;
+	
+	char Va_s[] = {'\0', 's', 'd'};
+	char Vb_s[] = {'\0', 'h', 's'};
+	
+	const char *Ta_s[] = {"8h", "4s", "2d"};
+
+	const char *instr_tbl_u0[] = {"saddl", "saddw", "ssubl", "ssubw", "addhn", "sabal", 
+		"subhn", "sabdl", "smlal", "sqdmlal", "smlsl", "sqdmlsl", 
+		"smull", "sqdmull", "pmull"};
+	const char *instr_tbl_u1[] = {"uaddl", "uaddw", "usubl", "usubw", "raddhn", "uabal",
+		"rsubhn", "uabdl", "umlal", NULL, "umlsl", NULL, 
+		"umull", NULL, NULL};
+	
+	printf("opcode %d\n", opcode);
+
+	//if(!scalar){
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u0)))
+			return strdup(".undefined");
+
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u1)))
+			return strdup(".undefined");
+
+		instr = U == 0 ? instr_tbl_u0[opcode] : instr_tbl_u1[opcode];
+
+		if(!instr)
+			return strdup(".undefined");
+
+		if(strstr(instr, "pmull"))
+			Ta = size == 0 ? "8h" : "1q";
+		else
+			Ta = Ta_s[size];
+		
+		Tb = get_arrangement(size, Q);
+
+		if(scalar){
+			Va = Va_s[size];
+			Vb = Vb_s[size];
+		}
+	//}
+	//else{
+	/*	if(opcode == 0x9){
+			if(U == 1 && scalar)
+				return strdup(".undefined");
+
+			instr = "sqdmlal";
+
+			if(size == 0 || size == 3)
+				return strdup(".undefined");
+
+			Ta = size == 1 ? "4s" : "2d";
+			Tb = get_arrangement(size, Q);
+
+			Va = Va_s[size];
+			Vb = Vb_s[size];
+		}
+		else if(opcode == 0xb){
+			if(U == 1 && scalar)
+				return strdup(".undefined");
+
+			instr = "sqdmlsl";
+
+			if(size == 0 || size == 3)
+				return strdup(".undefined");
+
+			Ta = size == 1 ? "4s" : "2d";
+			Tb = get_arrangement(size, Q);
+
+			Va = Va_s[size];
+			Vb = Vb_s[size];
+		}
+		else if(opcode == 0xd){
+			if(U == 1 && scalar)
+				return strdup(".undefined");
+
+			instr = "sqdmull";
+
+			if(size == 0 || size == 3)
+				return strdup(".undefined");
+
+			Ta = size == 1 ? "4s" : "2d";
+			Tb = get_arrangement(size, Q);
+
+			Va = Va_s[size];
+			Vb = Vb_s[size];
+		}*/
+	//}
+
+	disassembled = malloc(128);
+
+	if(scalar)
+		sprintf(disassembled, "%s %c%d, %c%d, %c%d", instr, Va, Rd, Vb, Rn, Vb, Rm);
+	else
+		sprintf(disassembled, "%s%s %s.%s, %s.%s, %s.%s", instr, Q == 1 ? "2" : "", ARM64_VectorRegisters[Rd], Ta, ARM64_VectorRegisters[Rn], Tb, ARM64_VectorRegisters[Rm], Tb);
+
+	return disassembled;
+}
+
 char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -1377,11 +1490,16 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 		int fp16 = (op2 >> 2) == 2 && (((op3 >> 5) & 1) == 0 && ((op3 >> 4) & 1) == 0 && (op3 & 1) == 1);
 		int extra = ((op2 >> 2) & 1) == 0 && (((op3 >> 5) & 1) == 1 && (op3 & 1) == 1);
 
-		disassembled = DisassembleAdvancedSIMDScalarThreeSameInstr(instruction, scalar, fp16, extra);
+		disassembled = DisassembleAdvancedSIMDThreeSameInstr(instruction, scalar, fp16, extra);
 	}
 	else if(((op0 & ~0x2) == 5 || ((op0 >> 3) == 0 && (op0 & 1) == 0)) && (op1 >> 1) == 0 && (op2 == 15 || (op2 & ~0x8) == 4) && (((op3 >> 8) & 1) == 0 && ((op3 >> 7) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
-		disassembled = DisassembleAdvancedSIMDScalarTwoRegisterMiscellaneousInstr(instruction, (op0 & 1), op2 == 15);
+		disassembled = DisassembleAdvancedSIMDTwoRegisterMiscellaneousInstr(instruction, (op0 & 1), op2 == 15);
 	}
+	else if(((op0 & ~0x2) == 5 || ((op0 >> 3) == 0 && (op0 & 1) == 0)) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && ((((op3 >> 1) & 1) == 0) && ((op3 & 1) == 0))){
+		int scalar = (op0 & 1);
+
+		disassembled = DisassembleAdvancedSIMDThreeDifferentInstr(instruction, scalar);
+	}	
 	else
 		return strdup(".undefined");
 

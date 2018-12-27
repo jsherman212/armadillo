@@ -612,7 +612,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("mov s2, v19.s[3]", 0x5e1c0662, 0);
 	*/
 
-	
+	/*
 	addinstr("fmulx h4, h5, h6", 0x5e461ca4, 0);
 	addinstr("fcmeq h2, h3, h1", 0x5e412462, 0);
 	addinstr("frecps h20, h19, h2", 0x5e423e74, 0);
@@ -642,6 +642,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fminnmp v0.2s, v1.2s, v2.2s", 0x2ea2c420, 0);
 	addinstr("cmge v6.8b, v7.8b, v8.8b", 0x0e283ce6, 0);
 	addinstr("uqshl v0.8h, v0.8h, v0.8h", 0x6e604c00, 0);
+	*/
 
 	/*addinstr("fcvtns h4, h6", 0x5e79a8c4, 0);
 	addinstr("fcmge h4, h3, 0.0", 0x7ef8c864, 0);
@@ -659,6 +660,12 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("rbit v0.8b, v1.8b", 0x2e605820, 0);
 	addinstr("ursqrte v6.2s, v5.2s", 0x2ea1c8a6, 0);
 	*/
+
+	addinstr("sqdmlal s1, h2, h4", 0x5e649041, 0);
+	addinstr("pmull2 v6.1q, v7.2d, v4.2d", 0x4ee4e0e6, 0);
+	addinstr("umlsl v0.4s, v1.4h, v2.4h", 0x2e62a020, 0);
+	addinstr("sqdmull s4, h6, h8", 0x5e68d0c4, 0);
+	addinstr("rsubhn v20.8b, v14.8h, v7.8h", 0x2e2761d4, 0);
 
 	struct node_t *current = instructions->front;
 
