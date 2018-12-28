@@ -13,6 +13,20 @@ void print_bin(unsigned int integer, int numbytes){
 
 	printf("\n");
 }
+
+void print_bin_long(unsigned long num, int numbytes){
+    //int i = CHAR_BIT * sizeof integer; /* however many bits are in an integer */
+    int i = numbytes;
+
+	if(numbytes == -1)
+		i = 64;
+
+	while(i--) {
+        putchar('0' + ((num >> i) & 1)); 
+    }
+
+	printf("\n");
+}
 unsigned long getbitsinrange(unsigned int number, int start, int amount){
 	unsigned int mask = ((1 << amount) - 1) << start;
 	return (number & mask) >> start;

@@ -8,7 +8,12 @@
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
 int LowestSetBit(int number, int n);
+unsigned long Ones(int len, int N);
 int DecodeBitMasks(unsigned int N, unsigned int imms, unsigned int immr, int immediate, unsigned long *out);
+unsigned long Replicate(unsigned long val, unsigned int bits);
+unsigned long Replicate2(unsigned long val, unsigned int N);
+unsigned long _Replicate(unsigned int num, int num_bits, int num_times);
+unsigned long AdvSIMDExpandImm(unsigned int op, unsigned int cmode, unsigned int imm8, unsigned long *imm64);
 int MoveWidePreferred(unsigned int sf, unsigned int immN, unsigned int immr, unsigned int imms);
 int IsZero(unsigned long x);
 int IsOnes(unsigned long x, int n);

@@ -6,6 +6,7 @@
 #include <math.h>
 
 void print_bin(unsigned int, int);
+void print_bin_long(unsigned long num, int numbytes);
 
 // get bits of a number
 // range: [start, end) 

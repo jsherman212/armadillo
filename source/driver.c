@@ -661,11 +661,29 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ursqrte v6.2s, v5.2s", 0x2ea1c8a6, 0);
 	*/
 
-	addinstr("sqdmlal s1, h2, h4", 0x5e649041, 0);
+	/*addinstr("sqdmlal s1, h2, h4", 0x5e649041, 0);
 	addinstr("pmull2 v6.1q, v7.2d, v4.2d", 0x4ee4e0e6, 0);
 	addinstr("umlsl v0.4s, v1.4h, v2.4h", 0x2e62a020, 0);
 	addinstr("sqdmull s4, h6, h8", 0x5e68d0c4, 0);
 	addinstr("rsubhn v20.8b, v14.8h, v7.8h", 0x2e2761d4, 0);
+	*/
+
+
+	//addinstr("sshr d6, d7, #2", 0x5f7e04e6, 0);
+	//addinstr("sshr v4.4s, v4.4s, #2", 0x4f3e0484, 0);
+	addinstr("movi v6.8b, 0x4", 0x0f00e486, 0);
+	addinstr("movi d5, 0xffffffffffffffff", 0x2f07e7e5, 0);
+	addinstr("movi v10.2s, 0x8, lsl #16", 0x0f00450a, 0);
+	addinstr("movi v1.4s, 0x20, msl #8", 0x4f01c401, 0);
+	addinstr("movi d5, 0xffff000000000000", 0x2f06e405, 0);
+	addinstr("orr v0.4h, 0x40, lsl #8", 0x0f02b400, 0);
+	addinstr("orr v7.4s, 0x90, lsl #24", 0x4f047607, 0);
+	addinstr("mvni v16.4s, 0x50, msl #16", 0x6f02d610, 0);
+	addinstr("bic v19.2s, 0xff", 0x2f0717f3, 0);
+	addinstr("bic v20.8h, 0x5", 0x6f0094b4, 0);
+	addinstr("fmov v3.4h, #31.0", 0x0f01ffe3, 0);
+	addinstr("fmov v5.2s, #25.0", 0x0f01f725, 0);
+	addinstr("fmov v6.2d, #-3.0", 0x6f04f506, 0);
 
 	struct node_t *current = instructions->front;
 

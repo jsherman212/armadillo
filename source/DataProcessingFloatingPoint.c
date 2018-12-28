@@ -1356,10 +1356,7 @@ char *DisassembleAdvancedSIMDThreeDifferentInstr(struct instruction *instruction
 	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
 
 	printf("*****scalar %d\n", scalar);
-/*	
-	if(!scalar && size == 3)
-		return strdup(".undefined");
-*/
+	
 	const char *instr = NULL;
 	char Va = '\0', Vb = '\0';
 	const char *Ta = NULL, *Tb = NULL;
@@ -1378,77 +1375,28 @@ char *DisassembleAdvancedSIMDThreeDifferentInstr(struct instruction *instruction
 	
 	printf("opcode %d\n", opcode);
 
-	//if(!scalar){
-		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u0)))
-			return strdup(".undefined");
+	if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u0)))
+		return strdup(".undefined");
 
-		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u1)))
-			return strdup(".undefined");
+	if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u1)))
+		return strdup(".undefined");
 
-		instr = U == 0 ? instr_tbl_u0[opcode] : instr_tbl_u1[opcode];
+	instr = U == 0 ? instr_tbl_u0[opcode] : instr_tbl_u1[opcode];
 
-		if(!instr)
-			return strdup(".undefined");
+	if(!instr)
+		return strdup(".undefined");
 
-		if(strstr(instr, "pmull"))
-			Ta = size == 0 ? "8h" : "1q";
-		else
-			Ta = Ta_s[size];
-		
-		Tb = get_arrangement(size, Q);
+	if(strstr(instr, "pmull"))
+		Ta = size == 0 ? "8h" : "1q";
+	else
+		Ta = Ta_s[size];
+	
+	Tb = get_arrangement(size, Q);
 
-		if(scalar){
-			Va = Va_s[size];
-			Vb = Vb_s[size];
-		}
-	//}
-	//else{
-	/*	if(opcode == 0x9){
-			if(U == 1 && scalar)
-				return strdup(".undefined");
-
-			instr = "sqdmlal";
-
-			if(size == 0 || size == 3)
-				return strdup(".undefined");
-
-			Ta = size == 1 ? "4s" : "2d";
-			Tb = get_arrangement(size, Q);
-
-			Va = Va_s[size];
-			Vb = Vb_s[size];
-		}
-		else if(opcode == 0xb){
-			if(U == 1 && scalar)
-				return strdup(".undefined");
-
-			instr = "sqdmlsl";
-
-			if(size == 0 || size == 3)
-				return strdup(".undefined");
-
-			Ta = size == 1 ? "4s" : "2d";
-			Tb = get_arrangement(size, Q);
-
-			Va = Va_s[size];
-			Vb = Vb_s[size];
-		}
-		else if(opcode == 0xd){
-			if(U == 1 && scalar)
-				return strdup(".undefined");
-
-			instr = "sqdmull";
-
-			if(size == 0 || size == 3)
-				return strdup(".undefined");
-
-			Ta = size == 1 ? "4s" : "2d";
-			Tb = get_arrangement(size, Q);
-
-			Va = Va_s[size];
-			Vb = Vb_s[size];
-		}*/
-	//}
+	if(scalar){
+		Va = Va_s[size];
+		Vb = Vb_s[size];
+	}
 
 	disassembled = malloc(128);
 
@@ -1456,6 +1404,218 @@ char *DisassembleAdvancedSIMDThreeDifferentInstr(struct instruction *instruction
 		sprintf(disassembled, "%s %c%d, %c%d, %c%d", instr, Va, Rd, Vb, Rn, Vb, Rm);
 	else
 		sprintf(disassembled, "%s%s %s.%s, %s.%s, %s.%s", instr, Q == 1 ? "2" : "", ARM64_VectorRegisters[Rd], Ta, ARM64_VectorRegisters[Rn], Tb, ARM64_VectorRegisters[Rm], Tb);
+
+	return disassembled;
+}
+
+char *DisassembleAdvancedSIMDModifiedImmediateInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int h = getbitsinrange(instruction->hex, 5, 1);
+	unsigned int g = getbitsinrange(instruction->hex, 6, 1);
+	unsigned int f = getbitsinrange(instruction->hex, 7, 1);
+	unsigned int e = getbitsinrange(instruction->hex, 8, 1);
+	unsigned int d = getbitsinrange(instruction->hex, 9, 1);
+	unsigned int o2 = getbitsinrange(instruction->hex, 11, 1);
+	unsigned int cmode = getbitsinrange(instruction->hex, 12, 4);
+	unsigned int c = getbitsinrange(instruction->hex, 16, 1);
+	unsigned int b = getbitsinrange(instruction->hex, 17, 1);
+	unsigned int a = getbitsinrange(instruction->hex, 18, 1);
+	unsigned int op = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
+	
+	const char *instr = NULL, *Vt = NULL, *T = NULL, *_Rd = NULL;
+	const char *T_8[] = {"8b", "16b"};
+	const char *T_16[] = {"4h", "8h"};
+	const char *T_32[] = {"2s", "4s"};
+
+	int amount_16[] = {0, 8};
+	int amount_32_imm[] = {0, 8, 16, 24};
+	int amount_32_ones[] = {8, 16};
+
+	unsigned long imm8 = (a << 7) |
+		(b << 6) |
+		(c << 5) |
+		(d << 4) |
+		(e << 3) |
+		(f << 2) |
+		(g << 1) |
+		h;
+
+	int operation = (cmode << 1) | op;
+	
+	if(cmode != 0xf){
+		unsigned long imm = _Replicate(a, 1, 8) << 56 |
+			_Replicate(b, 1, 8) << 48 |
+			_Replicate(c, 1, 8) << 40 |
+			_Replicate(d, 1, 8) << 32 |
+			_Replicate(e, 1, 8) << 24 |
+			_Replicate(f, 1, 8) << 16 |
+			_Replicate(g, 1, 8) << 8 |
+			_Replicate(h, 1, 8);
+		
+		int shifts = 0, shift_amount = 0, use_imm = 0;
+		const char *shift_str = NULL;
+		
+		if((operation & ~0xc) == 0)
+			instr = "movi";
+		else if((operation & ~0xc) == 1)
+			instr = "mvni";
+		else if((operation & ~0xc) == 2)
+			instr = "orr";
+		else if((operation & ~0xc) == 3)
+			instr = "bic";
+		else if((operation & ~0x4) == 0x10)
+			instr = "movi";
+		else if((operation & ~0x4) == 0x11)
+			instr = "mvni";
+		else if((operation & ~0x4) == 0x12)
+			instr = "orr";
+		else if((operation & ~0x4) == 0x13)
+			instr = "bic";
+		else if((operation & ~0x2) == 0x18)
+			instr = "movi";
+		else if((operation & ~0x2) == 0x19)
+			instr = "mvni";
+		else
+			instr = "movi";
+
+		if(strcmp(instr, "movi") == 0){
+			if(op == 0){
+				if(cmode != 0xe)
+					shift_str = (cmode & ~0x1) == 0xc ? "msl" : "lsl";
+
+				if(cmode == 0xe)
+					T = T_8[Q];
+				else if((cmode & ~0x2) == 0x8){
+					T = T_16[Q];
+					shift_amount = amount_16[((cmode >> 1) & 1)];
+				}
+				else{
+					T = T_32[Q];
+					shift_amount = (cmode & ~0x1) == 0xc ? amount_32_ones[(cmode & 1)] : amount_32_imm[getbitsinrange(cmode, 1, 2)];
+				}
+
+				_Rd = ARM64_VectorRegisters[Rd];
+			}
+			else{
+				use_imm = 1;
+
+				if(Q == 0)
+					_Rd = ARM64_VectorDoublePrecisionRegisters[Rd];
+				else{
+					_Rd = ARM64_VectorRegisters[Rd];
+					T = "2d";
+				}
+			}
+		}
+		else if(strcmp(instr, "orr") == 0){
+			shift_str = "lsl";
+			
+			if((cmode & ~0x2) == 0x9){
+				T = T_16[Q];
+				shift_amount = amount_16[((cmode >> 1) & 1)];
+			}
+			else{
+				T = T_32[Q];
+				shift_amount = amount_32_imm[getbitsinrange(cmode, 1, 2)];
+			}
+
+			_Rd = ARM64_VectorRegisters[Rd];
+		}
+		else if(strcmp(instr, "mvni") == 0){
+			_Rd = ARM64_VectorRegisters[Rd];
+			
+			if((cmode & ~0x2) == 0x9){
+				shift_str = "lsl";
+				T = T_16[Q];
+				shift_amount = amount_16[((cmode >> 1) & 1)];
+			}
+			else if((cmode & ~0x1) == 0xc){
+				shift_str = "msl";
+				T = T_32[Q];
+				shift_amount = amount_32_ones[(cmode & 1)];
+			}
+			else{
+				shift_str = "lsl";
+				T = T_32[Q];
+				shift_amount = amount_32_imm[getbitsinrange(cmode, 1, 2)];
+			}
+		}
+		else{
+			_Rd = ARM64_VectorRegisters[Rd];
+			shift_str = "lsl";
+
+			if((cmode & ~0x2) == 0x9){
+				T = T_16[Q];
+				shift_amount = amount_16[((cmode >> 1) & 1)];
+			}
+			else{
+				T = T_32[Q];
+				shift_amount = amount_32_imm[getbitsinrange(cmode, 1, 2)];
+			}
+		}
+
+		if(shift_amount > 0)
+			shifts = 1;
+		
+		disassembled = malloc(128);
+
+		sprintf(disassembled, "%s %s", instr, _Rd);
+		
+		if(T)
+			sprintf(disassembled, "%s.%s", disassembled, T);
+
+		sprintf(disassembled, "%s, #%#lx", disassembled, use_imm ? imm : imm8);
+
+		if(shifts)
+			sprintf(disassembled, "%s, %s #%d", disassembled, shift_str, shift_amount);
+	}
+	else{
+		instr = "fmov";
+		_Rd = ARM64_VectorRegisters[Rd];
+
+		if(op == 1)
+			T = "2d";
+		else if(o2 == 0)
+			T = T_32[Q];
+		else
+			T = T_16[Q];
+
+		int imm = 0;
+		
+		imm = a << 31;
+		imm |= (b ^ 1) << 30;
+		imm |= _Replicate(b, 1, 5) << 25;
+		imm |= c << 24;
+		imm |= d << 23;
+		imm |= e << 22;
+		imm |= f << 21;
+		imm |= g << 20;
+		imm |= h << 19;
+
+		union intfloat {
+			int i;
+			float f;
+		} _if;
+
+		_if.i = imm;
+		
+		disassembled = malloc(128);
+		sprintf(disassembled, "%s %s.%s, #%.1f", instr, _Rd, T, _if.f);
+	}			
+
+	return disassembled;
+}
+
+char *DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *instruction, int scalar){
+	char *disassembled = NULL;
+	
+	printf("scalar: %d\n", scalar);
+
+	if(!disassembled)
+		return strdup(".unknown");
 
 	return disassembled;
 }
@@ -1468,10 +1628,10 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	unsigned int op1 = getbitsinrange(instruction->hex, 23, 2);
 	unsigned int op0 = getbitsinrange(instruction->hex, 28, 4);
 	
-	print_bin(op0, 4);
-	print_bin(op1, 2);
-	print_bin(op2, 4);
-	print_bin(op3, 9);
+	//print_bin(op0, 4);
+	//print_bin(op1, 2);
+	//print_bin(op2, 4);
+	//print_bin(op3, 9);
 
 	if(op0 == 4 && (op1 >> 1) == 0 && (op2 & ~0x8) == 5 && (((op3 >> 9) & 1) == 0 && ((op3 >> 8) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
 		disassembled = DisassembleCryptographicAESInstr(instruction);
@@ -1499,7 +1659,22 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 		int scalar = (op0 & 1);
 
 		disassembled = DisassembleAdvancedSIMDThreeDifferentInstr(instruction, scalar);
-	}	
+	}
+	else if(((op0 & ~0x2) == 5 || ((op0 >> 3) == 0 && (op0 & 1) == 0)) && op1 == 2 && (op3 & 1) == 1){
+		int scalar = ((op0 & ~0x2) == 5);
+		
+		//printf("op2: %d\n", op2);
+
+		if(op2 == 0)
+			disassembled = DisassembleAdvancedSIMDModifiedImmediateInstr(instruction);
+		else
+			disassembled = DisassembleAdvancedSIMDShiftByImmediateInstr(instruction, scalar);
+	}
+	// old case for DisassembleAdvancedSIMDModifiedImmediateInstr
+	/*else if(((op0 >> 3) == 0 && (op0 & 1) == 0) && op1 == 2 && op2 == 0 && (op3 & 1) == 1){
+		
+		disassembled = DisassembleAdvancedSIMDModifiedImmediateInstr(instruction);
+	}*/
 	else
 		return strdup(".undefined");
 
