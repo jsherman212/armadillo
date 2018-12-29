@@ -2011,6 +2011,31 @@ char *DisassembleAdvancedSIMDTableLookupInstr(struct instruction *instruction){
 	return disassembled;
 }
 
+char *DisassembleAdvancedSIMDPermuteInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int opcode = getbitsinrange(instruction->hex, 12, 3);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int size = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
+
+	if(opcode == 0 || opcode == 4)
+		return strdup(".undefined");
+
+	const char *instr_tbl[] = {NULL, "uzp1", "trn1", "zip1", NULL, "uzp2", "trn2", "zip2"};
+	const char *instr = instr_tbl[opcode];
+
+	const char *T = get_arrangement(size, Q);
+
+	disassembled = malloc(128);
+
+	sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T, ARM64_VectorRegisters[Rm], T);
+
+	return disassembled;
+}
+
 char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -2018,12 +2043,12 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	unsigned int op2 = getbitsinrange(instruction->hex, 19, 4);
 	unsigned int op1 = getbitsinrange(instruction->hex, 23, 2);
 	unsigned int op0 = getbitsinrange(instruction->hex, 28, 4);
-	
-	//print_bin(op0, 4);
-	//print_bin(op1, 2);
-	//print_bin(op2, 4);
-	//print_bin(op3, 9);
-
+	/*
+	print_bin(op0, 4);
+	print_bin(op1, 2);
+	print_bin(op2, 4);
+	print_bin(op3, 9);
+	*/
 	if(op0 == 4 && (op1 >> 1) == 0 && (op2 & ~0x8) == 5 && (((op3 >> 9) & 1) == 0 && ((op3 >> 8) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
 		disassembled = DisassembleCryptographicAESInstr(instruction);
 	}
@@ -2067,8 +2092,11 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	else if((op0 & ~0x2) == 5 && (op1 >> 1) == 0 && (op2 & ~0x8) == 6 && (((op3 >> 8) & 1) == 0 && ((op3 >> 7) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
 		disassembled = DisassembleAdvancedSIMDScalarPairwiseInstr(instruction);
 	}
-	else if((op0 & ~0x4) == 0 && (op1 >> 1) == 0 && (op2 >> 2) == 0 && (((op3 >> 5) & 1) == 0 && ((op3 >> 1) & 1) == 0 && (op3 & 1) == 0)){
+	else if((op0 & ~0x4) == 0 && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 0 && (((op3 >> 5) & 1) == 0 && ((op3 >> 1) & 1) == 0 && (op3 & 1) == 0)){
 		disassembled = DisassembleAdvancedSIMDTableLookupInstr(instruction);
+	}
+	else if((op0 & ~0x4) == 0 && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 0 && (((op3 >> 5) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
+		disassembled = DisassembleAdvancedSIMDPermuteInstr(instruction);
 	}
 	else
 		return strdup(".undefined");

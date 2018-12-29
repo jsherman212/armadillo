@@ -710,10 +710,17 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fminnmp d5, v4.2d", 0x7ef0c885, 0);
 */
 
+	/*
 	addinstr("tbl v0.8b, {v8.16b, v9.16b, v10.16b}, v4.8b", 0x0e044100, 0);
 	addinstr("tbl v5.16b, {v9.16b, v10.16b}, v9.16b", 0x4e092125, 0);
 	addinstr("tbx v20.8b, {v3.16b, v4.16b, v5.16b, v6.16b}, v13.8b", 0x0e0d7074, 0);
 	addinstr("tbx v7.16b, {v9.16b}, v20.16b", 0x4e141127, 0);
+	*/
+
+	addinstr("uzp1 v8.16b, v9.16b, v10.16b", 0x4e0a1928, 0);
+	addinstr("trn2 v10.2s, v6.2s, v19.2s", 0x0e9368ca, 0);
+	addinstr("zip1 v15.4h, v10.4h, v6.4h", 0x0e46394f, 0);
+
 	
 	struct node_t *current = instructions->front;
 
