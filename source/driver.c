@@ -702,12 +702,18 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fcmla v5.4h, v6.4h, v7.h[0], #180", 0x2f4750c5, 0);
 */
 
-
+/*
 	addinstr("addp d3, v8.2d", 0x5ef1b903, 0);
 	addinstr("fmaxp h2, v9.2h", 0x5e30f922, 0);
 	addinstr("fminp h18, v20.2h", 0x5eb0fa92, 0);
 	addinstr("fmaxnmp s0, v2.2s", 0x7e30c840, 0);
 	addinstr("fminnmp d5, v4.2d", 0x7ef0c885, 0);
+*/
+
+	addinstr("tbl v0.8b, {v8.16b, v9.16b, v10.16b}, v4.8b", 0x0e044100, 0);
+	addinstr("tbl v5.16b, {v9.16b, v10.16b}, v9.16b", 0x4e092125, 0);
+	addinstr("tbx v20.8b, {v3.16b, v4.16b, v5.16b, v6.16b}, v13.8b", 0x0e0d7074, 0);
+	addinstr("tbx v7.16b, {v9.16b}, v20.16b", 0x4e141127, 0);
 	
 	struct node_t *current = instructions->front;
 

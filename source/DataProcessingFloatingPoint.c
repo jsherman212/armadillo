@@ -1976,6 +1976,41 @@ char *DisassembleAdvancedSIMDScalarPairwiseInstr(struct instruction *instruction
 	return disassembled;
 }
 
+char *DisassembleAdvancedSIMDTableLookupInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int op = getbitsinrange(instruction->hex, 12, 1);
+	unsigned int len = getbitsinrange(instruction->hex, 13, 2);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int op2 = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
+
+	const char *instr = NULL;
+	len++;
+
+	if(op == 0)
+		instr = "tbl";
+	else
+		instr = "tbx";
+
+	const char *Ta = Q == 0 ? "8b" : "16b";
+
+	disassembled = malloc(128);
+
+	sprintf(disassembled, "%s %s.%s, {", instr, ARM64_VectorRegisters[Rd], Ta);
+
+	for(int i=Rn; i<(Rn+len); i++)
+		sprintf(disassembled, "%s%s.16b, ", disassembled, ARM64_VectorRegisters[i]);
+
+	disassembled[strlen(disassembled) - 2] = '\0';
+
+	sprintf(disassembled, "%s}, %s.%s", disassembled, ARM64_VectorRegisters[Rm], Ta);
+	
+	return disassembled;
+}
+
 char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -2031,6 +2066,9 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	}
 	else if((op0 & ~0x2) == 5 && (op1 >> 1) == 0 && (op2 & ~0x8) == 6 && (((op3 >> 8) & 1) == 0 && ((op3 >> 7) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
 		disassembled = DisassembleAdvancedSIMDScalarPairwiseInstr(instruction);
+	}
+	else if((op0 & ~0x4) == 0 && (op1 >> 1) == 0 && (op2 >> 2) == 0 && (((op3 >> 5) & 1) == 0 && ((op3 >> 1) & 1) == 0 && (op3 & 1) == 0)){
+		disassembled = DisassembleAdvancedSIMDTableLookupInstr(instruction);
 	}
 	else
 		return strdup(".undefined");
