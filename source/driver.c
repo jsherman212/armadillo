@@ -716,11 +716,23 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("tbx v20.8b, {v3.16b, v4.16b, v5.16b, v6.16b}, v13.8b", 0x0e0d7074, 0);
 	addinstr("tbx v7.16b, {v9.16b}, v20.16b", 0x4e141127, 0);
 	*/
-
+/*
 	addinstr("uzp1 v8.16b, v9.16b, v10.16b", 0x4e0a1928, 0);
 	addinstr("trn2 v10.2s, v6.2s, v19.2s", 0x0e9368ca, 0);
 	addinstr("zip1 v15.4h, v10.4h, v6.4h", 0x0e46394f, 0);
+*/
 
+	//addinstr("ext v5.8b, v3.8b, v9.8b, #5", 0x2e092865, 0);	
+	
+	addinstr("dup v8.8b, v6.b[3]", 0x0e0704c8, 0);
+	addinstr("dup v5.2d, x5", 0x4e080ca5, 0);
+	addinstr("dup v9.8h, w3", 0x4e020c69, 0);
+	addinstr("smov w4, v9.b[0]", 0x0e012d24, 0);
+	addinstr("smov x5, v0.h[5]", 0x4e162c05, 0);
+	addinstr("umov w4, v5.h[4]", 0x0e123ca4, 0);
+	addinstr("umov x3, v10.d[1]", 0x4e183d43, 0);
+	addinstr("ins v9.b[0], w3", 0x4e011c69, 0);
+	addinstr("ins v10.h[2], v9.h[1]", 0x6e0a152a, 0);
 	
 	struct node_t *current = instructions->front;
 

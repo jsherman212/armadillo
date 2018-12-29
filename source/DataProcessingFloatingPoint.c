@@ -115,23 +115,18 @@ char *DisassembleAdvancedSIMDScalarCopyInstr(struct instruction *instruction){
 	unsigned int imm4 = getbitsinrange(instruction->hex, 11, 4);
 	unsigned int imm5 = getbitsinrange(instruction->hex, 16, 5);
 	unsigned int op = getbitsinrange(instruction->hex, 29, 1);
-
-	//print_bin(imm5, 5);
+	
 	int size = LowestSetBit(imm5, 5);
-	//printf("highest set bit: %d\n", size);
 
 	if(size > 3)
 		return strdup(".undefined");
 
 	if(op == 0 && imm4 == 0){
 		int index = imm5 >> (size + 1);
-		//printf("index: %d\n", index);
 
 		char T = '\0';
 		char V = '\0';
 
-		//print_bin(imm5, 5);
-	
 		if((imm5 & 1) == 1){
 			T = 'b';
 			V = 'b';
@@ -155,7 +150,6 @@ char *DisassembleAdvancedSIMDScalarCopyInstr(struct instruction *instruction){
 
 		// the alias 'mov' is always preferred for scalar 'dup' instruction disassembly
 		sprintf(disassembled, "mov %c%d, %s.%c[%d]", V, Rd, ARM64_VectorRegisters[Rn], T, index);
-
 
 		return disassembled;
 	}
@@ -195,9 +189,6 @@ char *DisassembleAdvancedSIMDThreeSameInstr(struct instruction *instruction, int
 	const char sizes[] = {'b', 'h', 's', 'd'};
 	const char sz_s[] = {'s', 'd'};
 
-	printf("*****scalar: %d, fp16: %d, extra: %d\n", scalar, fp16, extra);
-	printf("a: %d\n", a);
-	printf("U: %d\n", U);
 	const char *T = NULL, *instr = NULL;
 	const char *Ta = NULL, *Tb = NULL;
 	char V = '\0';
@@ -225,7 +216,6 @@ char *DisassembleAdvancedSIMDThreeSameInstr(struct instruction *instruction, int
 				_Rm = ARM64_VectorRegisters[Rm];
 			}
 			
-			printf("opcode %d\n", opcode);
 			instr = instr_tbl[opcode];
 
 			if(!instr)
@@ -333,7 +323,7 @@ char *DisassembleAdvancedSIMDThreeSameInstr(struct instruction *instruction, int
 	else if(extra){
 		// opcode is different with these instructions
 		opcode = getbitsinrange(instruction->hex, 11, 4);
-		printf("opcode %d\n", opcode);
+		
 		if(opcode == 0x2 && (U == 0 || U == 1)){
 			instr = U == 0 ? "sdot" : "udot";
 
@@ -349,9 +339,7 @@ char *DisassembleAdvancedSIMDThreeSameInstr(struct instruction *instruction, int
 			
 			return disassembled;
 		}
-		else{// if(opcode != 0x2){
-			printf("hello\n");
-			
+		else{
 			if(opcode == 0x0){
 				if(size == 0 || size == 3)
 					return strdup(".undefined");
@@ -425,8 +413,6 @@ char *DisassembleAdvancedSIMDThreeSameInstr(struct instruction *instruction, int
 		}
 	}
 	else{
-		printf("other type\n");
-		
 		opcode = getbitsinrange(instruction->hex, 11, 5);
 
 		if(opcode == 0x0){
@@ -1325,8 +1311,6 @@ char *DisassembleAdvancedSIMDThreeDifferentInstr(struct instruction *instruction
 	unsigned int U = getbitsinrange(instruction->hex, 29, 1);
 	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
 
-	printf("*****scalar %d\n", scalar);
-	
 	const char *instr = NULL;
 	char Va = '\0', Vb = '\0';
 	const char *Ta = NULL, *Tb = NULL;
@@ -2036,6 +2020,163 @@ char *DisassembleAdvancedSIMDPermuteInstr(struct instruction *instruction){
 	return disassembled;
 }
 
+char *DisassembleAdvancedSIMDExtractInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int imm4 = getbitsinrange(instruction->hex, 11, 4);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
+
+	const char *T = Q == 0 ? "8b" : "16b";
+
+	unsigned int index = 0;
+
+	if(Q == 0 && ((imm4 >> 3) & 1) == 0)
+		index = getbitsinrange(imm4, 0, 3);
+	else
+		index = imm4;
+
+	disassembled = malloc(128);
+	sprintf(disassembled, "ext %s.%s, %s.%s, %s.%s, #%d", ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T, ARM64_VectorRegisters[Rm], T, index);
+
+	return disassembled;
+}
+
+const char *get_advanced_SIMD_copy_arrangement(unsigned int imm5, unsigned int Q){
+	if((imm5 & 1) == 1)
+		return Q == 0 ? "8b" : "16b";
+	else if(((imm5 >> 1) & 1) == 1)
+		return Q == 0 ? "4h" : "8h";
+	else if(((imm5 >> 2) & 1) == 1)
+		return Q == 0 ? "2s" : "4s";
+	else if(((imm5 >> 3) & 1) == 1)
+		return Q == 0 ? NULL : "2d";
+	else
+		return NULL;
+}
+
+const char *get_advanced_SIMD_copy_specifier(unsigned int imm5){
+	if((imm5 & 1) == 1)
+		return "b";
+	else if(((imm5 >> 1) & 1) == 1)
+		return "h";
+	else if(((imm5 >> 2) & 1) == 1)
+		return "s";
+	else if(((imm5 >> 3) & 1) == 1)
+		return "d";
+	else
+		return NULL;
+}
+
+char get_advanced_SIMD_gen_width_specifier(unsigned int imm5){
+	if((imm5 & 1) == 1)
+		return 'w';
+	else if(((imm5 >> 1) & 1) == 1)
+		return 'w';
+	else if(((imm5 >> 2) & 1) == 1)
+		return 'w';
+	else if(((imm5 >> 3) & 1) == 1)
+		return 'x';
+	else
+		return '\0';
+}
+
+unsigned int get_advanced_SIMD_copy_index(unsigned int imm5){
+	if((imm5 & 1) == 1)
+		return getbitsinrange(imm5, 1, 4);
+	else if(((imm5 >> 1) & 1) == 1)
+		return getbitsinrange(imm5, 2, 3);
+	else if(((imm5 >> 2) & 1) == 1)
+		return getbitsinrange(imm5, 3, 2);
+	else if(((imm5 >> 3) & 1) == 1)
+		return getbitsinrange(imm5, 4, 1);
+	else
+		return -1;
+}
+
+char *DisassembleAdvancedSIMDCopyInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int imm4 = getbitsinrange(instruction->hex, 11, 4);
+	unsigned int imm5 = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int op = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
+
+	const char *instr = NULL;
+	const char *T = NULL, *Ts = NULL;
+	unsigned int index = 0;
+	char V = '\0', R = '\0';
+
+	T = get_advanced_SIMD_copy_arrangement(imm5, Q);
+	Ts = get_advanced_SIMD_copy_specifier(imm5);
+	index = get_advanced_SIMD_copy_index(imm5);
+	R = get_advanced_SIMD_gen_width_specifier(imm5);		
+	
+	if(imm4 == 0 || imm4 == 1){
+		disassembled = malloc(128);
+
+		if(imm4 == 0)
+			sprintf(disassembled, "dup %s.%s, %s.%s[%d]", ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], Ts, index);
+		else
+			sprintf(disassembled, "dup %s.%s, %c%d", ARM64_VectorRegisters[Rd], T, R, Rn);
+	}
+	else if(imm4 == 5){
+		disassembled = malloc(128);
+
+		if(Q == 0)
+			sprintf(disassembled, "smov %s, %s.%s[%d]", ARM64_32BitGeneralRegisters[Rd], ARM64_VectorRegisters[Rn], Ts, index);
+		else
+			sprintf(disassembled, "smov %s, %s.%s[%d]", ARM64_GeneralRegisters[Rd], ARM64_VectorRegisters[Rn], Ts, index);
+	}
+	else if(imm4 == 7){
+		disassembled = malloc(128);
+
+		if(Q == 0){
+			const char *instr = "umov";
+
+			if(((imm5 >> 2) & 1) == 1)
+				instr = "mov";
+
+			sprintf(disassembled, "%s %s, %s.%s[%d]", instr, ARM64_32BitGeneralRegisters[Rd], ARM64_VectorRegisters[Rn], Ts, index);
+		}
+		else{
+			const char *instr = "umov";
+
+			if(((imm5 >> 3) & 1) == 1)
+				instr = "mov";
+
+			sprintf(disassembled, "%s %s, %s.%s[%d]", instr, ARM64_GeneralRegisters[Rd], ARM64_VectorRegisters[Rn], Ts, index);	
+		}
+	}
+	else{
+		disassembled = malloc(128);
+
+		if(op == 0)
+			sprintf(disassembled, "mov %s.%s[%d], %c%d", ARM64_VectorRegisters[Rd], Ts, index, R, Rn);
+		else{
+			unsigned int index1 = index;
+			unsigned int index2 = 0;
+
+			if((imm5 & 1) == 1)
+				index2 = getbitsinrange(imm4, 0, 4);
+			else if(((imm5 >> 1) & 1) == 1)
+				index2 = getbitsinrange(imm4, 1, 3);
+			else if(((imm5 >> 2) & 1) == 1)
+				index2 = getbitsinrange(imm4, 2, 2);
+			else if(((imm5 >> 3) & 1) == 1)
+				index2 = getbitsinrange(imm4, 3, 1);
+
+			sprintf(disassembled, "mov %s.%s[%d], %s.%s[%d]", ARM64_VectorRegisters[Rd], Ts, index1, ARM64_VectorRegisters[Rn], Ts, index2);
+		}
+	}
+
+	return disassembled;
+}
+
 char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -2060,6 +2201,9 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	}
 	else if((op0 & ~0x2) == 5 && op1 == 0 && (op2 >> 2) == 0 && (((op3 >> 5) & 1) == 0 && (op3 & 1) == 1)){
 		disassembled = DisassembleAdvancedSIMDScalarCopyInstr(instruction);
+	}
+	else if(((op0 >> 3) == 0 && (op0 & 1) == 0) && op1 == 0 && (((op2 >> 3) & 1) == 0 && (((op2 >> 2) & 1) == 0)) && (((op3 >> 5) & 1) == 0 && (op3 & 1) == 1)){
+		disassembled = DisassembleAdvancedSIMDCopyInstr(instruction);
 	}
 	else if(((op0 & ~0x2) == 5 || ((op0 >> 3) == 0 && (op0 & 1) == 0)) && (op1 >> 1) == 0 && ((op2 >> 2) == 2 || ((op2 >> 2) & 1) == 0 || ((op2 >> 2) & 1) == 1) && ((op3 & 1) == 1 || (((op3 >> 5) & 1) == 0 && ((op3 >> 4) & 1) == 0 && (op3 & 1) == 1) || (((op3 >> 5) & 1) == 1 && (op3 & 1) == 1))){
 		int scalar = (op0 & 1);
@@ -2097,6 +2241,9 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	}
 	else if((op0 & ~0x4) == 0 && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 0 && (((op3 >> 5) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
 		disassembled = DisassembleAdvancedSIMDPermuteInstr(instruction);
+	}
+	else if((op0 & ~0x4) == 2 && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 0 && (((op3 >> 5) & 1) == 0 && (op3 & 1) == 0)){
+		disassembled = DisassembleAdvancedSIMDExtractInstr(instruction);
 	}
 	else
 		return strdup(".undefined");
