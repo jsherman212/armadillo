@@ -668,7 +668,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("rsubhn v20.8b, v14.8h, v7.8h", 0x2e2761d4, 0);
 	*/
 
-
+/*
 	addinstr("sshr d6, d7, #2", 0x5f7e04e6, 0);
 	addinstr("sshr v4.4s, v4.4s, #2", 0x4f3e0484, 0);
 	addinstr("sqshlu s5, s6, #4", 0x7f2464c5, 0);
@@ -676,7 +676,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("sqshrn2 v10.8h, v4.4s, #5", 0x4f1b948a, 0);
 	addinstr("fcvtzs v19.2s, v9.2s, #32", 0x0f20fd33, 0);
 	addinstr("uqshrn b8, h9, #1", 0x7f0f9528, 0);
-	
+*/	
 	
 	
 	/*addinstr("movi v6.8b, 0x4", 0x0f00e486, 0);
@@ -693,6 +693,22 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fmov v5.2s, #25.0", 0x0f01f725, 0);
 	addinstr("fmov v6.2d, #-3.0", 0x6f04f506, 0);
 	*/
+
+/*
+	addinstr("smlal v6.4s, v9.4h, v3.h[3]", 0x0f732126, 0);
+	addinstr("fmla h9, h3, v9.h[7]", 0x5f391869, 0);
+	addinstr("fmls v10.2s, v2.2s, v8.s[0]", 0x0f88504a, 0);
+	addinstr("sqrdmlah h4, h5, v4.h[6]", 0x7f64d8a4, 0);
+	addinstr("fcmla v5.4h, v6.4h, v7.h[0], #180", 0x2f4750c5, 0);
+*/
+
+
+	addinstr("addp d3, v8.2d", 0x5ef1b903, 0);
+	addinstr("fmaxp h2, v9.2h", 0x5e30f922, 0);
+	addinstr("fminp h18, v20.2h", 0x5eb0fa92, 0);
+	addinstr("fmaxnmp s0, v2.2s", 0x7e30c840, 0);
+	addinstr("fminnmp d5, v4.2d", 0x7ef0c885, 0);
+	
 	struct node_t *current = instructions->front;
 
 	while(current){

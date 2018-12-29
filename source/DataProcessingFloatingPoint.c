@@ -1753,6 +1753,229 @@ char *DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *instructi
 	return disassembled;
 }
 
+char *DisassembleAdvancedSIMDIndexedElementInstr(struct instruction *instruction, int scalar){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int H = getbitsinrange(instruction->hex, 11, 1);
+	unsigned int opcode = getbitsinrange(instruction->hex, 12, 4);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 4);
+	unsigned int M = getbitsinrange(instruction->hex, 20, 1);
+	unsigned int L = getbitsinrange(instruction->hex, 21, 1);
+	unsigned int size = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int a = (size >> 1);
+	unsigned int sz = (size & 1);
+	unsigned int U = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
+
+	const char *instr = NULL;
+	const char *Va = NULL, *Vb = NULL, *Vm = NULL;
+	const char *Vd = NULL, *Vn = NULL;
+	char V = '\0';
+	const char *Ta = NULL, *Tb = NULL, *Ts = NULL, *T = NULL;
+	
+	const char *instr_tbl_u0[] = {(size == 2) ? "fmlal" : NULL, 
+		(size == 0 || (size >> 1) == 1) ? "fmla" : NULL,
+		"smlal", "sqrdmlal",
+		(size == 2) ? "fmlsl" : NULL,
+		(size == 0 || (size >> 1) == 1) ? "fmls" : NULL,
+		"smlsl", "sqdmlsl", "mul",
+		(size == 0 || (size >> 1) == 1) ? "fmul" : NULL,
+		"smull", "sqdmull", "sqdmulh", "sqrdmulh", "sdot"};
+	
+	const char *instr_tbl_u1[] = {"mla",
+		(size == 1 || size == 2) ? "fcmla" : NULL,
+		"umlal",
+		(size == 1 || size == 2) ? "fcmla" : NULL,
+		"mls",
+		(size == 1 || size == 2) ? "fcmla" : NULL,
+		"umlsl",
+		(size == 1 || size == 2) ? "fcmla" : NULL,
+		(size == 2) ? "fmlal" : NULL,
+		(size == 0 || (size >> 1) == 1) ? "fmulx" : NULL,
+		"umull", NULL,
+		(size == 2) ? "fmlsl" : NULL,
+		"sqrdmlah", "udot", "sqrdmlsh"};
+
+	if(U == 0)
+		instr = instr_tbl_u0[opcode];
+	else
+		instr = instr_tbl_u1[opcode];
+
+	if(!instr)
+		return strdup(".undefined");
+
+	int index = -1;
+
+	if((U == 0 && (opcode == 0 || opcode == 1
+			|| opcode == 4 || opcode == 5
+			|| opcode == 9)) || (U == 1 && (opcode == 2 || opcode == 3
+			|| opcode == 6 || opcode == 7
+			|| opcode == 10 || opcode == 11))){
+		if(scalar){
+			if(size == 0){
+				index = (H << 2) | (L << 1) | M;
+
+				disassembled = malloc(128);
+				sprintf(disassembled, "%s %s, %s, %s.h[%d]", instr, ARM64_VectorHalfPrecisionRegisters[Rd], ARM64_VectorHalfPrecisionRegisters[Rn], ARM64_VectorRegisters[Rm], index);
+			}
+			else{
+				V = sz == 0 ? 's' : 'd';
+				Vm = ARM64_VectorRegisters[(M << 5) | Rm];
+				Ts = sz == 0 ? "s" : "d";
+				index = (((sz << 1) | L) >> 1) == 0 ? ((H << 1) | L) : H;
+				
+				disassembled = malloc(128);
+				sprintf(disassembled, "%s %c%d, %c%d, %s.%s[%d]", instr, V, Rd, V, Rn, Vm, Ts, index);
+			}
+		}
+		else{
+			if(size == 0){
+				index = (H << 2) | (L << 1) | M;
+				T = Q == 0 ? "4h" : "8h";
+
+				disassembled = malloc(128);
+				sprintf(disassembled, "%s %s.%s, %s.%s, %s.h[%d]", instr, ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T, ARM64_VectorRegisters[Rm], index);
+			}
+			else{
+				index = (((sz << 1) | L) >> 1) == 0 ? ((H << 1) | L) : H;
+
+				T = Q == 0 ? "2s" : sz == 0 ? "4s" : "2d";
+				Ts = sz == 0 ? "s" : "d";
+
+				disassembled = malloc(128);
+				sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s[%d]", instr, ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T, ARM64_VectorRegisters[Rm], Ts, index);
+			}
+		}
+	}
+	else if((U == 0 && (opcode == 2 || opcode == 3
+			|| opcode == 6 || opcode == 7
+			|| opcode == 10 || opcode == 11))
+			|| (U == 1 && (opcode == 2 || opcode == 6
+			|| opcode == 10))){
+		if(scalar){
+			index = size == 1 ? ((H << 2) | (L << 1) | M) : ((H << 1) | M);
+
+			Va = size == 1 ? "s" : "d";
+			Vb = size == 1 ? "h" : "s";
+			Vm = size == 1 ? ARM64_VectorRegisters[(0 << 5) | Rm] : ARM64_VectorRegisters[(M << 5) | Rm];
+
+			Ts = size == 1 ? "h" : "s";
+
+			disassembled = malloc(128);
+			sprintf(disassembled, "%s %s%d, %s%d, %s.%s[%d]", instr, Va, Rd, Vb, Rn, Vm, Ts, index);
+		}
+		else{
+			index = size == 1 ? ((H << 2) | (L << 1) | M) : ((H << 1) | M);
+
+			Ta = size == 1 ? "4s" : "2d";
+			Tb = size == 1 ? Q == 0 ? "4h" : "8h" : Q == 0 ? "2s" : "4s";
+			Ts = size == 1 ? "h" : "s";
+
+			disassembled = malloc(128);
+			sprintf(disassembled, "%s%s %s.%s, %s.%s, %s.%s[%d]", instr, Q == 1 ? "2" : "", ARM64_VectorRegisters[Rd], Ta, ARM64_VectorRegisters[Rn], Tb, ARM64_VectorRegisters[Rm], Ts, index);
+		}
+	}
+	else{
+		if(scalar){
+			V = size == 1 ? 'h' : 's';
+			Ts = size == 1 ? "h" : "s";
+			index = size == 1 ? ((H << 2) | (L << 1) | M) : ((H << 1) | M);
+
+			disassembled = malloc(128);
+			sprintf(disassembled, "%s %c%d, %c%d, %s.%s[%d]", instr, V, Rd, V, Rn, ARM64_VectorRegisters[Rm], Ts, index);
+		}
+		else{
+			T = size == 1 ? Q == 0 ? "4h" : "8h" : Q == 0 ? "2s" : "4s";
+			Ts = size == 1 ? "h" : "s";
+			index = size == 1 ? (H << 2) | (L << 1) | M : (H << 1) | M;
+
+			disassembled = malloc(128);
+			sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s[%d]", instr, ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T, ARM64_VectorRegisters[Rm], Ts, index);
+		}
+	}
+	
+	if(strcmp(instr, "fcmla") == 0)
+		sprintf(disassembled, "%s, #%d", disassembled, 90*(int)getbitsinrange(instruction->hex, 13, 2));
+
+	if(!disassembled)
+		return strdup(".unknown");
+
+	return disassembled;
+}
+
+char *DisassembleAdvancedSIMDScalarPairwiseInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int opcode = getbitsinrange(instruction->hex, 12, 5);
+	unsigned int size = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int sz = (size & 1);
+	unsigned int U = getbitsinrange(instruction->hex, 29, 1);
+
+	const char *instr = NULL, *T = NULL;
+	char V = '\0';
+
+	if(opcode == 0x1b){
+		if(U == 1)
+			return strdup(".undefined");
+
+		instr = "addp";
+
+		if(size != 3)
+			return strdup(".undefined");
+
+		V = 'd';
+		T = "2d";
+	}
+	else{
+		// subtract 12 so we don't have to deal with rows of annoying NULL
+		opcode -= 12;
+
+		if(U == 0){
+			if(size == 0){
+				const char *tbl[] = {"fmaxnmp", "faddp", NULL, "fmaxp"};
+
+				instr = tbl[opcode];
+			}
+			else if(size == 2){
+				const char *tbl[] = {"fminnmp", NULL, NULL, "fminp"};
+
+				instr = tbl[opcode];
+			}
+			else
+				return strdup(".undefined");
+
+			V = 'h';
+			T = "2h";
+		}
+		else{
+			if((size >> 1) == 0){
+				const char *tbl[] = {"fmaxnmp", "faddp", NULL, "fmaxp"};
+
+				instr = tbl[opcode];
+			}
+			else if((size >> 1) == 1){
+				const char *tbl[] = {"fminnmp", NULL, NULL, "fminp"};
+
+				instr = tbl[opcode];
+			}
+			else
+				return strdup(".undefined");
+
+			V = sz == 0 ? 's' : 'd';
+			T = sz == 0 ? "2s" : "2d";
+		}
+	}
+
+	disassembled = malloc(128);
+	sprintf(disassembled, "%s %c%d, %s.%s", instr, V, Rd, ARM64_VectorRegisters[Rn], T);
+
+	return disassembled;
+}
+
 char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -1778,7 +2001,7 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	else if((op0 & ~0x2) == 5 && op1 == 0 && (op2 >> 2) == 0 && (((op3 >> 5) & 1) == 0 && (op3 & 1) == 1)){
 		disassembled = DisassembleAdvancedSIMDScalarCopyInstr(instruction);
 	}
-	else if(((op0 & ~0x2) == 5 || ((op0 >> 3) == 0 && (op0 & 1) == 0)) && (op1 >> 1) == 0 && ((op2 >> 2) == 2 || ((op2 >> 2) & 1) == 0 || ((op2 >> 2) & 1) == 1) && ((op3 & 1) == 1 || (((op3 >> 5) & 1) == 0 && ((op3 >> 4) & 1) == 0 && (op3 & 1) == 1) || (((op3 >> 5) & 1) == 1 && (op3 & 1) == 1) /*|| ((op3 & 1) == 1)*/)){
+	else if(((op0 & ~0x2) == 5 || ((op0 >> 3) == 0 && (op0 & 1) == 0)) && (op1 >> 1) == 0 && ((op2 >> 2) == 2 || ((op2 >> 2) & 1) == 0 || ((op2 >> 2) & 1) == 1) && ((op3 & 1) == 1 || (((op3 >> 5) & 1) == 0 && ((op3 >> 4) & 1) == 0 && (op3 & 1) == 1) || (((op3 >> 5) & 1) == 1 && (op3 & 1) == 1))){
 		int scalar = (op0 & 1);
 		int fp16 = (op2 >> 2) == 2 && (((op3 >> 5) & 1) == 0 && ((op3 >> 4) & 1) == 0 && (op3 & 1) == 1);
 		int extra = ((op2 >> 2) & 1) == 0 && (((op3 >> 5) & 1) == 1 && (op3 & 1) == 1);
@@ -1795,19 +2018,20 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	}
 	else if(((op0 & ~0x2) == 5 || ((op0 >> 3) == 0 && (op0 & 1) == 0)) && op1 == 2 && (op3 & 1) == 1){
 		int scalar = ((op0 & ~0x2) == 5);
-		
-		//printf("op2: %d\n", op2);
 
 		if(op2 == 0)
 			disassembled = DisassembleAdvancedSIMDModifiedImmediateInstr(instruction);
 		else
 			disassembled = DisassembleAdvancedSIMDShiftByImmediateInstr(instruction, scalar);
 	}
-	// old case for DisassembleAdvancedSIMDModifiedImmediateInstr
-	/*else if(((op0 >> 3) == 0 && (op0 & 1) == 0) && op1 == 2 && op2 == 0 && (op3 & 1) == 1){
-		
-		disassembled = DisassembleAdvancedSIMDModifiedImmediateInstr(instruction);
-	}*/
+	else if(((op0 & ~0x2) == 5 || ((op0 >> 3) == 0 && (op0 & 1) == 0)) && (op1 >> 1) == 1 && (op3 & 1) == 0){
+		int scalar = ((op0 & ~0x2) == 5);
+
+		disassembled = DisassembleAdvancedSIMDIndexedElementInstr(instruction, scalar);
+	}
+	else if((op0 & ~0x2) == 5 && (op1 >> 1) == 0 && (op2 & ~0x8) == 6 && (((op3 >> 8) & 1) == 0 && ((op3 >> 7) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
+		disassembled = DisassembleAdvancedSIMDScalarPairwiseInstr(instruction);
+	}
 	else
 		return strdup(".undefined");
 
