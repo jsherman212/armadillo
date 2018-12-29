@@ -187,14 +187,8 @@ char *DisassembleAdvancedSIMDThreeSameInstr(struct instruction *instruction, int
 	unsigned int size = getbitsinrange(instruction->hex, 22, 2);
 	unsigned int sz = (size & 1);
 	unsigned int a = (size >> 1);
-	//unsigned int sz = getbitsinrange(instruction->hex, 22, 1);
-	//unsigned int a = getbitsinrange(instruction->hex, 23, 1);
 	unsigned int U = getbitsinrange(instruction->hex, 29, 1);
 	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
-
-	//const char *_Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
-	//const char *_Rn = ARM64_VectorHalfPrecisionRegisters[Rn];
-	//const char *_Rm = ARM64_VectorHalfPrecisionRegisters[Rm];
 
 	const char *_Rd = NULL, *_Rn = NULL, *_Rm = NULL;
 
@@ -240,12 +234,6 @@ char *DisassembleAdvancedSIMDThreeSameInstr(struct instruction *instruction, int
 			disassembled = malloc(128);
 			
 			T = get_arrangement2(fp16, sz, Q);
-
-		/*	if(scalar)
-				sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
-			else
-				sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, _Rd, T, _Rn, T, _Rm, T);
-		*/
 		}
 		else if(U == 0 && a == 1){
 			const char **instr_tbl = NULL;
@@ -275,20 +263,8 @@ char *DisassembleAdvancedSIMDThreeSameInstr(struct instruction *instruction, int
 			disassembled = malloc(128);
 
 			T = get_arrangement2(fp16, sz, Q);
-
-			/*if(scalar)
-				sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
-			else
-				sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, _Rd, T, _Rn, T, _Rm, T);
-		*/
 		}
 		else if(U == 1 && a == 0){
-			//const char *instr_tbl[] = {NULL, NULL, NULL, NULL, "fcmge", "facge"};
-
-			/*if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-				return strdup(".undefined");
-			*/
-
 			const char **instr_tbl = NULL;
 
 			if(scalar){
@@ -316,12 +292,6 @@ char *DisassembleAdvancedSIMDThreeSameInstr(struct instruction *instruction, int
 			disassembled = malloc(128);
 			
 			T = get_arrangement2(fp16, sz, Q);
-
-		/*	if(scalar)
-				sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
-			else
-				sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, _Rd, T, _Rn, T, _Rm, T);
-		*/
 		}
 		else if(U == 1 && a == 1){
 			const char **instr_tbl = NULL;
@@ -1609,13 +1579,176 @@ char *DisassembleAdvancedSIMDModifiedImmediateInstr(struct instruction *instruct
 	return disassembled;
 }
 
+const char *get_shift_by_immediate_arrangement(unsigned int immh, unsigned int Q){
+	if(immh == 1)
+		return Q == 0 ? "8b" : "16b";
+	else if((immh & ~0x1) == 2)
+		return Q == 0 ? "4h" : "8h";
+	else if((immh & ~0x3))
+		return Q == 0 ? "2s" : "4s";
+	else
+		return Q == 0 ? NULL : "2d";
+}
+
+const char *get_shift_by_immediate_Ta(unsigned int immh){
+	if(immh == 1)
+		return "8h";
+	else if((immh & ~0x1) == 2)
+		return "4s";
+	else if((immh & ~0x3) == 4)
+		return "2d";
+	else
+		return NULL;
+}
+
+char get_shift_by_immediate_Vb(unsigned int immh){
+	if(immh == 1)
+		return 'b';
+	else if((immh & ~0x1) == 2)
+		return 'h';
+	else if((immh & ~0x3) == 4)
+		return 's';
+	else
+		return '\0';
+}
+
+char get_shift_by_immediate_Va(unsigned int immh){
+	if(immh == 1)
+		return 'h';
+	else if((immh & ~0x1) == 2)
+		return 's';
+	else if((immh & ~0x3) == 4)
+		return 'd';
+	else
+		return '\0';
+}
+
+char get_shift_by_immediate_V(unsigned int immh){
+	if(immh == 1)
+		return 'b';
+	else if((immh & ~0x1) == 2)
+		return 'h';
+	else if((immh & ~0x3) == 4)
+		return 's';
+	else
+		return 'd';
+}
+
+unsigned int get_shift_by_immediate_shift(unsigned int immh, unsigned int immb){
+	unsigned int combined = (immh << 3) | immb;
+
+	if(immh == 1)
+		return combined - 8;
+	else if((immh & ~0x1) == 2)
+		return combined - 16;
+	else if((immh & ~0x3) == 4)
+		return combined - 32;
+	else
+		return combined - 64;
+}
+
+unsigned int get_shift_by_immediate_shift2(unsigned int immh, unsigned int immb){
+	unsigned int combined = (immh << 3) | immb;
+
+	if(immh == 1)
+		return 16 - combined;
+	else if((immh & ~0x1) == 2)
+		return 32 - combined;
+	else if((immh & ~0x3) == 4)
+		return 64 - combined;
+	else
+		return 128 - combined;
+}
+
 char *DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *instruction, int scalar){
 	char *disassembled = NULL;
-	
-	printf("scalar: %d\n", scalar);
 
-	if(!disassembled)
-		return strdup(".unknown");
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int opcode = getbitsinrange(instruction->hex, 11, 5);
+	unsigned int immb = getbitsinrange(instruction->hex, 16, 3);
+	unsigned int immh = getbitsinrange(instruction->hex, 19, 4);
+	unsigned int U = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
+
+	const char *Vd = NULL, *Vn = NULL;
+	char Va = '\0', Vb = '\0';
+	const char *Ta = NULL, *Tb = NULL;
+	const char *T = NULL;
+	char V = '\0';
+	unsigned int shift = 0;
+	const char **instr_tbl = NULL;
+
+	const char *instr_tbl_u0[] = {"sshr", NULL, "ssra", NULL, "srshr", NULL, "srsra",
+		NULL, NULL, NULL, "shl", NULL, NULL, NULL, "sqshl",
+		NULL, "shrn", "rshrn", "sqshrn", "sqrshrn", "sshll",
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, "scvtf",
+		NULL, NULL, "fcvtzs"};
+	const char *instr_tbl_u1[] = {"ushr", NULL, "usra", NULL, "urshr", NULL, "ursra",		
+		NULL, "sri", NULL, "sli", NULL, "sqshlu", NULL, "uqshl",
+		NULL, "sqshrun", "sqrshrun", "uqshrn", "uqrshrn",
+		"ushll", NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		"ucvtf", NULL, NULL, "fcvtzu"};
+
+	if(U == 0)
+		instr_tbl = instr_tbl_u0;
+	else
+		instr_tbl = instr_tbl_u1;
+
+	const char *instr = instr_tbl[opcode];
+
+	if(!instr)
+		return strdup(".undefined");
+
+	if(opcode >= 0x10 && opcode <= 0x14){
+		Vb = get_shift_by_immediate_Vb(immh);
+		Va = get_shift_by_immediate_Va(immh);
+		Tb = get_shift_by_immediate_arrangement(immh, Q);
+		Ta = get_shift_by_immediate_Ta(immh);
+		
+		shift = get_shift_by_immediate_shift2(immh, immb);
+
+		disassembled = malloc(128);
+		
+		if(scalar)
+			sprintf(disassembled, "%s %c%d, %c%d, #%#x", instr, Vb, Rd, Va, Rn, shift);
+		else
+			sprintf(disassembled, "%s%s %s.%s, %s.%s, #%#x", instr, Q == 1 ? "2" : "", ARM64_VectorRegisters[Rd], Tb, ARM64_VectorRegisters[Rn], Ta, shift);
+	}
+	else{
+		V = get_shift_by_immediate_V(immh);
+		T = get_shift_by_immediate_arrangement(immh, Q);
+		
+		if(strcmp(instr, "sshr") == 0 || strcmp(instr, "ushr") == 0
+				|| strcmp(instr, "ssra") == 0 || strcmp(instr, "usra") == 0
+				|| strcmp(instr, "srshr") == 0 || strcmp(instr, "urshr") == 0
+				|| strcmp(instr, "srsra") == 0 || strcmp(instr, "ursra") == 0
+				|| strcmp(instr, "sri") == 0){
+			if((immh & ~0x7) == 0x8)
+				shift = 128 - ((immh << 3) | immb);
+			else
+				return strdup(".undefined");
+		}
+		else if(strcmp(instr, "shl") == 0 || strcmp(instr, "sli") == 0){
+			if((immh & ~0x7) == 0x8)
+				shift = 64 - ((immh << 3) | immb);
+			else
+				return strdup(".undefined");
+		}
+		else if(strcmp(instr, "sqshl") == 0 || strcmp(instr, "sqshlu") == 0
+				|| strcmp(instr, "uqshl") == 0)
+			shift = get_shift_by_immediate_shift(immh, immb);
+		else if(strcmp(instr, "scvtf") == 0 || strcmp(instr, "fcvtzs") == 0
+				|| strcmp(instr, "ucvtf") == 0 || strcmp(instr, "fcvtzu") == 0)
+			shift = get_shift_by_immediate_shift2(immh, immb);
+
+		disassembled = malloc(128);
+
+		if(scalar)
+			sprintf(disassembled, "%s %c%d, %c%d, #%#x", instr, V, Rd, V, Rn, shift);
+		else
+			sprintf(disassembled, "%s %s.%s, %s.%s, #%#x", instr, ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T, shift);
+	}
 
 	return disassembled;
 }
