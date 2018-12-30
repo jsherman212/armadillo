@@ -2380,6 +2380,289 @@ char *DisassembleCryptographicTwoRegisterSHA512Instr(struct instruction *instruc
 	return disassembled;
 }
 
+char *DisassembleConversionBetweenFloatingPointAndFixedPointInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int scale = getbitsinrange(instruction->hex, 10, 6);
+	unsigned int opcode = getbitsinrange(instruction->hex, 16, 3);
+	unsigned int rmode = getbitsinrange(instruction->hex, 19, 2);
+	unsigned int type = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int S = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
+
+	const char *instr_tbl[] = {"fcvtzs", "fcvtzu", "scvtf", "ucvtf"};
+	const char *instr = instr_tbl[opcode];
+
+	unsigned int fbits = 64 - scale;
+
+	char *_Rd = malloc(24);
+	char *_Rn = malloc(24);
+
+	bzero(_Rd, 24);
+	bzero(_Rn, 24);
+
+	if(strcmp(instr, "scvtf") == 0 || strcmp(instr, "ucvtf") == 0){
+		if(type == 3)
+			sprintf(_Rd, "h%d", Rd);
+		else if(type == 0)
+			sprintf(_Rd, "s%d", Rd);
+		else if(type == 1)
+			sprintf(_Rd, "d%d", Rd);
+		else{
+			free(_Rd);
+			free(_Rn);
+			return strdup(".undefined");
+		}
+		
+		if(sf == 0)
+			sprintf(_Rn, "w%d", Rn);
+		else
+			sprintf(_Rn, "x%d", Rn);
+	}
+	else{
+		if(type == 3)
+			sprintf(_Rn, "h%d", Rn);
+		else if(type == 0)
+			sprintf(_Rn, "s%d", Rn);
+		else if(type == 1)
+			sprintf(_Rn, "d%d", Rn);
+		else{
+			free(_Rd);
+			free(_Rn);
+			return strdup(".undefined");
+		}
+		
+		if(sf == 0)
+			sprintf(_Rd, "w%d", Rd);
+		else
+			sprintf(_Rd, "x%d", Rd);
+	}
+
+	disassembled = malloc(128);
+
+	sprintf(disassembled, "%s %s, %s, #%#x", instr, _Rd, _Rn, fbits);
+
+	return disassembled;
+}
+
+char *DisassembleConversionBetweenFloatingPointAndIntegerInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int opcode = getbitsinrange(instruction->hex, 16, 3);
+	unsigned int rmode = getbitsinrange(instruction->hex, 19, 2);
+	unsigned int type = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int S = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
+
+	const char *instr = NULL;
+
+	char *_Rd = malloc(32);
+	char *_Rn = malloc(32);
+
+	bzero(_Rd, 32);
+	bzero(_Rn, 32);
+
+	if(sf == 0 && S == 0 && type == 0 && rmode == 0){
+		const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau", "fmov", "fmov"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 0 && S == 0 && type == 0 && rmode == 1){
+		const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 0 && S == 0 && type == 0 && rmode == 2){
+		const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 0 && S == 0 && type == 0 && rmode == 3){
+		const char *instr_tbl[] = {"fcvtzs", "fcvtzu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 0 && S == 0 && type == 1 && rmode == 0){
+		const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 0 && S == 0 && type == 1 && rmode == 1){
+		const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 0 && S == 0 && type == 1 && rmode == 2){
+		const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 0 && S == 0 && type == 1 && rmode == 3){
+		const char *instr_tbl[] = {"fcvtzs", "fcvtzu", NULL, NULL, NULL, NULL, "fjcvtzs"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 0 && S == 0 && type == 3 && rmode == 0){
+		const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau", "fmov", "fmov"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 0 && S == 0 && type == 3 && rmode == 1){
+		const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 0 && S == 0 && type == 3 && rmode == 2){
+		const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 0 && S == 0 && type == 3 && rmode == 3){
+		const char *instr_tbl[] = {"fcvtzs", "fcvtzu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 1 && S == 0 && type == 0 && rmode == 0){
+		const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 1 && S == 0 && type == 0 && rmode == 1){
+		const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 1 && S == 0 && type == 0 && rmode == 2){
+		const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 1 && S == 0 && type == 0 && rmode == 3){
+		const char *instr_tbl[] = {"fcvtzs", "fcvtzu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 1 && S == 0 && type == 1 && rmode == 0){
+		const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau", "fmov", "fmov"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 1 && S == 0 && type == 1 && rmode == 1){
+		const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 1 && S == 0 && type == 1 && rmode == 2){
+		const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 1 && S == 0 && type == 1 && rmode == 3){
+		const char *instr_tbl[] = {"fcvtzs", "fcvtzu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 1 && S == 0 && type == 2 && rmode == 1){
+		const char *instr_tbl[] = {NULL, NULL, NULL, NULL, NULL, NULL, "fmov", "fmov", NULL};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 1 && S == 0 && type == 3 && rmode == 0){
+		const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau", "fmov", "fmov"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 1 && S == 0 && type == 3 && rmode == 1){
+		const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 1 && S == 0 && type == 3 && rmode == 2){
+		const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
+		instr = instr_tbl[opcode];
+	}
+	else if(sf == 1 && S == 0 && type == 3 && rmode == 3){
+		const char *instr_tbl[] = {"fcvtzs", "fcvtzu"};
+		instr = instr_tbl[opcode];
+	}
+	else{
+		free(_Rd);
+		free(_Rn);
+		return strdup(".undefined");
+	}
+	
+	if(strstr(instr, "fcvt") || strcmp(instr, "fjcvtzs") == 0){
+		if(type == 3)
+			sprintf(_Rn, "h%d", Rn);
+		else if(type == 0)
+			sprintf(_Rn, "s%d", Rn);
+		else if(type == 1)
+			sprintf(_Rn, "d%d", Rn);
+		else{
+			free(_Rd);
+			free(_Rn);
+			return strdup(".undefined");
+		}
+		
+		if(sf == 0)
+			sprintf(_Rd, "w%d", Rd);
+		else
+			sprintf(_Rd, "x%d", Rd);
+	}
+	else if(strcmp(instr, "fmov") != 0){
+		if(type == 3)
+			sprintf(_Rd, "h%d", Rd);
+		else if(type == 0)
+			sprintf(_Rd, "s%d", Rd);
+		else if(type == 1)
+			sprintf(_Rd, "d%d", Rd);
+		else{
+			free(_Rd);
+			free(_Rn);
+			return strdup(".undefined");
+		}
+		
+		if(sf == 0)
+			sprintf(_Rn, "w%d", Rn);
+		else
+			sprintf(_Rn, "x%d", Rn);
+	}
+	else if(strcmp(instr, "fmov") == 0){
+		if(sf == 0 && type == 3 && rmode == 0 && opcode == 6){
+			sprintf(_Rd, "w%d", Rd);
+			sprintf(_Rn, "h%d", Rn);
+		}
+		else if(sf == 1 && type == 3 && rmode == 0 && opcode == 6){
+			sprintf(_Rd, "x%d", Rd);
+			sprintf(_Rn, "h%d", Rn);
+		}
+		else if(sf == 0 && type == 3 && rmode == 0 && opcode == 7){
+			sprintf(_Rd, "h%d", Rd);
+			sprintf(_Rn, "w%d", Rn);
+		}
+		else if(sf == 0 && type == 0 && rmode == 0 && opcode == 7){
+			sprintf(_Rd, "s%d", Rd);
+			sprintf(_Rn, "w%d", Rn);
+		}
+		else if(sf == 0 && type == 0 && rmode == 0 && opcode == 6){
+			sprintf(_Rd, "w%d", Rd);
+			sprintf(_Rn, "s%d", Rn);
+		}
+		else if(sf == 1 && type == 3 && rmode == 0 && opcode == 7){
+			sprintf(_Rd, "h%d", Rd);
+			sprintf(_Rn, "x%d", Rn);
+		}
+		else if(sf == 1 && type == 1 && rmode == 0 && opcode == 7){
+			sprintf(_Rd, "d%d", Rd);
+			sprintf(_Rn, "x%d", Rn);
+		}
+		else if(sf == 1 && type == 2 && rmode == 1 && opcode == 7){
+			sprintf(_Rd, "v%d.d[1]", Rd);
+			sprintf(_Rn, "x%d", Rn);
+		}
+		else if(sf == 1 && type == 1 && rmode == 0 && opcode == 6){
+			sprintf(_Rd, "x%d", Rd);
+			sprintf(_Rn, "d%d", Rn);
+		}
+		else if(sf == 1 && type == 2 && rmode == 1 && opcode == 6){
+			sprintf(_Rd, "x%d", Rd);
+			sprintf(_Rn, "v%d.d[1]", Rn);
+		}
+		else
+			return strdup(".undefined");
+	}
+
+	disassembled = malloc(128);
+	
+	sprintf(disassembled, "%s %s, %s", instr, _Rd, _Rn);
+
+	free(_Rd);
+	free(_Rn);
+
+	return disassembled;
+}
+
 char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -2465,6 +2748,12 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	}
 	else if(op0 == 12 && op1 == 1 && op2 == 8 && (op3 >> 2) == 8){
 		disassembled = DisassembleCryptographicTwoRegisterSHA512Instr(instruction);
+	}
+	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 0){
+		disassembled = DisassembleConversionBetweenFloatingPointAndFixedPointInstr(instruction);
+	}
+	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 6) == 0){
+		disassembled = DisassembleConversionBetweenFloatingPointAndIntegerInstr(instruction);
 	}
 	else
 		return strdup(".undefined");

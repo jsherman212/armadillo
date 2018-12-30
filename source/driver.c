@@ -734,14 +734,39 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ins v9.b[0], w3", 0x4e011c69, 0);
 	addinstr("ins v10.h[2], v9.h[1]", 0x6e0a152a, 0);
 	*/
-	
+	/*
 	addinstr("saddlv s5, v3.4h", 0x0e703865, 0);
 	addinstr("sminv h2, v9.8h", 0x4e71a922, 0);
 	addinstr("fmaxnmv h12, v8.4h", 0x0e30c90c, 0);
 	addinstr("fminv h7, v2.8h", 0x4eb0f847, 0);
 	addinstr("umaxv b20, v5.8b", 0x2e30a8b4, 0);
 	addinstr("fminnmv s4, v7.4s", 0x6eb0c8e4, 0);
+	*/
 
+	/*
+	addinstr("scvtf h6, w3, #2", 0x1ec2f866, 0);
+	addinstr("scvtf s10, x14, #50", 0x9e0239ca, 0);
+	addinstr("ucvtf s0, w2, #14", 0x1e03c840, 0);
+	addinstr("ucvtf d7, w15, #1", 0x1e43fde7, 0);
+	addinstr("fcvtzs x20, d4, #64", 0x9e580094, 0);
+	addinstr("fcvtzs w4, h6, #10", 0x1ed8d8c4, 0);
+	addinstr("fcvtzu w19, s7, #16", 0x1e19c0f3, 0);
+	addinstr("fcvtzu x2, h0, #5", 0x9ed9ec02, 0);
+	*/
+
+	addinstr("fcvtns x4, h5", 0x9ee000a4, 0);
+	addinstr("fcvtns w2, d10", 0x1e600142, 0);
+	addinstr("fcvtnu x10, d7", 0x9e6100ea, 0);
+	addinstr("scvtf s10, w1", 0x1e22002a, 0);
+	addinstr("ucvtf h18, w14", 0x1ee301d2, 0);
+	addinstr("fmov v4.d[1], x9", 0x9eaf0124, 0);
+	addinstr("fmov s2, w5", 0x1e2700a2, 0);
+	addinstr("fmov x9, v10.d[1]", 0x9eae0149, 0);
+	addinstr("fcvtas w0, h0", 0x1ee40000, 0);
+	addinstr("fcvtps x8, h1", 0x9ee80028, 0);
+	addinstr("fjcvtzs w10, d4", 0x1e7e008a, 0);
+	addinstr("fcvtzu x19, h6", 0x9ef900d3, 0);
+	
 	struct node_t *current = instructions->front;
 
 	while(current){
