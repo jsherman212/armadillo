@@ -2648,6 +2648,11 @@ char *DisassembleConversionBetweenFloatingPointAndIntegerInstr(struct instructio
 		}
 		else
 			return strdup(".undefined");
+	
+		if(strcmp(_Rn, "w31") == 0)
+			strcpy(_Rn, "#0.0");
+		else if(strcmp(_Rn, "x31") == 0)
+			strcpy(_Rn, "#0.0");
 	}
 
 	disassembled = malloc(128);
@@ -2829,6 +2834,83 @@ char *DisassembleFloatingPointCompareInstr(struct instruction *instruction){
 	return disassembled;
 }
 
+int VFPExpandImm(int imm8, int type){
+	int E = 0, N = 0;
+
+	/*if(type == 3){
+		E = 5;
+		N = 16;
+	}
+	else if(type == 0){*/
+		E = 8;
+		N = 32;
+	/*}
+	else{
+		E = 11;
+		N = 64;
+	}*/
+
+	//printf("E - 3 = %d\n", E - 3);
+	//printf("imm8<6> = %d\n", ((imm8 >> 6) & 1));
+	//print_bin(_Replicate(((imm8 >> 6) & 1), 1, E - 3), E - 3);
+
+	const int F = N - E - 1;
+
+	int sign = ((imm8 >> 7) & 1);
+	int exp = (((imm8 >> 6) & 1) ^ 1) << ((E - 3) + 2) |
+		_Replicate(((imm8 >> 6) & 1), 1, E - 3) << 2 |
+		getbitsinrange(imm8, 4, 2);
+	int frac = getbitsinrange(imm8, 0, 4) << (F - 4);
+
+	return sign << ((1 + (E - 3) + 2) + (4 + (F - 4))) |
+		exp << (4 + (F - 4)) |
+		frac;
+}
+
+char *DisassembleFloatingPointImmediateInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int imm5 = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int imm8 = getbitsinrange(instruction->hex, 13, 8);
+	unsigned int type = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int S = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int M = getbitsinrange(instruction->hex, 31, 1);
+
+	const char *_Rd = NULL;
+
+	if(type == 3)
+		_Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
+	else if(type == 0)
+		_Rd = ARM64_VectorSinglePrecisionRegisters[Rd];
+	else if(type == 1)
+		_Rd = ARM64_VectorDoublePrecisionRegisters[Rd];
+
+	int imm = VFPExpandImm(imm8, type);
+
+	//print_bin_long(imm, -1);
+
+	union intfloat {
+		int i;
+		float f;
+	} _if;
+
+	if(type == 3){
+	//	imm <<= 48;
+	//	imm >>= 32;
+	}
+	
+	//print_bin_long(imm, -1);
+
+	_if.i = imm;
+
+	disassembled = malloc(128);
+	
+	sprintf(disassembled, "fmov %s, #%f", _Rd, _if.f);
+
+	return disassembled;
+}
+
 char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -2926,6 +3008,9 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	}
 	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 4) == 0x8){
 		disassembled = DisassembleFloatingPointCompareInstr(instruction);
+	}
+	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 3) == 0x4){
+		disassembled = DisassembleFloatingPointImmediateInstr(instruction);
 	}
 	else
 		return strdup(".undefined");

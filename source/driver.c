@@ -776,14 +776,33 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fcvt s10, h3", 0x1ee2406a, 0);
 	addinstr("frinti h9, h8", 0x1ee7c109, 0);
 	*/
-
+	
+	/*
 	addinstr("fcmp h9, h1", 0x1ee12120, 0);
 	addinstr("fcmp s5, 0.0", 0x1e2020a8, 0);
 	addinstr("fcmp d10, d2", 0x1e622140, 0);
 	addinstr("fcmpe s10, s9", 0x1e292150, 0);
 	addinstr("fcmpe d0, 0.0", 0x1e602018, 0);
 	addinstr("fcmpe h6, 0.0", 0x1ee020d8, 0);
-	
+	*/
+
+	addinstr("fmov s0, #5.0", 0x1E229000, 0);
+	addinstr("fmov s9, #0.0", 0x1E2703E9, 0);
+	addinstr("fmov s4, #-1.0", 0x1E3E1004, 0);
+	addinstr("fmov s20, #0.5", 0x1E2C1014, 0);
+	addinstr("fmov s7, #-0.5", 0x1E3C1007, 0);
+	addinstr("fmov s18, #31.0", 0x1E27F012, 0);
+	addinstr("fmov s12, #-26.0", 0x1E37500C, 0);
+	addinstr("fmov h4, #5.0", 0x1ee29004, 0);
+	addinstr("fmov h20, #14.0", 0x1ee59014, 0);
+	addinstr("fmov h6, #-9.0", 0x1ef45006, 0);
+	addinstr("fmov d4, #25.0", 0x1E673004, 0);
+	addinstr("fmov d2, #0.0", 0x9E6703E2, 0);
+	addinstr("fmov d10, #-9.0", 0x1E74500A, 0);
+	addinstr("fmov d10, #31.0", 0x1E67F00A, 0);
+	addinstr("fmov d7, #-19.0", 0x1E767007, 0);
+
+
 	struct node_t *current = instructions->front;
 
 	while(current){
