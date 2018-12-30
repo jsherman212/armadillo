@@ -753,7 +753,8 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fcvtzu w19, s7, #16", 0x1e19c0f3, 0);
 	addinstr("fcvtzu x2, h0, #5", 0x9ed9ec02, 0);
 	*/
-
+	
+	/*
 	addinstr("fcvtns x4, h5", 0x9ee000a4, 0);
 	addinstr("fcvtns w2, d10", 0x1e600142, 0);
 	addinstr("fcvtnu x10, d7", 0x9e6100ea, 0);
@@ -766,6 +767,15 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fcvtps x8, h1", 0x9ee80028, 0);
 	addinstr("fjcvtzs w10, d4", 0x1e7e008a, 0);
 	addinstr("fcvtzu x19, h6", 0x9ef900d3, 0);
+	*/
+	
+	addinstr("fsqrt s4, s5", 0x1e21c0a4, 0);
+	addinstr("fabs d10, d0", 0x1e60c00a, 0);
+	addinstr("fcvt h9, s2", 0x1e23c049, 0);
+	addinstr("frintp d5, d4", 0x1e64c085, 0);
+	addinstr("fcvt s10, h3", 0x1ee2406a, 0);
+	addinstr("frinti h9, h8", 0x1ee7c109, 0);
+
 	
 	struct node_t *current = instructions->front;
 

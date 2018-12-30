@@ -2400,9 +2400,6 @@ char *DisassembleConversionBetweenFloatingPointAndFixedPointInstr(struct instruc
 	char *_Rd = malloc(24);
 	char *_Rn = malloc(24);
 
-	bzero(_Rd, 24);
-	bzero(_Rn, 24);
-
 	if(strcmp(instr, "scvtf") == 0 || strcmp(instr, "ucvtf") == 0){
 		if(type == 3)
 			sprintf(_Rd, "h%d", Rd);
@@ -2462,9 +2459,6 @@ char *DisassembleConversionBetweenFloatingPointAndIntegerInstr(struct instructio
 
 	char *_Rd = malloc(32);
 	char *_Rn = malloc(32);
-
-	bzero(_Rd, 32);
-	bzero(_Rn, 32);
 
 	if(sf == 0 && S == 0 && type == 0 && rmode == 0){
 		const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau", "fmov", "fmov"};
@@ -2571,6 +2565,9 @@ char *DisassembleConversionBetweenFloatingPointAndIntegerInstr(struct instructio
 		free(_Rn);
 		return strdup(".undefined");
 	}
+
+	if(!instr)
+		return strdup(".undefined");
 	
 	if(strstr(instr, "fcvt") || strcmp(instr, "fjcvtzs") == 0){
 		if(type == 3)
@@ -2659,6 +2656,110 @@ char *DisassembleConversionBetweenFloatingPointAndIntegerInstr(struct instructio
 
 	free(_Rd);
 	free(_Rn);
+
+	return disassembled;
+}
+
+char *DisassembleFloatingPointDataProcessingOneSource(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int opcode = getbitsinrange(instruction->hex, 15, 6);
+	unsigned int opc = getbitsinrange(instruction->hex, 15, 2);
+	unsigned int type = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int S = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int M = getbitsinrange(instruction->hex, 31, 1);
+
+	const char *instr = NULL;
+
+	char *_Rd = malloc(32);
+	char *_Rn = malloc(32);
+
+	if(M == 0 && S == 0 && type == 0){
+		const char *instr_tbl[] = {"fmov", "fabs", "fneg", "fsqrt", NULL, "fcvt", NULL, "fcvt",
+			"frintn", "frintp", "frintm", "frintz", "frinta", NULL, "frintx", "frinti"};
+		instr = instr_tbl[opcode];
+	}
+	else if(M == 0 && S == 0 && type == 1){
+		const char *instr_tbl[] = {"fmov", "fabs", "fneg", "fsqrt", "fcvt", NULL, NULL, "fcvt",
+			"frintn", "frintp", "frintm", "frintz", "frinta", NULL, "frintx", "frinti"};
+		instr = instr_tbl[opcode];
+	}
+	else if(M == 0 && S == 0 && type == 3){
+		const char *instr_tbl[] = {"fmov", "fabs", "fneg", "fsqrt", "fcvt", "fcvt", NULL, NULL,
+			"frintn", "frintp", "frintm", "frintz", "frinta", NULL, "frintx", "frinti"};
+		instr = instr_tbl[opcode];
+	}
+	else{
+		free(_Rd);
+		free(_Rn);
+		return strdup(".undefined");
+	}
+
+	if(!instr)
+		return strdup(".undefined");
+	
+	if(strcmp(instr, "fcvt") == 0){
+		if(type == 3){
+			if(opc == 0){
+				sprintf(_Rd, "s%d", Rd);
+				sprintf(_Rn, "h%d", Rn);
+			}
+			else{
+				sprintf(_Rd, "d%d", Rd);
+				sprintf(_Rn, "h%d", Rn);
+			}
+		}
+		else if(type == 0){
+			if(opc == 3){
+				sprintf(_Rd, "h%d", Rd);
+				sprintf(_Rn, "s%d", Rn);
+			}
+			else{
+				sprintf(_Rd, "d%d", Rd);
+				sprintf(_Rn, "s%d", Rn);
+			}
+		}
+		else if(type == 1){
+			if(opc == 3){
+				sprintf(_Rd, "h%d", Rd);
+				sprintf(_Rn, "d%d", Rn);
+			}
+			else{
+				sprintf(_Rd, "s%d", Rd);
+				sprintf(_Rn, "d%d", Rn);
+			}
+		}
+		else{
+			free(_Rd);
+			free(_Rn);
+			return strdup(".undefined");
+		}
+	}
+	else{
+		if(type == 3){
+			sprintf(_Rd, "h%d", Rd);
+			sprintf(_Rn, "h%d", Rn);
+		}
+		else if(type == 0){
+			sprintf(_Rd, "s%d", Rd);
+			sprintf(_Rn, "s%d", Rn);
+		}
+		else if(type == 1){
+			sprintf(_Rd, "d%d", Rd);
+			sprintf(_Rn, "d%d", Rn);
+		}
+		else{
+			free(_Rd);
+			free(_Rn);
+			return strdup(".undefined");
+		}
+	}
+
+	disassembled = malloc(128);
+
+	sprintf(disassembled, "%s %s, %s", instr, _Rd, _Rn);
 
 	return disassembled;
 }
@@ -2754,6 +2855,9 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	}
 	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 6) == 0){
 		disassembled = DisassembleConversionBetweenFloatingPointAndIntegerInstr(instruction);
+	}
+	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 5) == 0x10){
+		disassembled = DisassembleFloatingPointDataProcessingOneSource(instruction);
 	}
 	else
 		return strdup(".undefined");
