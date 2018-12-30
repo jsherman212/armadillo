@@ -2233,8 +2233,149 @@ char *DisassembleAdvancedSIMDAcrossLanesInstr(struct instruction *instruction){
 	
 	sprintf(disassembled, "%s %c%d, %s.%s", instr, V, Rd, ARM64_VectorRegisters[Rn], T);
 
-	if(!disassembled)
-		return strdup(".unknown");
+	return disassembled;
+}
+
+char *DisassembleCryptographicThreeRegisterImm2(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int opcode = getbitsinrange(instruction->hex, 10, 2);
+	unsigned int imm2 = getbitsinrange(instruction->hex, 12, 2);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	
+	const char *instr_tbl[] = {"sm3tt1a", "sm3tt1b", "sm3tt2a", "sm3tt2b"};
+	const char *instr = instr_tbl[opcode];
+
+	const char *T = "4s";
+
+	if(strcmp(instr, "sm3tt2b") == 0)
+		T = "s";
+
+	disassembled = malloc(128);
+
+	sprintf(disassembled, "%s %s.%s, %s.%s, %s.s[%d]", instr, ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T, ARM64_VectorRegisters[Rm], imm2);
+	
+	return disassembled;
+}
+
+char *DisassembleCryptographicThreeRegisterSHA512Instr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int opcode = getbitsinrange(instruction->hex, 10, 2);
+	unsigned int O = getbitsinrange(instruction->hex, 14, 1);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+
+	const char *instr_tbl_O0[] = {"sha512h", "sha512h2", "sha512su1", "rax1"};
+	const char *instr_tbl_O1[] = {"sm3partw1", "sm3partw2", "sm4ekey", NULL};
+
+	const char *instr = NULL;
+
+	if(O == 0)
+		instr = instr_tbl_O0[opcode];
+	else
+		instr = instr_tbl_O1[opcode];
+
+	if(!instr)
+		return strdup(".undefined");
+
+	char *_Rd = malloc(32);
+	char *_Rn = malloc(32);
+	char *_Rm = malloc(32);
+
+	bzero(_Rd, 32);
+	bzero(_Rn, 32);
+	bzero(_Rm, 32);
+
+	if(strcmp(instr, "sha512h") == 0 || strcmp(instr, "sha512h2") == 0){
+		sprintf(_Rd, "q%d", Rd);
+		sprintf(_Rn, "q%d", Rn);
+		sprintf(_Rm, "v%d.2d", Rm);
+	}
+	else if(strcmp(instr, "sha512su1") == 0 || strcmp(instr, "rax1") == 0){
+		sprintf(_Rd, "v%d.2d", Rd);
+		sprintf(_Rn, "v%d.2d", Rn);
+		sprintf(_Rm, "v%d.2d", Rm);
+	}
+	else{
+		sprintf(_Rd, "v%d.4s", Rd);
+		sprintf(_Rn, "v%d.4s", Rn);
+		sprintf(_Rm, "v%d.4s", Rm);
+	}
+
+	disassembled = malloc(128);
+
+	sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
+
+	free(_Rd);
+	free(_Rn);
+	free(_Rm);
+
+	return disassembled;
+}
+
+char *DisassembleCryptographicFourRegisterInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int Ra = getbitsinrange(instruction->hex, 10, 5);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int Op0 = getbitsinrange(instruction->hex, 21, 2);
+
+	if(Op0 == 3)
+		return strdup(".undefined");
+
+	const char *instr_tbl[] = {"eor3", "bcax", "sm3ss1"};
+	const char *instr = instr_tbl[Op0];
+
+	const char *T = "16b";
+
+	if(Op0 == 2)
+		T = "4s";
+
+	disassembled = malloc(128);
+
+	sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s, %s.%s", instr, ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T, ARM64_VectorRegisters[Rm], T, ARM64_VectorRegisters[Ra], T);
+	
+	return disassembled;
+}
+
+char *DisassembleXARInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int imm6 = getbitsinrange(instruction->hex, 10, 6);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+
+	disassembled = malloc(128);
+
+	sprintf(disassembled, "xar %s.2d, %s.2d, %s.2d, #%#x", ARM64_VectorRegisters[Rd], ARM64_VectorRegisters[Rn], ARM64_VectorRegisters[Rm], imm6);
+
+	return disassembled;
+}
+
+char *DisassembleCryptographicTwoRegisterSHA512Instr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int opcode = getbitsinrange(instruction->hex, 10, 2);
+
+	disassembled = malloc(128);
+
+	if(opcode == 0)
+		sprintf(disassembled, "sha512su0 %s.2d, %s.2d", ARM64_VectorRegisters[Rd], ARM64_VectorRegisters[Rn]);
+	else if(opcode == 1)
+		sprintf(disassembled, "sm4e %s.4s, %s.4s", ARM64_VectorRegisters[Rd], ARM64_VectorRegisters[Rn]);
+	else{
+		free(disassembled);
+		return strdup(".undefined");
+	}
 
 	return disassembled;
 }
@@ -2309,6 +2450,21 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	}
 	else if(((op0 >> 3) == 0 && (op0 & 1) == 0) && (op1 >> 1) == 0 && (op2 & ~0x8) == 6 && (((op3 >> 8) & 1) == 0 && ((op3 >> 7) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
 		disassembled = DisassembleAdvancedSIMDAcrossLanesInstr(instruction);
+	}
+	else if(op0 == 12 && op1 == 0 && (op2 >> 2) == 2 && (((op3 >> 5) & 1) == 1 && (((op3 >> 4) & 1) == 0))){
+		disassembled = DisassembleCryptographicThreeRegisterImm2(instruction);
+	}
+	else if(op0 == 12 && op1 == 0 && (op2 >> 2) == 3 && (((op3 >> 5) & 1) == 1 && (((op3 >> 3) & 1) == 0 && (((op3 >> 2) & 1) == 0)))){
+		disassembled = DisassembleCryptographicThreeRegisterSHA512Instr(instruction);
+	}
+	else if(op0 == 12 && op1 == 0 && (((op3 >> 5) & 1) == 0)){
+		disassembled = DisassembleCryptographicFourRegisterInstr(instruction);
+	}
+	else if(op0 == 12 && op1 == 1 && ((((op2 >> 3) & 1) == 0 && (((op2 >> 2) & 1) == 0)))){
+		disassembled = DisassembleXARInstr(instruction);
+	}
+	else if(op0 == 12 && op1 == 1 && op2 == 8 && (op3 >> 2) == 8){
+		disassembled = DisassembleCryptographicTwoRegisterSHA512Instr(instruction);
 	}
 	else
 		return strdup(".undefined");
