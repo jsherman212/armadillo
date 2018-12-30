@@ -2911,6 +2911,191 @@ char *DisassembleFloatingPointImmediateInstr(struct instruction *instruction){
 	return disassembled;
 }
 
+char *DisassembleFloatingPointConditionalCompare(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int nzcv = getbitsinrange(instruction->hex, 0, 4);
+	unsigned int op = getbitsinrange(instruction->hex, 4, 1);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int cond = getbitsinrange(instruction->hex, 12, 4);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int type = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int S = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int M = getbitsinrange(instruction->hex, 31, 1);
+
+	const char *instr = NULL;
+
+	if(op == 0)
+		instr = "fccmp";
+	else
+		instr = "fccmpe";
+
+	char *_Rn = malloc(32);
+	char *_Rm = malloc(32);
+
+	if(type == 3){
+		sprintf(_Rn, "h%d", Rn);
+		sprintf(_Rm, "h%d", Rm);
+	}
+	else if(type == 0){
+		sprintf(_Rn, "s%d", Rn);
+		sprintf(_Rm, "s%d", Rm);
+	}
+	else if(type == 1){
+		sprintf(_Rn, "d%d", Rn);
+		sprintf(_Rm, "d%d", Rm);
+	}
+	else{
+		free(_Rn);
+		free(_Rm);
+		return strdup(".undefined");
+	}
+
+	char *_cond = decode_cond(cond);
+
+	disassembled = malloc(128);
+	
+	sprintf(disassembled, "%s %s, %s, #%#x, %s", instr, _Rn, _Rm, nzcv, _cond);
+
+	free(_Rn);
+	free(_Rm);
+	free(_cond);
+	
+	return disassembled;
+}
+
+char *DisassembleFloatingPointDataProcessingTwoSourceInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int opcode = getbitsinrange(instruction->hex, 12, 4);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int type = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int S = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int M = getbitsinrange(instruction->hex, 31, 1);
+
+	if(M == 1)
+		return strdup(".undefined");
+
+	const char *instr_tbl[] = {"fmul", "fdiv", "fadd", "fsub", "fmax", "fmin", "fmaxnm", "fminnm", "fnmul"};
+
+	if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+		return strdup(".undefined");
+
+	const char *instr = instr_tbl[opcode];
+
+	const char *_Rd = NULL, *_Rn = NULL, *_Rm = NULL;
+
+	if(type == 3){
+		_Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
+		_Rn = ARM64_VectorHalfPrecisionRegisters[Rn];
+		_Rm = ARM64_VectorHalfPrecisionRegisters[Rm];
+	}
+	else if(type == 0){
+		_Rd = ARM64_VectorSinglePrecisionRegisters[Rd];
+		_Rn = ARM64_VectorSinglePrecisionRegisters[Rn];
+		_Rm = ARM64_VectorSinglePrecisionRegisters[Rm];
+	}
+	else if(type == 1){
+		_Rd = ARM64_VectorDoublePrecisionRegisters[Rd];
+		_Rn = ARM64_VectorDoublePrecisionRegisters[Rn];
+		_Rm = ARM64_VectorDoublePrecisionRegisters[Rm];
+	}
+
+	disassembled = malloc(128);
+
+	sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
+
+	return disassembled;
+}
+
+char *DisassembleFloatingPointConditionalSelectInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int cond = getbitsinrange(instruction->hex, 12, 4);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int type = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int S = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int M = getbitsinrange(instruction->hex, 31, 1);
+
+	const char *_Rd = NULL, *_Rn = NULL, *_Rm = NULL;
+
+	if(type == 3){
+		_Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
+		_Rn = ARM64_VectorHalfPrecisionRegisters[Rn];
+		_Rm = ARM64_VectorHalfPrecisionRegisters[Rm];
+	}
+	else if(type == 0){
+		_Rd = ARM64_VectorSinglePrecisionRegisters[Rd];
+		_Rn = ARM64_VectorSinglePrecisionRegisters[Rn];
+		_Rm = ARM64_VectorSinglePrecisionRegisters[Rm];
+	}
+	else if(type == 1){
+		_Rd = ARM64_VectorDoublePrecisionRegisters[Rd];
+		_Rn = ARM64_VectorDoublePrecisionRegisters[Rn];
+		_Rm = ARM64_VectorDoublePrecisionRegisters[Rm];
+	}
+
+	char *_cond = decode_cond(cond);
+
+	disassembled = malloc(128);
+
+	sprintf(disassembled, "fcsel %s, %s, %s, %s", _Rd, _Rn, _Rm, _cond);
+
+	free(_cond);
+
+	return disassembled;
+}
+
+char *DisassembleFloatingPointDataProcessingThreeSourceInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int Ra = getbitsinrange(instruction->hex, 10, 5);
+	unsigned int o0 = getbitsinrange(instruction->hex, 15, 1);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int o1 = getbitsinrange(instruction->hex, 21, 1);
+	unsigned int type = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int S = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int M = getbitsinrange(instruction->hex, 31, 1);
+	
+	unsigned int encoding = (o1 << 1) | o0;
+
+	const char *instr_tbl[] = {"fmadd", "fmsub", "fnmadd", "fnmsub"};
+	const char *instr = instr_tbl[encoding];
+
+	const char *_Rd = NULL, *_Rn = NULL, *_Rm = NULL, *_Ra = NULL;
+
+	if(type == 3){
+		_Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
+		_Rn = ARM64_VectorHalfPrecisionRegisters[Rn];
+		_Rm = ARM64_VectorHalfPrecisionRegisters[Rm];
+		_Ra = ARM64_VectorHalfPrecisionRegisters[Ra];
+	}
+	else if(type == 0){
+		_Rd = ARM64_VectorSinglePrecisionRegisters[Rd];
+		_Rn = ARM64_VectorSinglePrecisionRegisters[Rn];
+		_Rm = ARM64_VectorSinglePrecisionRegisters[Rm];
+		_Ra = ARM64_VectorSinglePrecisionRegisters[Ra];
+	}
+	else if(type == 1){
+		_Rd = ARM64_VectorDoublePrecisionRegisters[Rd];
+		_Rn = ARM64_VectorDoublePrecisionRegisters[Rn];
+		_Rm = ARM64_VectorDoublePrecisionRegisters[Rm];
+		_Ra = ARM64_VectorDoublePrecisionRegisters[Ra];
+	}
+
+	disassembled = malloc(128);
+
+	sprintf(disassembled, "%s %s, %s, %s, %s", instr, _Rd, _Rn, _Rm, _Ra);
+
+	return disassembled;
+}
+
 char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -3011,6 +3196,18 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	}
 	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 3) == 0x4){
 		disassembled = DisassembleFloatingPointImmediateInstr(instruction);
+	}
+	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 2) == 0x1){
+		disassembled = DisassembleFloatingPointConditionalCompare(instruction);
+	}
+	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 2) == 0x2){
+		disassembled = DisassembleFloatingPointDataProcessingTwoSourceInstr(instruction);
+	}
+	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 2) == 0x3){
+		disassembled = DisassembleFloatingPointConditionalSelectInstr(instruction);
+	}
+	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 1){
+		disassembled = DisassembleFloatingPointDataProcessingThreeSourceInstr(instruction);
 	}
 	else
 		return strdup(".undefined");

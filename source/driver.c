@@ -786,6 +786,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fcmpe h6, 0.0", 0x1ee020d8, 0);
 	*/
 
+	/*
 	addinstr("fmov s0, #5.0", 0x1E229000, 0);
 	addinstr("fmov s9, #0.0", 0x1E2703E9, 0);
 	addinstr("fmov s4, #-1.0", 0x1E3E1004, 0);
@@ -801,7 +802,21 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fmov d10, #-9.0", 0x1E74500A, 0);
 	addinstr("fmov d10, #31.0", 0x1E67F00A, 0);
 	addinstr("fmov d7, #-19.0", 0x1E767007, 0);
+	*/
 
+
+	/*addinstr("fccmpe d5, d6, 0x4, ne", 0x1e6614b4, 0);
+	addinstr("fccmp s0, s1, 0x0, le", 0x1e21d400, 0);
+	*/
+/*
+	addinstr("fmul s5, s3, s2", 0x1E220865, 0);
+	addinstr("fminnm d5, d4, d3", 0x1e637885, 0);
+	addinstr("fsub s9, s4, s14", 0x1e2e3889, 0);
+*/
+
+	//addinstr("fcsel d5, d14, d3, ne", 0x1e631dc5, 0);
+
+	addinstr("fmsub d4, d23, d9, d2", 0x1f498ae4, 0);
 
 	struct node_t *current = instructions->front;
 
