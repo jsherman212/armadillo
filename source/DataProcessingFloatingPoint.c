@@ -1,5 +1,4 @@
 #include "DataProcessingFloatingPoint.h"
-#include <string.h>
 
 char *DisassembleCryptographicAESInstr(struct instruction *instruction){
 	char *disassembled = NULL;
@@ -87,7 +86,6 @@ char *DisassembleCryptographicTwoRegisterSHAInstr(struct instruction *instructio
 	const char *_Rd = NULL, *_Rn = NULL;
 	
 	disassembled = malloc(128);
-	bzero(disassembled, 128);
 
 	if(strcmp(instr, "sha1h") == 0){
 		_Rd = ARM64_VectorSinglePrecisionRegisters[Rd];
@@ -164,7 +162,7 @@ const char *get_arrangement2(int fp16, unsigned int sz, unsigned int Q){
 		if(sz == 0)
 			return Q == 0 ? "2s" : "4s";
 		else		
-			return Q == 0 ? "TODO: reserved" : "2d";
+			return Q == 0 ? ".unk" : "2d";
 	}
 }
 
@@ -381,17 +379,8 @@ char *DisassembleAdvancedSIMDThreeSameInstr(struct instruction *instruction, int
 				_Rn = ARM64_VectorRegisters[Rn];
 				_Rm = ARM64_VectorRegisters[Rm];
 				
-				if(strcmp(instr, "fcmla") == 0){
-					/*if(rot == 0)
-						rot = 0;
-					else if(rot == 1)
-						rot = 90;
-					else if(rot == 2)
-						rot = 180;
-					else
-						rot = 270;*/
+				if(strcmp(instr, "fcmla") == 0)
 					rot *= 90;
-				}
 				else
 					rot = rot == 0 ? 90 : 270;
 			}
@@ -1357,6 +1346,22 @@ char *DisassembleAdvancedSIMDThreeDifferentInstr(struct instruction *instruction
 	return disassembled;
 }
 
+int VFPExpandImm(int imm8){
+	int E = 8, N = 32;
+
+	const int F = N - E - 1;
+
+	int sign = ((imm8 >> 7) & 1);
+	int exp = (((imm8 >> 6) & 1) ^ 1) << ((E - 3) + 2) |
+		_Replicate(((imm8 >> 6) & 1), 1, E - 3) << 2 |
+		getbitsinrange(imm8, 4, 2);
+	int frac = getbitsinrange(imm8, 0, 4) << (F - 4);
+
+	return sign << ((1 + (E - 3) + 2) + (4 + (F - 4))) |
+		exp << (4 + (F - 4)) |
+		frac;
+}
+
 char *DisassembleAdvancedSIMDModifiedImmediateInstr(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -1532,18 +1537,8 @@ char *DisassembleAdvancedSIMDModifiedImmediateInstr(struct instruction *instruct
 		else
 			T = T_16[Q];
 
-		int imm = 0;
+		int imm = VFPExpandImm(imm8);
 		
-		imm = a << 31;
-		imm |= (b ^ 1) << 30;
-		imm |= _Replicate(b, 1, 5) << 25;
-		imm |= c << 24;
-		imm |= d << 23;
-		imm |= e << 22;
-		imm |= f << 21;
-		imm |= g << 20;
-		imm |= h << 19;
-
 		union intfloat {
 			int i;
 			float f;
@@ -1669,6 +1664,12 @@ char *DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *instructi
 		"ushll", NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		"ucvtf", NULL, NULL, "fcvtzu"};
 
+	if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u0)))
+		return strdup(".undefined");
+
+	if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u1)))
+		return strdup(".undefined");
+
 	if(U == 0)
 		instr_tbl = instr_tbl_u0;
 	else
@@ -1685,6 +1686,9 @@ char *DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *instructi
 		Tb = get_shift_by_immediate_arrangement(immh, Q);
 		Ta = get_shift_by_immediate_Ta(immh);
 		
+		if(Va == '\0' || Vb == '\0' || !Tb || !Ta)
+			return strdup(".undefined");
+
 		shift = get_shift_by_immediate_shift2(immh, immb);
 
 		disassembled = malloc(128);
@@ -1698,6 +1702,9 @@ char *DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *instructi
 		V = get_shift_by_immediate_V(immh);
 		T = get_shift_by_immediate_arrangement(immh, Q);
 		
+		if(V == '\0' || !T)
+			return strdup(".undefined");		
+
 		if(strcmp(instr, "sshr") == 0 || strcmp(instr, "ushr") == 0
 				|| strcmp(instr, "ssra") == 0 || strcmp(instr, "usra") == 0
 				|| strcmp(instr, "srshr") == 0 || strcmp(instr, "urshr") == 0
@@ -1776,6 +1783,12 @@ char *DisassembleAdvancedSIMDIndexedElementInstr(struct instruction *instruction
 		"umull", NULL,
 		(size == 2) ? "fmlsl" : NULL,
 		"sqrdmlah", "udot", "sqrdmlsh"};
+
+	if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u0)))
+		return strdup(".undefined");
+
+	if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u1)))
+		return strdup(".undefined");
 
 	if(U == 0)
 		instr = instr_tbl_u0[opcode];
@@ -1916,11 +1929,15 @@ char *DisassembleAdvancedSIMDScalarPairwiseInstr(struct instruction *instruction
 		if(U == 0){
 			if(size == 0){
 				const char *tbl[] = {"fmaxnmp", "faddp", NULL, "fmaxp"};
-
+				if(!check_bounds(opcode, ARRAY_SIZE(tbl)))
+					return strdup(".undefined");
+				
 				instr = tbl[opcode];
 			}
 			else if(size == 2){
 				const char *tbl[] = {"fminnmp", NULL, NULL, "fminp"};
+				if(!check_bounds(opcode, ARRAY_SIZE(tbl)))
+					return strdup(".undefined");
 
 				instr = tbl[opcode];
 			}
@@ -1933,11 +1950,15 @@ char *DisassembleAdvancedSIMDScalarPairwiseInstr(struct instruction *instruction
 		else{
 			if((size >> 1) == 0){
 				const char *tbl[] = {"fmaxnmp", "faddp", NULL, "fmaxp"};
+				if(!check_bounds(opcode, ARRAY_SIZE(tbl)))
+					return strdup(".undefined");
 
 				instr = tbl[opcode];
 			}
 			else if((size >> 1) == 1){
 				const char *tbl[] = {"fminnmp", NULL, NULL, "fminp"};
+				if(!check_bounds(opcode, ARRAY_SIZE(tbl)))
+					return strdup(".undefined");
 
 				instr = tbl[opcode];
 			}
@@ -2110,7 +2131,10 @@ char *DisassembleAdvancedSIMDCopyInstr(struct instruction *instruction){
 	Ts = get_advanced_SIMD_copy_specifier(imm5);
 	index = get_advanced_SIMD_copy_index(imm5);
 	R = get_advanced_SIMD_gen_width_specifier(imm5);		
-	
+
+	if(!T || !Ts || index == -1 || R == '\0')
+		return strdup(".undefined");
+
 	if(imm4 == 0 || imm4 == 1){
 		disassembled = malloc(128);
 
@@ -2200,6 +2224,12 @@ char *DisassembleAdvancedSIMDAcrossLanesInstr(struct instruction *instruction){
 		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 		"uminv", NULL};
 
+	if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u0)))
+		return strdup(".undefined");
+
+	if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u1)))
+		return strdup(".undefined");
+
 	const char *T = NULL;
 	char V = '\0';
 
@@ -2280,10 +2310,6 @@ char *DisassembleCryptographicThreeRegisterSHA512Instr(struct instruction *instr
 	char *_Rd = malloc(32);
 	char *_Rn = malloc(32);
 	char *_Rm = malloc(32);
-
-	bzero(_Rd, 32);
-	bzero(_Rn, 32);
-	bzero(_Rm, 32);
 
 	if(strcmp(instr, "sha512h") == 0 || strcmp(instr, "sha512h2") == 0){
 		sprintf(_Rd, "q%d", Rd);
@@ -2388,6 +2414,9 @@ char *DisassembleConversionBetweenFloatingPointAndFixedPointInstr(struct instruc
 	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
 
 	const char *instr_tbl[] = {"fcvtzs", "fcvtzu", "scvtf", "ucvtf"};
+	if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+		return strdup(".undefined");
+	
 	const char *instr = instr_tbl[opcode];
 
 	unsigned int fbits = 64 - scale;
@@ -2457,102 +2486,152 @@ char *DisassembleConversionBetweenFloatingPointAndIntegerInstr(struct instructio
 
 	if(sf == 0 && S == 0 && type == 0 && rmode == 0){
 		const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau", "fmov", "fmov"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 0 && S == 0 && type == 0 && rmode == 1){
 		const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 0 && S == 0 && type == 0 && rmode == 2){
 		const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 0 && S == 0 && type == 0 && rmode == 3){
 		const char *instr_tbl[] = {"fcvtzs", "fcvtzu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 0 && S == 0 && type == 1 && rmode == 0){
 		const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 0 && S == 0 && type == 1 && rmode == 1){
 		const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 0 && S == 0 && type == 1 && rmode == 2){
 		const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 0 && S == 0 && type == 1 && rmode == 3){
 		const char *instr_tbl[] = {"fcvtzs", "fcvtzu", NULL, NULL, NULL, NULL, "fjcvtzs"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 0 && S == 0 && type == 3 && rmode == 0){
 		const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau", "fmov", "fmov"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 0 && S == 0 && type == 3 && rmode == 1){
 		const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 0 && S == 0 && type == 3 && rmode == 2){
 		const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 0 && S == 0 && type == 3 && rmode == 3){
 		const char *instr_tbl[] = {"fcvtzs", "fcvtzu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 1 && S == 0 && type == 0 && rmode == 0){
 		const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 1 && S == 0 && type == 0 && rmode == 1){
 		const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 1 && S == 0 && type == 0 && rmode == 2){
 		const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 1 && S == 0 && type == 0 && rmode == 3){
 		const char *instr_tbl[] = {"fcvtzs", "fcvtzu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 1 && S == 0 && type == 1 && rmode == 0){
 		const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau", "fmov", "fmov"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 1 && S == 0 && type == 1 && rmode == 1){
 		const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 1 && S == 0 && type == 1 && rmode == 2){
 		const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 1 && S == 0 && type == 1 && rmode == 3){
 		const char *instr_tbl[] = {"fcvtzs", "fcvtzu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 1 && S == 0 && type == 2 && rmode == 1){
 		const char *instr_tbl[] = {NULL, NULL, NULL, NULL, NULL, NULL, "fmov", "fmov", NULL};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 1 && S == 0 && type == 3 && rmode == 0){
 		const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau", "fmov", "fmov"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 1 && S == 0 && type == 3 && rmode == 1){
 		const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 1 && S == 0 && type == 3 && rmode == 2){
 		const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else if(sf == 1 && S == 0 && type == 3 && rmode == 3){
 		const char *instr_tbl[] = {"fcvtzs", "fcvtzu"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[opcode];
 	}
 	else{
@@ -2679,16 +2758,25 @@ char *DisassembleFloatingPointDataProcessingOneSource(struct instruction *instru
 	if(M == 0 && S == 0 && type == 0){
 		const char *instr_tbl[] = {"fmov", "fabs", "fneg", "fsqrt", NULL, "fcvt", NULL, "fcvt",
 			"frintn", "frintp", "frintm", "frintz", "frinta", NULL, "frintx", "frinti"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
+		
 		instr = instr_tbl[opcode];
 	}
 	else if(M == 0 && S == 0 && type == 1){
 		const char *instr_tbl[] = {"fmov", "fabs", "fneg", "fsqrt", "fcvt", NULL, NULL, "fcvt",
 			"frintn", "frintp", "frintm", "frintz", "frinta", NULL, "frintx", "frinti"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
+		
 		instr = instr_tbl[opcode];
 	}
 	else if(M == 0 && S == 0 && type == 3){
 		const char *instr_tbl[] = {"fmov", "fabs", "fneg", "fsqrt", "fcvt", "fcvt", NULL, NULL,
 			"frintn", "frintp", "frintm", "frintz", "frinta", NULL, "frintx", "frinti"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
+
 		instr = instr_tbl[opcode];
 	}
 	else{
@@ -2829,38 +2917,6 @@ char *DisassembleFloatingPointCompareInstr(struct instruction *instruction){
 	return disassembled;
 }
 
-int VFPExpandImm(int imm8, int type){
-	int E = 0, N = 0;
-
-	/*if(type == 3){
-		E = 5;
-		N = 16;
-	}
-	else if(type == 0){*/
-		E = 8;
-		N = 32;
-	/*}
-	else{
-		E = 11;
-		N = 64;
-	}*/
-
-	//printf("E - 3 = %d\n", E - 3);
-	//printf("imm8<6> = %d\n", ((imm8 >> 6) & 1));
-	//print_bin(_Replicate(((imm8 >> 6) & 1), 1, E - 3), E - 3);
-
-	const int F = N - E - 1;
-
-	int sign = ((imm8 >> 7) & 1);
-	int exp = (((imm8 >> 6) & 1) ^ 1) << ((E - 3) + 2) |
-		_Replicate(((imm8 >> 6) & 1), 1, E - 3) << 2 |
-		getbitsinrange(imm8, 4, 2);
-	int frac = getbitsinrange(imm8, 0, 4) << (F - 4);
-
-	return sign << ((1 + (E - 3) + 2) + (4 + (F - 4))) |
-		exp << (4 + (F - 4)) |
-		frac;
-}
 
 char *DisassembleFloatingPointImmediateInstr(struct instruction *instruction){
 	char *disassembled = NULL;
@@ -2881,27 +2937,18 @@ char *DisassembleFloatingPointImmediateInstr(struct instruction *instruction){
 	else if(type == 1)
 		_Rd = ARM64_VectorDoublePrecisionRegisters[Rd];
 
-	int imm = VFPExpandImm(imm8, type);
-
-	//print_bin_long(imm, -1);
+	int imm = VFPExpandImm(imm8);
 
 	union intfloat {
 		int i;
 		float f;
 	} _if;
 
-	if(type == 3){
-	//	imm <<= 48;
-	//	imm >>= 32;
-	}
-	
-	//print_bin_long(imm, -1);
-
 	_if.i = imm;
 
 	disassembled = malloc(128);
 	
-	sprintf(disassembled, "fmov %s, #%f", _Rd, _if.f);
+	sprintf(disassembled, "fmov %s, #%.1f", _Rd, _if.f);
 
 	return disassembled;
 }
