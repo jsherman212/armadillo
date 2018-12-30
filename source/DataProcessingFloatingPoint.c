@@ -3220,7 +3220,7 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	else if((op0 & ~0xa) == 0x1 && (op1 >> 0x1) == 0x1)
 		disassembled = DisassembleFloatingPointDataProcessingThreeSourceInstr(instruction);
 	else
-		return strdup(".unknown");
+		return strdup(".undefined");
 	
 	return disassembled;
 }

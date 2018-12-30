@@ -389,7 +389,7 @@ int main(int argc, char **argp, const char **envp){
 	
 	addinstr("ldnp d1, d27, [x19, -0x1c0]", 0x6c646e61, 0);
 	
-	addinstr("pacga x4, x2, x20", 0x9ad43044, 0);
+	/*addinstr("pacga x4, x2, x20", 0x9ad43044, 0);
 	addinstr("crc32cw w4, w2, w4", 0x1AC45844, 0);
 	addinstr("pacga x13, x22, sp", 0x9adf32cd, 0);
 	addinstr("rorv x3, x1, x20", 0x9AD42C23, 0);
@@ -487,7 +487,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("umsubl x14, w5, w12, x6", 0x9BAC98AE, 0);
 	addinstr("umsubl x14, w5, w12, xzr", 0x9BACFCAE, 0);
 	addinstr("umulh x4, x3, x2", 0x9BC27C64, 0);
-
+	*/
 	/*addinstr("aese v4.16b, v3.16b", 0x4e284864, 0);
 	addinstr("aesd v6.16b, v4.16b", 0x4e285886, 0);
 	addinstr("aesmc v20.16b, v11.16b", 0x4e286974, 0);
