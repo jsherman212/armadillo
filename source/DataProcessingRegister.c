@@ -1,5 +1,4 @@
 #include "DataProcessingRegister.h"
-#include <string.h>
 
 char *DisassembleDataProcessingTwoSourceInstr(struct instruction *instruction){
 	char *disassembled = NULL;
@@ -24,6 +23,8 @@ char *DisassembleDataProcessingTwoSourceInstr(struct instruction *instruction){
 								"pacga", NULL, NULL, NULL, "crc32b", "crc32h", "crc32w", "crc32x", "crc32cb",
 								"crc32ch", "crc32cw", "crc32cx"};
 
+	if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+		return strdup(".undefined");
 	const char *instr = instr_tbl[opcode];
 	
 	if(!instr)
@@ -70,6 +71,8 @@ char *DisassembleDataProcessingOneSourceInstr(struct instruction *instruction){
 
 	if(opcode2 == 0){
 		const char *instr_tbl[] = {"rbit", "rev16", "rev", NULL, "clz", "cls"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		const char *instr = instr_tbl[opcode];
 
 		if(opcode == 2 && sf == 1)
@@ -85,6 +88,8 @@ char *DisassembleDataProcessingOneSourceInstr(struct instruction *instruction){
 	}
 	else if(opcode2 == 1 && opcode < 8){
 		const char *instr_tbl[] = {"pacia", "pacib", "pacda", "pacdb", "autia", "autib", "autda", "autdb"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		const char *instr = instr_tbl[opcode];
 
 		disassembled = malloc(128);
@@ -95,6 +100,8 @@ char *DisassembleDataProcessingOneSourceInstr(struct instruction *instruction){
 		opcode -= 8;
 
 		const char *instr_tbl[] = {"paciza", "pacizb", "pacdza", "pacdzb", "autiza", "autizb", "autdza", "autdzb", "xpaci", "xpacd"};
+		if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		const char *instr = instr_tbl[opcode];
 
 		disassembled = malloc(128);
@@ -145,12 +152,20 @@ char *DisassembleLogicalShiftedRegisterInstr(struct instruction *instruction){
 	unsigned int encoding = (sf << 3) | (opc << 1) | N;
 	
 	const char *instr_tbl[] = {"and", "bic", "orr", "orn", "eor", "eon", "ands", "bics"};
+	
 	const char *instr = NULL;
 
-	if(sf == 0)
+	if(sf == 0){
+		if(!check_bounds(encoding, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
+
 		instr = instr_tbl[encoding];
-	else
+	}
+	else{
+		if(!check_bounds(encoding - 8, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[encoding - 8];
+	}
 
 	const char *_Rd = registers[Rd];
 	const char *_Rn = registers[Rn];
@@ -159,8 +174,7 @@ char *DisassembleLogicalShiftedRegisterInstr(struct instruction *instruction){
 	const char *_shift = decode_shift(shift);
 
 	disassembled = malloc(128);
-	bzero(disassembled, 128);
-
+	
 	if(strcmp(instr, "orr") == 0 && shift == 0 && imm6 == 0 && Rn == 0x1f){
 		sprintf(disassembled, "mov %s, %s", _Rd, _Rm);
 	}
@@ -210,12 +224,20 @@ char *DisassembleAddSubtractShiftedOrExtendedInstr(struct instruction *instructi
 	unsigned int encoding = (sf << 2) | (op << 1) | S;
 
 	const char *instr_tbl[] = {"add", "adds", "sub", "subs"};
+	
+	
 	const char *instr = NULL;
 
-	if(sf == 0)
+	if(sf == 0){
+		if(!check_bounds(encoding, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[encoding];
-	else
+	}
+	else{
+		if(!check_bounds(encoding - 4, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[encoding - 4];
+	}
 
 	const char **registers = ARM64_32BitGeneralRegisters;
 
@@ -248,7 +270,6 @@ char *DisassembleAddSubtractShiftedOrExtendedInstr(struct instruction *instructi
 	}
 
 	disassembled = malloc(128);
-	bzero(disassembled, 128);
 
 	if(kind == SHIFTED){
 		if(strcmp(instr, "adds") == 0 && Rd == 0x1f)
@@ -347,13 +368,19 @@ char *DisassembleAddSubtractCarryInstr(struct instruction *instruction){
 
 	unsigned int encoding = (sf << 2) | (op << 1) | S;
 
-	const char *instr_tbl[] = {"adc", "adcs", "sdc", "sdcs"};
+	const char *instr_tbl[] = {"adc", "adcs", "sdc", "sdcs"};	
 	const char *instr = NULL;
 
-	if(sf == 0)
+	if(sf == 0){
+		if(!check_bounds(encoding, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[encoding];
-	else
+	}
+	else{
+		if(!check_bounds(encoding - 4, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[encoding - 4];
+	}
 
 	const char *_Rd = registers[Rd];
 	const char *_Rn = registers[Rn];
@@ -433,12 +460,20 @@ char *DisassembleConditionalCompareInstr(struct instruction *instruction, int ki
 	unsigned int encoding = (sf << 2) | (op << 1) | S;
 	
 	const char *instr_tbl[] = {NULL, "ccmn", NULL, "ccmp"};
+	
+	
 	const char *instr = NULL;
 
-	if(sf == 0)
+	if(sf == 0){
+		if(!check_bounds(encoding, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[encoding];
-	else
+	}
+	else{
+		if(!check_bounds(encoding - 4, ARRAY_SIZE(instr_tbl)))
+			return strdup(".undefined");
 		instr = instr_tbl[encoding - 4];
+	}
 
 	disassembled = malloc(128);
 	
@@ -478,6 +513,10 @@ char *DisassembleConditionalSelectInstr(struct instruction *instruction){
 	unsigned int encoding = (op << 3) | (S << 2) | op2;
 
 	const char *instr_tbl[] = {"csel", "csinc", NULL, NULL, NULL, NULL, NULL, NULL, "csinv", "csneg"};
+	
+	if(!check_bounds(encoding, ARRAY_SIZE(instr_tbl)))
+		return strdup(".undefined");
+	
 	const char *instr = instr_tbl[encoding];
 
 	if(!instr)
@@ -590,43 +629,28 @@ char *DataProcessingRegisterDisassemble(struct instruction *instruction){
 	unsigned int op1 = getbitsinrange(instruction->hex, 28, 1);
 	unsigned int op0 = getbitsinrange(instruction->hex, 30, 1);
 
-	//printf("DisassembleDataProcessingRegister\n");
-
-	if(op0 == 0 && op1 == 1 && op2 == 6){
+	if(op0 == 0 && op1 == 0x1 && op2 == 0x6)
 		disassembled = DisassembleDataProcessingTwoSourceInstr(instruction);
-	}
-	else if(op0 == 1 && op1 == 1 && op2 == 6){
+	else if(op0 == 0x1 && op1 == 0x1 && op2 == 0x6)
 		disassembled = DisassembleDataProcessingOneSourceInstr(instruction);
-	}
-	else if((op2 >> 3) == 0 && op1 == 0){
+	else if(op1 == 0 && (op2 & ~0x7) == 0)
 		disassembled = DisassembleLogicalShiftedRegisterInstr(instruction);
-	}
-	else if((op2 & 8) == 8 && ((op2 & 1) == 1 || (op2 & 1) == 0) && op1 == 0){
-		disassembled = DisassembleAddSubtractShiftedOrExtendedInstr(instruction, (op2 & 1));
-	}
-	else if(op1 == 1 && op2 == 0 && op3 == 0){
+	else if(op1 == 0 && ((op2 & ~0x6) == 0x8 || (op2 & ~0x6) == 0x9))
+		disassembled = DisassembleAddSubtractShiftedOrExtendedInstr(instruction, (op2 & 1));	
+	else if(op1 == 0x1 && op2 == 0 && op3 == 0)
 		disassembled = DisassembleAddSubtractCarryInstr(instruction);
-	}
-	else if(op1 == 1 && op2 == 0 && (op3 & ~0x20) == 1){
+	else if(op1 == 0x1 && op2 == 0 && (op3 & ~0x20) == 0x1)
 		disassembled = DisassembleRotateRightIntoFlagsInstr(instruction);
-	}
-	else if(op1 == 1 && op2 == 0 && (op2 & ~0x30) == 2){
+	else if(op1 == 0x1 && op2 == 0 && (op2 & ~0x30) == 0x2)
 		disassembled = DisassembleEvaluateIntoFlagsInstr(instruction);
-	}
-	else if(op1 == 1 && op2 == 2 && (((op3 >> 1) & 1) == 0 || ((op3 >> 1) & 1) == 1)){
-		disassembled = DisassembleConditionalCompareInstr(instruction, ((op3 >> 1) & 1));
-	}
-	else if(op1 == 1 && op2 == 4){
+	else if(op1 == 0x1 && op2 == 0x2 && ((op3 & ~0x3d) == 0 || (op3 & ~0x3d) == 0x2))
+		disassembled = DisassembleConditionalCompareInstr(instruction, (op3 & ~0x3d));
+	else if(op1 == 0x1 && op2 == 0x4)
 		disassembled = DisassembleConditionalSelectInstr(instruction);
-	}
-	else if(op1 == 1 && (op2 >> 3) == 1){
+	else if(op1 == 0x1 && (op2 >> 0x3) == 0x1)
 		disassembled = DisassembleDataProcessingThreeSourceInstr(instruction);
-	}
 	else
 		return strdup(".undefined");
-
-	if(!disassembled)
-		return strdup(".unknown");
 	
 	return disassembled;
 }

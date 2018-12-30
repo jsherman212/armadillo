@@ -1,7 +1,6 @@
 #include "armadillo.h"
 
 char *_ArmadilloDisassemble(struct instruction *instr){
-	// very first thing to do is get the encoding for this instruction
 	unsigned int op0 = getbitsinrange(instr->hex, 25, 4);
 
 	char *disassembled = NULL;

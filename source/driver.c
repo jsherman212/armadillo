@@ -488,7 +488,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("umsubl x14, w5, w12, xzr", 0x9BACFCAE, 0);
 	addinstr("umulh x4, x3, x2", 0x9BC27C64, 0);
 
-	addinstr("aese v4.16b, v3.16b", 0x4e284864, 0);
+	/*addinstr("aese v4.16b, v3.16b", 0x4e284864, 0);
 	addinstr("aesd v6.16b, v4.16b", 0x4e285886, 0);
 	addinstr("aesmc v20.16b, v11.16b", 0x4e286974, 0);
 	addinstr("aesimc v7.16b, v16.16b", 0x4e287a07, 0);
@@ -699,7 +699,7 @@ int main(int argc, char **argp, const char **envp){
 
 	addinstr("fcsel d5, d14, d3, ne", 0x1e631dc5, 0);
 	addinstr("fmsub d4, d23, d9, d2", 0x1f498ae4, 0);
-
+	*/
 	struct node_t *current = instructions->front;
 
 	while(current){
