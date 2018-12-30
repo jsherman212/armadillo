@@ -8,11 +8,12 @@
 
 #include "bits.h"
 #include "instruction.h"
-#include "DataProcessingImmediate.h"
+
 #include "BranchExcSys.h"
-#include "LoadsAndStores.h"
-#include "DataProcessingRegister.h"
+#include "DataProcessingImmediate.h"
 #include "DataProcessingFloatingPoint.h"
+#include "DataProcessingRegister.h"
+#include "LoadsAndStores.h"
 
 // client calls this
 char *ArmadilloDisassemble(unsigned int hex, unsigned long PC);

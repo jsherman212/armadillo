@@ -25,11 +25,11 @@ void addinstr(const char *name, unsigned int hex, unsigned long PC){
 int main(int argc, char **argp, const char **envp){
 	instructions = linkedlist_new();
 
-//addinstr("adrp x1, #0x10000a000 @ 0x10000a79c", 0x90000001, 0x10000a79c);
+	addinstr("adrp x1, #0x10000a000 @ 0x10000a79c", 0x90000001, 0x10000a79c);
 
-	//addinstr("mov x7, x4", 0xAA0403E7);
-	//addinstr("add x0, x0, x1", 0x8B010000);
-	/*addinstr("add x0, x0, #0xfe", 0x9103F800, 0);
+	addinstr("mov x7, x4", 0xAA0403E7, 0);
+	addinstr("add x0, x0, x1", 0x8B010000, 0);
+	addinstr("add x0, x0, #0xfe", 0x9103F800, 0);
 	addinstr("add x0, x0, #8388608", 0x91600000, 0);
 	addinstr("adds x0, x0, #0xfe", 0xB103F800, 0);
 	addinstr("add w0, w0, #0xfe", 0x1103F800, 0);
@@ -149,69 +149,43 @@ int main(int argc, char **argp, const char **envp){
     addinstr("extr w6, w8, w1, #25", 0x13816506, 0);
     addinstr("extr x20, x3, x3, #32", 0x93C38074, 0);
     addinstr("extr w1, w13, w13, #1", 0x138D05A1, 0);
-	*/
 	
-	//addinstr("b #0x40 @ 0x100007f30", 0x14000010, 0x100007f30);
-/*	addinstr("b.eq #0x50 @ 0x100007f28", 0x54000280, 0x100007f28);
+	
+	addinstr("b #0x40 @ 0x100007f30", 0x14000010, 0x100007f30);
+	addinstr("b.eq #0x50 @ 0x100007f28", 0x54000280, 0x100007f28);
 	addinstr("b.ne #-0x880 @ 0x100007f2c", 0x54FFBC01, 0x100007f2c);
 	addinstr("b.cs #0x90 @ 0x100007f30", 0x54000482, 0x100007f30);
 	addinstr("b.cc #0x8290 @ 0x100007f34", 0x54041483, 0x100007f34);
 	addinstr("b.al #0x3990 @ 0x100007f34", 0x5401CC8E, 0x100007f34);
-*/
 
-	/*addinstr("svc #40", 0xD4000501, 0);
+	addinstr("svc #40", 0xD4000501, 0);
 	addinstr("smc #4", 0xD4000083, 0);
-	addinstr("hvc #0", 0xD4000002, 0);*/
+	addinstr("hvc #0", 0xD4000002, 0);
 
-	/*addinstr("brk #4", 0xD4200080, 0);
+	addinstr("brk #4", 0xD4200080, 0);
 	addinstr("hlt #80", 0xD4400A00, 0);
-*/
-
-/*	addinstr("dcps1 #4", 0xD4A00081, 0);
- *
- *	
+	
 	addinstr("dcps2 #8", 0xD4A00102, 0);
 	addinstr("dcps3 #12", 0xD4A00183, 0);
-*/
 
-/*	addinstr("nop", 0xD503201F, 0);
+
+	addinstr("nop", 0xD503201F, 0);
 	addinstr("yield", 0xD503203F, 0);
 	addinstr("wfe", 0xD503205F, 0);
 	addinstr("wfi", 0xD503207F, 0);
 	addinstr("sev", 0xD503209F, 0);
 	addinstr("sevl", 0xD50320BF, 0);
-*/
-	/*addinstr("xpaclri", 0xd50320ff, 0);
+
+	addinstr("xpaclri", 0xd50320ff, 0);
 	addinstr("xpacd x5", 0xdac147e5, 0);
 	addinstr("xpaci x19", 0xdac143f3, 0);
-	*/
 
-	
-	/* 0x100007f2c      1f2103d5       pacia1716                  ; [00] -r-x section size 44 named 0.__TEXT.__text
-|           0x100007f30      5f2103d5       pacib1716
-|           0x100007f34      9f2103d5       autia1716
-|           0x100007f38      df2103d5       autib1716 */
-
-/*	addinstr("pacia1716", 0xd503211f, 0);
+	addinstr("pacia1716", 0xd503211f, 0);
 	addinstr("pacib1716", 0xd503215f, 0);
 	addinstr("autia1716", 0xd503219f, 0);
 	addinstr("autib1716", 0xd50321df, 0);
-*/	
-//1f2203d5       esb
-//	addinstr("esb", 0xd503221f, 0);
-
-/*
- *            0x100007f1c      1f2303d5       paciaz                     ; [00] -r-x section size 60 named 0.__TEXT.__text
-|           0x100007f20      3f2303d5       paciasp
-|           0x100007f24      5f2303d5       pacibz
-|           0x100007f28      7f2303d5       pacibsp
-|           0x100007f2c      9f2303d5       autiaz
-|           0x100007f30      bf2303d5       autiasp
-|           0x100007f34      df2303d5       autibz
-|           0x100007f38      ff2303d5       autibsp
-*/
-
-/*	addinstr("paciaz", 0xd503231f, 0);
+	
+	addinstr("paciaz", 0xd503231f, 0);
 	addinstr("paciasp", 0xd503233f, 0);
 	addinstr("pacibz", 0xd503235f, 0);
 	addinstr("pacibsp", 0xd503237f, 0);
@@ -219,11 +193,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("autiasp", 0xd50323bf, 0);
 	addinstr("autibz", 0xd50323df, 0);
 	addinstr("autibsp", 0xd50323ff, 0);
-*/
-
 	
-	//addinstr("clrex #5", 0xD503355F, 0);
-	/*addinstr("dmb ish", 0xD5033BBF, 0);
 	addinstr("dmb osh", 0xD50333BF, 0);
 	addinstr("dmb sy", 0xD5033FBF, 0);
 	addinstr("dmb oshld", 0xD50331BF, 0);
@@ -233,7 +203,6 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("dsb #8", 0xD503389F, 0);
 	addinstr("msr SPSel, #3", 0xD50043BF, 0);
 
-
 	addinstr("sys #3, C7, C1, #4, x0", 0xD50B7180, 0);	
 	addinstr("at s1e1r, x0", 0xD5087800, 0);
 	addinstr("tlbi IPAS2E1IS, x4", 0xD50C8024, 0);
@@ -242,22 +211,14 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ic ivau, x0", 0xD50B7520, 0);
 	addinstr("ic iallu", 0xD508751F, 0);
 	addinstr("dc CIVAC, x14", 0xD50B7E2E, 0);
-	*/
-	/*addinstr("sysl x4, #5, C4, C3, #4", 0xD52D4384, 0);
+	
 	addinstr("msr ACTLR_EL1, x5", 0xD5181025, 0);
 	addinstr("msr DBGWCR5_EL1, x11", 0xD51005EB, 0);
 	addinstr("mrs x23, DBGWCR5_EL1", 0xD53005F7, 0);
 	addinstr("br x9", 0xD61F0120, 0);
 	addinstr("braaz x22", 0xd61f0adf, 0);
 	addinstr("brabz x13", 0xd61f0dbf, 0);
-	*/
-	/*
-	 *   0x100007f30      20003fd6       blr x1
-|           0x100007f34      9f083fd6       blraaz x4
-|           0x100007f38      bf0c3fd6       blrabz x5
-
-*/
-/*
+	
 	addinstr("blr x1", 0xD63F0020, 0);
 	addinstr("blraaz x4", 0xd63f089f, 0);
 	addinstr("blrabz x5", 0xd63f0cbf, 0);
@@ -268,69 +229,32 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("eretaa", 0xd69f0bff, 0);
 	addinstr("eretab", 0xd69f0fff, 0);
 	addinstr("drps", 0xD6BF03E0, 0);
-*/
-
-	/*
-	 *  0x100007f2c      39081fd7       braa x1, x25               ; [00] -r-x section size 44 named 0.__TEXT.__text
-|           0x100007f30      9f081fd7       braa x4, sp
-|           0x100007f34      c10c1fd7       brab x6, x1
-|           0x100007f38      1f0d1fd7       brab x8, sp
-*/
-/*
+	
 	addinstr("braa x1, x25", 0xd71f0839, 0);
 	addinstr("braa x4, sp", 0xd71f089f, 0);
 	addinstr("brab x6, x1", 0xd71f0cc1, 0);
 	addinstr("brab x8, sp", 0xd71f0d1f, 0);
-*/
-/*			0x100007f2c      39083fd7       blraa x1, x25              ; [00] -r-x section size 44 named 0.__TEXT.__text
-|           0x100007f30      9f083fd7       blraa x4, sp
-|           0x100007f34      c10c3fd7       blrab x6, x1
-|           0x100007f38      1f0d3fd7       blrab x8, sp
-*/
-/*
+	
 	addinstr("blraa x1, x25", 0xd73f0839, 0);
 	addinstr("blraa x4, sp", 0xd73f089f, 0);
 	addinstr("blrab x6, x1", 0xd73f0cc1, 0);
 	addinstr("blrab x8, sp", 0xd73f0d1f, 0);
-*/
-/*
- * :   0x100007f2c      70150014       b 0x10000d4ec              ; [00] -r-x section size 44 named 0.__TEXT.__text
-|       `=< 0x100007f30      2bffff17       b 0x100007bdc
-|           0x100007f34      12000094       bl 0x100007f7c
-|           0x100007f38      40ffff97       bl 0x100007c38
 
-*/
-
-/*	addinstr("b 0x55c0 @ 0x100007f2c", 0x14001570, 0x100007f2c);
+	addinstr("b 0x55c0 @ 0x100007f2c", 0x14001570, 0x100007f2c);
 	addinstr("b -0x354 @ 0x100007f30", 0x17ffff2b, 0x100007f30);
 	addinstr("bl 0x48 @ 0x100007f34", 0x94000012, 0x100007f34);
 	addinstr("bl -0x300 @ 0x100007f38", 0x97ffff40, 0x100007f38);
-*/
-	/*
-	 *  0x100007f2c      090200b4       cbz x9, 0x100007f6c        ; [00] -r-x section size 44 named 0.__TEXT.__text
-|           0x100007f30      11e6ffb4       cbz x17, 0x100007bf0
-|           0x100007f34      024800b5       cbnz x2, 0x100008834
-|           0x100007f38      8dfdffb5       cbnz x13, 0x100007ee8
-*/
-/*	
+	
 	addinstr("cbz x9, #0x40 @ 0x100007f2c", 0xB4000209, 0x100007f2c);
 	addinstr("cbz x17, -0x340 @ 0x100007f30", 0xb4ffe611, 0x100007f30);
 	addinstr("cbnz x2, #0x900 @ 0x100007f34", 0xb5004802, 0x100007f34);
 	addinstr("cbnz x13, -0x50 @ 0x100007f38", 0xB5FFFD8D, 0x100007f38);
-*/
-/*
- *  0x100007f2c      09800236       tbz w9, #0, 0x10000cf2c    ; [00] -r-x section size 44 named 0.__TEXT.__text
-|           0x100007f30      11700e36       tbz w17, #1, 0x100004d30
-|           0x100007f34      22000837       tbnz w2, #1, 0x100007f38
-|           0x100007f38      2d200037       tbnz w13, #0, 0x10000833c
-*/
-/*
+	
 	addinstr("tbz x9, 0x0, 0x5000 @ 0x100007f2c", 0x36028009, 0x100007f2c);
 	addinstr("tbz x17, 0x1, -0x3200 @ 0x100007f30", 0x360e7011, 0x100007f30);
 	addinstr("tbnz x2, 0x1, 0x4 @ 0x100007f34", 0x37080022, 0x100007f34);
 	addinstr("tbnz x13, 0x0, 0x404 @ 0x100007f38", 0x3700202d, 0x100007f38);
-*/
-	/*
+
 	addinstr("st1 {v4.1d}, [x8]", 0x0C007D04, 0);
 	addinstr("ld1 {v9.1d}, [x2]", 0x0C407C49, 0);
 	addinstr("ld2 {v9.4s, v10.4s}, [x16]", 0x4C408A09, 0);
@@ -345,9 +269,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("st2 {v2.8h, v3.8h}, [x4], x16", 0x4C908482, 0);
 	addinstr("st1 {v2.2s}, [sp], #8", 0x0C9F7BE2, 0);
 	addinstr("st1 {v4.2s, v5.2s}, [x20]", 0x0C00AA84, 0);
-*/
 
-	/*
 	addinstr("st1 {v4.b}[6], [x22]", 0x0D001AC4, 0);
 	addinstr("st3 {v1.d, v2.d, v3.d}[0], [x5], #24", 0x0D9FA4A1, 0);
 	addinstr("st3 {v11.d, v12.d, v13.d}[1], [x2], x4", 0x4D84A44B, 0);
@@ -357,9 +279,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ld1r {v2.4h}, [x2], #2", 0x0DDFC442, 0);
 	addinstr("ld2r {v28.2s, v29.2s}, [sp], x20", 0x0DF4CBFC, 0);
 	addinstr("ld3r {v15.2d, v16.2d, v17.2d}, [x1], #24", 0x4DDFEC2F, 0);
-*/
 
-	/*
 	addinstr("stxrb w2, w4, [x3]", 0x08027C64, 0);
 	addinstr("stlxrb w4, w22, [sp]", 0x0804FFF6, 0);
 	addinstr("stxrh w24, w0, [x23]", 0x48187EE0, 0);
@@ -384,8 +304,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("cas w5, w6, [x4]", 0x88a57c86, 0);
 	addinstr("cas x5, x6, [x4]", 0xc8a57c86, 0);
 	addinstr("casl x5, x6, [x4]", 0xc8a5fc86, 0);
-*/
-/*
+
 	addinstr("ldr x4, #0x20 @ 0x100007f30", 0x58000104, 0x100007f30);
 	addinstr("ldr x16, #-0x474 @ 0x100007f34", 0x58ffdc70, 0x100007f34);
 	addinstr("ldr w2, #0x40000 @ 0x100007f38", 0x18200002, 0x100007f38);
@@ -394,9 +313,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ldr q13, #-0x400 @ 0x100007f28", 0x9cffe00d, 0x100007f28);
 	addinstr("ldr d3, #0x90 @ 0x100007f2c", 0x5c000483, 0x100007f2c);
 	addinstr("ldrsw x18, #0x78 @ 0x100007f20", 0x980003d2, 0x100007f20);
-*/
 
-	/*
 	addinstr("stnp x2, x1, [x24, #-304]", 0xA82D0702, 0);
 	addinstr("stnp w5, w2, [sp]", 0x28000BE5, 0);
 	addinstr("ldnp q2, q3, [x3, #992]", 0xAC5F0C62, 0);
@@ -406,9 +323,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("stp d7, d22, [sp, #208]!", 0x6D8D5BE7, 0);
 	addinstr("stp d7, d22, [sp, #-208]!", 0x6DB35BE7, 0);
 	addinstr("ldp x16, x4, [x4, #24]", 0xA9419090, 0);
-	*/
-
-/*
+	
 	addinstr("sturb w3, [x5, #255]", 0x380FF0A3, 0);
 	addinstr("sturb w16, [sp]", 0x380003F0, 0);
 	addinstr("sturb w1, [x2, #-4]", 0x381FC041, 0);
@@ -442,8 +357,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("str w12, [x13, 0x1c]", 0xb9001dac, 0);
 	addinstr("stur w8, [x29, -0x64]", 0xb819c3a8, 0);
 	addinstr("str wzr, [x8, 0xc]", 0xb9000d1f, 0);
-*/
-		/*
+	
 	addinstr("ldaddab w9, w10, [x4]", 0x38a9008a, 0);
 	addinstr("swpalh w5, w2, [sp]", 0x78e583e2, 0);
 	addinstr("ldclr w20, w21, [x6]", 0xb83410d5, 0);
@@ -451,9 +365,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ldapr w5, [sp]", 0xb8bfc3e5, 0);
 	addinstr("ldaprb w19, [x3]", 0x38bfc073, 0);
 	addinstr("ldaprh w1, [x19]", 0x78bfc261, 0);
-*/
 
-		/*
 	addinstr("strb w4, [x4, w5, sxtw]", 0x3825C884, 0);
 	addinstr("strb w1, [x4, x9, lsl #0]", 0x38297881, 0);
 	addinstr("strb w1, [x4, x9]", 0x38296881, 0);
@@ -469,22 +381,20 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("str q3, [x6, x4, sxtx #4]", 0x3CA4F8C3, 0);
 	addinstr("str b8, [x15, x1, lsl #0]", 0x3C2179E8, 0);
 	addinstr("str b13, [x0, x20]", 0x3C34680D, 0);
-	*/
 
-	/*addinstr("ldraa x9, [x2, #0x308]", 0xf8261449, 0);
+	addinstr("ldraa x9, [x2, #0x308]", 0xf8261449, 0);
 	addinstr("ldraa x21, [sp, #-0x8]!", 0xf87ffff5, 0);
 	addinstr("ldrab x1, [x5, #0xa0]", 0xf8a144a1, 0);
 	addinstr("ldrab x14, [x19, #0x10]!", 0xf8a02e6e, 0);
-	*/
-	//addinstr("ldnp d1, d27, [x19, -0x1c0]", 0x6c646e61, 0);
 	
-	/*addinstr("pacga x4, x2, x20", 0x9ad43044, 0);
+	addinstr("ldnp d1, d27, [x19, -0x1c0]", 0x6c646e61, 0);
+	
+	addinstr("pacga x4, x2, x20", 0x9ad43044, 0);
 	addinstr("crc32cw w4, w2, w4", 0x1AC45844, 0);
 	addinstr("pacga x13, x22, sp", 0x9adf32cd, 0);
 	addinstr("rorv x3, x1, x20", 0x9AD42C23, 0);
 	addinstr("sdiv w1, w2, w3", 0x1AC30C41, 0);
-*/
-/*
+	
 	addinstr("rbit w4, w2", 0x5AC00044, 0);
 	addinstr("cls w13, w1", 0x5AC0142D, 0);
 	addinstr("rev32 x4, x3", 0xDAC00864, 0);
@@ -499,9 +409,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("pacdzb x4", 0xdac12fe4, 0);
 	addinstr("xpaci x9", 0xdac143e9, 0);
 	addinstr("autdza x22", 0xdac13bf6, 0);
-*/
 
-		/*
 	addinstr("and w2, w3, w1", 0x0A010062, 0);
 	addinstr("bic x3, x13, x1, lsr #5", 0x8A6115A3, 0);
 	addinstr("orr x3, x2, x1, ror #4", 0xAAC11043, 0);
@@ -513,9 +421,8 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ands wzr, w13, w21", 0x6A1501BF, 0);
 	addinstr("bics x15, x13, x9", 0xEA2901AF, 0);
 	addinstr("orn x2, xzr, x14, asr #43", 0xAAAEAFE2, 0);
-	*/
 	
-/*	addinstr("add x4, x2, x1", 0x8B010044, 0);
+	addinstr("add x4, x2, x1", 0x8B010044, 0);
 	addinstr("add x15, x3, x2, lsr #21", 0x8B42546F, 0);
 	addinstr("adds w4, w5, w6", 0x2B0600A4, 0);
 	addinstr("adds x0, x20, x10, asr #60", 0xAB8AF280, 0);
@@ -525,10 +432,11 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("subs x5, x4, x3, lsl #4", 0xEB031085, 0);
 	addinstr("subs xzr, x14, x2", 0xEB0201DF, 0);
 	addinstr("subs x27, xzr, x1, lsr #44", 0xEB41B3FB, 0);
-*/
-	/*addinstr("add x4, sp, w3, lsl #0", 0x8B2363E4, 0);
+
+	addinstr("add x4, sp, w3, lsl #0", 0x8B2363E4, 0);
 	addinstr("add wsp, w4, w2, uxth #4", 0x0B22309F, 0);
 	addinstr("add x21, x4, w2, sxtb #2", 0x8B228895, 0);
+	
 	// should simplify to add sp, x4, x5
 	addinstr("add sp, x4, x5, lsl #0", 0x8B25609F, 0);
 	addinstr("add x4, x12, x2, lsl #0", 0x8B020184, 0);
@@ -545,21 +453,16 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("subs xzr, x3, x12, lsl #0", 0xEB0C007F, 0);
 	addinstr("subs xzr, x3, x12, lsl #3", 0xEB0C0C7F, 0);
 	addinstr("sub x4, sp, w3, lsl #0", 0xCB2363E4, 0);
-	*/
-
-		/*
+	
 	addinstr("sbcs x4, xzr, x5", 0xFA0503E4, 0);
 	addinstr("adc w3, w2, w1", 0x1A010043, 0);
 	addinstr("sbcs x4, x14, x3", 0xFA0301C4, 0);
-*/
 
-/*
 	addinstr("ccmn x4, x2, #4, ne", 0xBA421084, 0);
 	addinstr("ccmp w1, w2, #13, pl", 0x7A42502D, 0);
 	addinstr("ccmn x12, #3, #4, eq", 0xBA430984, 0);
 	addinstr("ccmp w1, #15, #0, cc", 0x7A4F3820, 0);
-*/
-/*
+	
 	addinstr("csel w3, w5, w8, ne", 0x1A8810A3, 0);
 	addinstr("csinc x4, x2, x5, pl", 0x9A855444, 0);
 	addinstr("csinc x20, x4, x4, eq", 0x9A840494, 0);
@@ -569,8 +472,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("csinv w0, wzr, wzr, ls", 0x5A9F93E0, 0);
 	addinstr("csneg x14, x15, x16, vs", 0xDA9065EE, 0);
 	addinstr("csneg x3, x20, x20, ne", 0xDA941683, 0);
-*/
-/*
+	
 	addinstr("madd w3, w2, w1, w0", 0x1B010043, 0);
 	addinstr("madd x4, x3, x2, xzr", 0x9B027C64, 0);
 	addinstr("msub x7, x2, x12, x5", 0x9B0C9447, 0);
@@ -585,34 +487,28 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("umsubl x14, w5, w12, x6", 0x9BAC98AE, 0);
 	addinstr("umsubl x14, w5, w12, xzr", 0x9BACFCAE, 0);
 	addinstr("umulh x4, x3, x2", 0x9BC27C64, 0);
-*/
 
-	/*
 	addinstr("aese v4.16b, v3.16b", 0x4e284864, 0);
 	addinstr("aesd v6.16b, v4.16b", 0x4e285886, 0);
 	addinstr("aesmc v20.16b, v11.16b", 0x4e286974, 0);
 	addinstr("aesimc v7.16b, v16.16b", 0x4e287a07, 0);
-	*/
-	/*
+	
 	addinstr("sha1c q3, s4, v12.4s", 0x5e0c0083, 0);
 	addinstr("sha256su1 v3.4s, v5.4s, v9.4s", 0x5e0960a3, 0);
 	addinstr("sha256h q2, q3, v5.4s", 0x5e054062, 0);
-	*/
 	
-	/*
 	addinstr("sha1h s4, s5", 0x5e2808a4, 0);
 	addinstr("sha1su1 v6.4s, v1.4s", 0x5e281826, 0);
 	addinstr("sha256su0 v19.4s, v8.4s", 0x5e282913, 0);
-	*/
 
 
-	/*addinstr("mov h0, v0.h[0]", 0x5e020400, 0);
+	addinstr("mov h0, v0.h[0]", 0x5e020400, 0);
 	addinstr("mov d25, v13.d[1]", 0x5e1805b9, 0);
 	addinstr("mov b13, v8.b[2]", 0x5e05050d, 0);
 	addinstr("mov s2, v19.s[3]", 0x5e1c0662, 0);
-	*/
+	
 
-	/*
+	
 	addinstr("fmulx h4, h5, h6", 0x5e461ca4, 0);
 	addinstr("fcmeq h2, h3, h1", 0x5e412462, 0);
 	addinstr("frecps h20, h19, h2", 0x5e423e74, 0);
@@ -642,9 +538,9 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fminnmp v0.2s, v1.2s, v2.2s", 0x2ea2c420, 0);
 	addinstr("cmge v6.8b, v7.8b, v8.8b", 0x0e283ce6, 0);
 	addinstr("uqshl v0.8h, v0.8h, v0.8h", 0x6e604c00, 0);
-	*/
+	
 
-	/*addinstr("fcvtns h4, h6", 0x5e79a8c4, 0);
+	addinstr("fcvtns h4, h6", 0x5e79a8c4, 0);
 	addinstr("fcmge h4, h3, 0.0", 0x7ef8c864, 0);
 	addinstr("ucvtf h10, h11", 0x7e79d96a, 0);
 	addinstr("frsqrte h11, h12", 0x7ef9d98b, 0);
@@ -659,27 +555,22 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("sqxtun v3.4h, v6.4s", 0x2e6128c3, 0);
 	addinstr("rbit v0.8b, v1.8b", 0x2e605820, 0);
 	addinstr("ursqrte v6.2s, v5.2s", 0x2ea1c8a6, 0);
-	*/
-
-	/*addinstr("sqdmlal s1, h2, h4", 0x5e649041, 0);
+	
+	addinstr("sqdmlal s1, h2, h4", 0x5e649041, 0);
 	addinstr("pmull2 v6.1q, v7.2d, v4.2d", 0x4ee4e0e6, 0);
 	addinstr("umlsl v0.4s, v1.4h, v2.4h", 0x2e62a020, 0);
 	addinstr("sqdmull s4, h6, h8", 0x5e68d0c4, 0);
 	addinstr("rsubhn v20.8b, v14.8h, v7.8h", 0x2e2761d4, 0);
-	*/
-
-/*
+	
 	addinstr("sshr d6, d7, #2", 0x5f7e04e6, 0);
-	addinstr("sshr v4.4s, v4.4s, #2", 0x4f3e0484, 0);
+	//addinstr("sshr v4.4s, v4.4s, #2", 0x4f3e0484, 0);
 	addinstr("sqshlu s5, s6, #4", 0x7f2464c5, 0);
-	addinstr("sri v8.16b, v9.16b, #6", 0x6f0a4528, 0);
+	//addinstr("sri v8.16b, v9.16b, #6", 0x6f0a4528, 0);
 	addinstr("sqshrn2 v10.8h, v4.4s, #5", 0x4f1b948a, 0);
 	addinstr("fcvtzs v19.2s, v9.2s, #32", 0x0f20fd33, 0);
 	addinstr("uqshrn b8, h9, #1", 0x7f0f9528, 0);
-*/	
 	
-	
-	/*addinstr("movi v6.8b, 0x4", 0x0f00e486, 0);
+	addinstr("movi v6.8b, 0x4", 0x0f00e486, 0);
 	addinstr("movi d5, 0xffffffffffffffff", 0x2f07e7e5, 0);
 	addinstr("movi v10.2s, 0x8, lsl #16", 0x0f00450a, 0);
 	addinstr("movi v1.4s, 0x20, msl #8", 0x4f01c401, 0);
@@ -692,38 +583,31 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fmov v3.4h, #31.0", 0x0f01ffe3, 0);
 	addinstr("fmov v5.2s, #25.0", 0x0f01f725, 0);
 	addinstr("fmov v6.2d, #-3.0", 0x6f04f506, 0);
-	*/
-
-/*
+	
 	addinstr("smlal v6.4s, v9.4h, v3.h[3]", 0x0f732126, 0);
 	addinstr("fmla h9, h3, v9.h[7]", 0x5f391869, 0);
 	addinstr("fmls v10.2s, v2.2s, v8.s[0]", 0x0f88504a, 0);
 	addinstr("sqrdmlah h4, h5, v4.h[6]", 0x7f64d8a4, 0);
 	addinstr("fcmla v5.4h, v6.4h, v7.h[0], #180", 0x2f4750c5, 0);
-*/
-
-/*
+	
 	addinstr("addp d3, v8.2d", 0x5ef1b903, 0);
 	addinstr("fmaxp h2, v9.2h", 0x5e30f922, 0);
 	addinstr("fminp h18, v20.2h", 0x5eb0fa92, 0);
 	addinstr("fmaxnmp s0, v2.2s", 0x7e30c840, 0);
 	addinstr("fminnmp d5, v4.2d", 0x7ef0c885, 0);
-*/
-
-	/*
+	
 	addinstr("tbl v0.8b, {v8.16b, v9.16b, v10.16b}, v4.8b", 0x0e044100, 0);
 	addinstr("tbl v5.16b, {v9.16b, v10.16b}, v9.16b", 0x4e092125, 0);
 	addinstr("tbx v20.8b, {v3.16b, v4.16b, v5.16b, v6.16b}, v13.8b", 0x0e0d7074, 0);
 	addinstr("tbx v7.16b, {v9.16b}, v20.16b", 0x4e141127, 0);
-	*/
-/*
+
 	addinstr("uzp1 v8.16b, v9.16b, v10.16b", 0x4e0a1928, 0);
 	addinstr("trn2 v10.2s, v6.2s, v19.2s", 0x0e9368ca, 0);
 	addinstr("zip1 v15.4h, v10.4h, v6.4h", 0x0e46394f, 0);
-*/
 
-	//addinstr("ext v5.8b, v3.8b, v9.8b, #5", 0x2e092865, 0);	
-	/*
+
+	addinstr("ext v5.8b, v3.8b, v9.8b, #5", 0x2e092865, 0);	
+	
 	addinstr("dup v8.8b, v6.b[3]", 0x0e0704c8, 0);
 	addinstr("dup v5.2d, x5", 0x4e080ca5, 0);
 	addinstr("dup v9.8h, w3", 0x4e020c69, 0);
@@ -733,17 +617,17 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("umov x3, v10.d[1]", 0x4e183d43, 0);
 	addinstr("ins v9.b[0], w3", 0x4e011c69, 0);
 	addinstr("ins v10.h[2], v9.h[1]", 0x6e0a152a, 0);
-	*/
-	/*
+	
+	
 	addinstr("saddlv s5, v3.4h", 0x0e703865, 0);
 	addinstr("sminv h2, v9.8h", 0x4e71a922, 0);
 	addinstr("fmaxnmv h12, v8.4h", 0x0e30c90c, 0);
 	addinstr("fminv h7, v2.8h", 0x4eb0f847, 0);
 	addinstr("umaxv b20, v5.8b", 0x2e30a8b4, 0);
 	addinstr("fminnmv s4, v7.4s", 0x6eb0c8e4, 0);
-	*/
+	
 
-	/*
+	
 	addinstr("scvtf h6, w3, #2", 0x1ec2f866, 0);
 	addinstr("scvtf s10, x14, #50", 0x9e0239ca, 0);
 	addinstr("ucvtf s0, w2, #14", 0x1e03c840, 0);
@@ -752,9 +636,9 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fcvtzs w4, h6, #10", 0x1ed8d8c4, 0);
 	addinstr("fcvtzu w19, s7, #16", 0x1e19c0f3, 0);
 	addinstr("fcvtzu x2, h0, #5", 0x9ed9ec02, 0);
-	*/
 	
-	/*
+	
+	
 	addinstr("fcvtns x4, h5", 0x9ee000a4, 0);
 	addinstr("fcvtns w2, d10", 0x1e600142, 0);
 	addinstr("fcvtnu x10, d7", 0x9e6100ea, 0);
@@ -767,26 +651,26 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fcvtps x8, h1", 0x9ee80028, 0);
 	addinstr("fjcvtzs w10, d4", 0x1e7e008a, 0);
 	addinstr("fcvtzu x19, h6", 0x9ef900d3, 0);
-	*/
-	/*
+	
+	
 	addinstr("fsqrt s4, s5", 0x1e21c0a4, 0);
 	addinstr("fabs d10, d0", 0x1e60c00a, 0);
 	addinstr("fcvt h9, s2", 0x1e23c049, 0);
 	addinstr("frintp d5, d4", 0x1e64c085, 0);
 	addinstr("fcvt s10, h3", 0x1ee2406a, 0);
 	addinstr("frinti h9, h8", 0x1ee7c109, 0);
-	*/
 	
-	/*
+	
+	
 	addinstr("fcmp h9, h1", 0x1ee12120, 0);
 	addinstr("fcmp s5, 0.0", 0x1e2020a8, 0);
 	addinstr("fcmp d10, d2", 0x1e622140, 0);
 	addinstr("fcmpe s10, s9", 0x1e292150, 0);
 	addinstr("fcmpe d0, 0.0", 0x1e602018, 0);
 	addinstr("fcmpe h6, 0.0", 0x1ee020d8, 0);
-	*/
+	
 
-	/*
+	
 	addinstr("fmov s0, #5.0", 0x1E229000, 0);
 	addinstr("fmov s9, #0.0", 0x1E2703E9, 0);
 	addinstr("fmov s4, #-1.0", 0x1E3E1004, 0);
@@ -802,27 +686,25 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fmov d10, #-9.0", 0x1E74500A, 0);
 	addinstr("fmov d10, #31.0", 0x1E67F00A, 0);
 	addinstr("fmov d7, #-19.0", 0x1E767007, 0);
-	*/
+	
 
 
-	/*addinstr("fccmpe d5, d6, 0x4, ne", 0x1e6614b4, 0);
+	addinstr("fccmpe d5, d6, 0x4, ne", 0x1e6614b4, 0);
 	addinstr("fccmp s0, s1, 0x0, le", 0x1e21d400, 0);
-	*/
-/*
+	
+
 	addinstr("fmul s5, s3, s2", 0x1E220865, 0);
 	addinstr("fminnm d5, d4, d3", 0x1e637885, 0);
 	addinstr("fsub s9, s4, s14", 0x1e2e3889, 0);
-*/
 
-	//addinstr("fcsel d5, d14, d3, ne", 0x1e631dc5, 0);
-
+	addinstr("fcsel d5, d14, d3, ne", 0x1e631dc5, 0);
 	addinstr("fmsub d4, d23, d9, d2", 0x1f498ae4, 0);
 
 	struct node_t *current = instructions->front;
 
 	while(current){
 		struct testinstr *ti = (struct testinstr *)current->data;
-		printf("Disassembling %s (aka 0x%08x)... ", ti->name, ti->hex);
+		printf("Disassembling %s (aka 0x%08x)...\n", ti->name, ti->hex);
 		struct instruction *i = instruction_new(ti->hex, ti->PC);
 		char *ret = _ArmadilloDisassemble(i);
 		//printf("ret = %p\n", ret);

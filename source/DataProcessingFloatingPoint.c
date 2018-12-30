@@ -4,8 +4,6 @@
 char *DisassembleCryptographicAESInstr(struct instruction *instruction){
 	char *disassembled = NULL;
 
-	//printf("hi\n");
-
 	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
 	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);	
 	unsigned int opcode = getbitsinrange(instruction->hex, 12, 5);
@@ -15,7 +13,7 @@ char *DisassembleCryptographicAESInstr(struct instruction *instruction){
 
 	const char *instr_tbl[] = {NULL, NULL, NULL, NULL, "aese", "aesd", "aesmc", "aesimc"};
 	
-	if(opcode < 4 && opcode > (sizeof(instr_tbl) / sizeof(const char *)))
+	if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
 		return strdup(".undefined");
 	
 	const char *instr = instr_tbl[opcode];
@@ -72,7 +70,7 @@ char *DisassembleCryptographicThreeRegisterSHAInstr(struct instruction *instruct
 	return disassembled;
 }
 
-char *DisassembleTwoRegisterSHAInstr(struct instruction *instruction){
+char *DisassembleCryptographicTwoRegisterSHAInstr(struct instruction *instruction){
 	char *disassembled = NULL;
 
 	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
@@ -384,19 +382,18 @@ char *DisassembleAdvancedSIMDThreeSameInstr(struct instruction *instruction, int
 				_Rm = ARM64_VectorRegisters[Rm];
 				
 				if(strcmp(instr, "fcmla") == 0){
-					if(rot == 0)
+					/*if(rot == 0)
 						rot = 0;
 					else if(rot == 1)
 						rot = 90;
 					else if(rot == 2)
 						rot = 180;
 					else
-						rot = 270;
+						rot = 270;*/
+					rot *= 90;
 				}
 				else
 					rot = rot == 0 ? 90 : 270;
-
-				printf("rot: %d\n", rot);
 			}
 
 			disassembled = malloc(128);
@@ -1327,8 +1324,6 @@ char *DisassembleAdvancedSIMDThreeDifferentInstr(struct instruction *instruction
 		"rsubhn", "uabdl", "umlal", NULL, "umlsl", NULL, 
 		"umull", NULL, NULL};
 	
-	printf("opcode %d\n", opcode);
-
 	if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u0)))
 		return strdup(".undefined");
 
@@ -3103,116 +3098,81 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	unsigned int op2 = getbitsinrange(instruction->hex, 19, 4);
 	unsigned int op1 = getbitsinrange(instruction->hex, 23, 2);
 	unsigned int op0 = getbitsinrange(instruction->hex, 28, 4);
-	/*
-	print_bin(op0, 4);
-	print_bin(op1, 2);
-	print_bin(op2, 4);
-	print_bin(op3, 9);
-	*/
-	if(op0 == 4 && (op1 >> 1) == 0 && (op2 & ~0x8) == 5 && (((op3 >> 9) & 1) == 0 && ((op3 >> 8) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
+	
+	if(op0 == 0x4 && (op1 >> 0x1) == 0 && (op2 & ~0x8) == 0x5 && (op3 & ~0x7c) == 0x2)
 		disassembled = DisassembleCryptographicAESInstr(instruction);
-	}
-	else if(op0 == 5 && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 0 && (((op3 >> 5) & 1) == 0 && ((op3 >> 1) & 1) == 0 && (op3 & 1) == 0)){
+	else if(op0 == 0x5 && (op1 >> 0x1) == 0 && (op2 & ~0xb) == 0 && (op3 & ~0x1dc) == 0)
 		disassembled = DisassembleCryptographicThreeRegisterSHAInstr(instruction);
-	}
-	else if(op0 == 5 && (op1 >> 1) == 0 && (op2 & ~0x8) == 5 && (((op3 >> 9) & 1) == 0 && ((op3 >> 8) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
-		disassembled = DisassembleTwoRegisterSHAInstr(instruction);
-	}
-	else if((op0 & ~0x2) == 5 && op1 == 0 && (op2 >> 2) == 0 && (((op3 >> 5) & 1) == 0 && (op3 & 1) == 1)){
+	else if(op0 == 0x5 && (op1 >> 0x1) == 0 && (op2 & ~0x8) == 0x5 && (op3 & ~0x7c) == 0x2)
+		disassembled = DisassembleCryptographicTwoRegisterSHAInstr(instruction);
+	else if((op0 & ~0x2) == 0x5 && op1 == 0 && (op2 & ~0x3) == 0 && (op3 & ~0x1de) == 0x1)
 		disassembled = DisassembleAdvancedSIMDScalarCopyInstr(instruction);
-	}
-	else if(((op0 >> 3) == 0 && (op0 & 1) == 0) && op1 == 0 && (((op2 >> 3) & 1) == 0 && (((op2 >> 2) & 1) == 0)) && (((op3 >> 5) & 1) == 0 && (op3 & 1) == 1)){
+	else if((op0 & ~0x6) == 0 && op1 == 0 && (op2 & ~0x3) == 0 && (op3 & ~0x1fe) == 0x1)
 		disassembled = DisassembleAdvancedSIMDCopyInstr(instruction);
-	}
-	else if(((op0 & ~0x2) == 5 || ((op0 >> 3) == 0 && (op0 & 1) == 0)) && (op1 >> 1) == 0 && ((op2 >> 2) == 2 || ((op2 >> 2) & 1) == 0 || ((op2 >> 2) & 1) == 1) && ((op3 & 1) == 1 || (((op3 >> 5) & 1) == 0 && ((op3 >> 4) & 1) == 0 && (op3 & 1) == 1) || (((op3 >> 5) & 1) == 1 && (op3 & 1) == 1))){
-		int scalar = (op0 & 1);
-		int fp16 = (op2 >> 2) == 2 && (((op3 >> 5) & 1) == 0 && ((op3 >> 4) & 1) == 0 && (op3 & 1) == 1);
-		int extra = ((op2 >> 2) & 1) == 0 && (((op3 >> 5) & 1) == 1 && (op3 & 1) == 1);
+	else if(((op0 & ~0x2) == 0x5 || (op0 & ~0x6) == 0) && (op1 >> 0x1) == 0 && ((op2 & ~0xb) == 0 || (op2 & ~0xb) == 0x4) && ((op3 & ~0x1ce) == 0x1 || (op3 & ~0x1de) == 0x21 || (op3 & ~0x1fe) == 0x1)){
+		int scalar = (op0 & 0x1);
+		int fp16 = (op2 >> 0x2) == 0x2 && (((op3 >> 0x5) & 0x1) == 0 && ((op3 >> 0x4) & 0x1) == 0 && (op3 & 0x1) == 0x1);
+		int extra = ((op2 >> 0x2) & 0x1) == 0 && (((op3 >> 0x5) & 0x1) == 0x1 && (op3 & 0x1) == 0x1);
 
 		disassembled = DisassembleAdvancedSIMDThreeSameInstr(instruction, scalar, fp16, extra);
 	}
-	else if(((op0 & ~0x2) == 5 || ((op0 >> 3) == 0 && (op0 & 1) == 0)) && (op1 >> 1) == 0 && (op2 == 15 || (op2 & ~0x8) == 4) && (((op3 >> 8) & 1) == 0 && ((op3 >> 7) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
-		disassembled = DisassembleAdvancedSIMDTwoRegisterMiscellaneousInstr(instruction, (op0 & 1), op2 == 15);
-	}
-	else if(((op0 & ~0x2) == 5 || ((op0 >> 3) == 0 && (op0 & 1) == 0)) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && ((((op3 >> 1) & 1) == 0) && ((op3 & 1) == 0))){
-		int scalar = (op0 & 1);
-
-		disassembled = DisassembleAdvancedSIMDThreeDifferentInstr(instruction, scalar);
-	}
-	else if(((op0 & ~0x2) == 5 || ((op0 >> 3) == 0 && (op0 & 1) == 0)) && op1 == 2 && (op3 & 1) == 1){
-		int scalar = ((op0 & ~0x2) == 5);
+	else if(((op0 & ~0x2) == 0x5 || (op0 & ~0x6) == 0) && (op1 >> 0x1) == 0 && (op2 == 0xf || (op2 & ~0x8) == 0x4) && (op3 & ~0x7c) == 0x2)
+		disassembled = DisassembleAdvancedSIMDTwoRegisterMiscellaneousInstr(instruction, (op0 & 0x1), op2 == 0xf);
+	else if(((op0 & ~0x2) == 0x5 || (op0 & ~0x6) == 0) && (op1 >> 0x1) == 0 && ((op2 >> 0x2) & 0x1) == 0x1 && (op3 & ~0x1fc) == 0)
+		disassembled = DisassembleAdvancedSIMDThreeDifferentInstr(instruction, (op0 & 0x1));
+	else if(((op0 & ~0x2) == 0x5 || (op0 & ~0x6) == 0) && op1 == 0x2 && (op3 & 0x1) == 0x1){
+		int scalar = ((op0 & ~0x2) == 0x5);
 
 		if(op2 == 0)
 			disassembled = DisassembleAdvancedSIMDModifiedImmediateInstr(instruction);
 		else
 			disassembled = DisassembleAdvancedSIMDShiftByImmediateInstr(instruction, scalar);
 	}
-	else if(((op0 & ~0x2) == 5 || ((op0 >> 3) == 0 && (op0 & 1) == 0)) && (op1 >> 1) == 1 && (op3 & 1) == 0){
-		int scalar = ((op0 & ~0x2) == 5);
-
-		disassembled = DisassembleAdvancedSIMDIndexedElementInstr(instruction, scalar);
-	}
-	else if((op0 & ~0x2) == 5 && (op1 >> 1) == 0 && (op2 & ~0x8) == 6 && (((op3 >> 8) & 1) == 0 && ((op3 >> 7) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
+	else if(((op0 & ~0x2) == 0x5 || (op0 & ~0x6) == 0) && (op1 >> 0x1) == 0x1 && (op3 & 0x1) == 0)
+		disassembled = DisassembleAdvancedSIMDIndexedElementInstr(instruction, ((op0 & ~0x2) == 0x5));
+	else if((op0 & ~0x2) == 0x5 && (op1 >> 0x1) == 0 && (op2 & ~0x8) == 0x6 && (op3 & ~0x7c) == 0x2)
 		disassembled = DisassembleAdvancedSIMDScalarPairwiseInstr(instruction);
-	}
-	else if((op0 & ~0x4) == 0 && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 0 && (((op3 >> 5) & 1) == 0 && ((op3 >> 1) & 1) == 0 && (op3 & 1) == 0)){
+	else if((op0 & ~0x4) == 0 && (op1 >> 0x1) == 0 && ((op2 >> 0x2) & 0x1) == 0 && (op3 & ~0x1dc) == 0)
 		disassembled = DisassembleAdvancedSIMDTableLookupInstr(instruction);
-	}
-	else if((op0 & ~0x4) == 0 && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 0 && (((op3 >> 5) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
+	else if((op0 & ~0x4) == 0 && (op1 >> 0x1) == 0 && ((op2 >> 0x2) & 0x1) == 0 && (op3 & ~0x1dc) == 0x2)
 		disassembled = DisassembleAdvancedSIMDPermuteInstr(instruction);
-	}
-	else if((op0 & ~0x4) == 2 && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 0 && (((op3 >> 5) & 1) == 0 && (op3 & 1) == 0)){
+	else if((op0 & ~0x4) == 0x2 && (op1 >> 0x1) == 0 && ((op2 >> 0x2) & 0x1) == 0 && (op3 & ~0x1de) == 0)
 		disassembled = DisassembleAdvancedSIMDExtractInstr(instruction);
-	}
-	else if(((op0 >> 3) == 0 && (op0 & 1) == 0) && (op1 >> 1) == 0 && (op2 & ~0x8) == 6 && (((op3 >> 8) & 1) == 0 && ((op3 >> 7) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
+	else if((op0 & ~0x6) == 0 && (op1 >> 0x1) == 0 && (op2 & ~0x8) == 0x6 && (op3 & ~0x7c) == 0x2)
 		disassembled = DisassembleAdvancedSIMDAcrossLanesInstr(instruction);
-	}
-	else if(op0 == 12 && op1 == 0 && (op2 >> 2) == 2 && (((op3 >> 5) & 1) == 1 && (((op3 >> 4) & 1) == 0))){
+	else if(op0 == 0xc && op1 == 0 && (op2 >> 0x2) == 0x2 && (op3 & ~0x1cf) == 0x20)
 		disassembled = DisassembleCryptographicThreeRegisterImm2(instruction);
-	}
-	else if(op0 == 12 && op1 == 0 && (op2 >> 2) == 3 && (((op3 >> 5) & 1) == 1 && (((op3 >> 3) & 1) == 0 && (((op3 >> 2) & 1) == 0)))){
+	else if(op0 == 0xc && op1 == 0 && (op2 >> 0x2) == 0x3 && (op3 & ~0x1d3) == 0x20)
 		disassembled = DisassembleCryptographicThreeRegisterSHA512Instr(instruction);
-	}
-	else if(op0 == 12 && op1 == 0 && (((op3 >> 5) & 1) == 0)){
+	else if(op0 == 0xc && op1 == 0 && (op3 & ~0x1df) == 0)
 		disassembled = DisassembleCryptographicFourRegisterInstr(instruction);
-	}
-	else if(op0 == 12 && op1 == 1 && ((((op2 >> 3) & 1) == 0 && (((op2 >> 2) & 1) == 0)))){
+	else if(op0 == 0xc && op1 == 0x1 && (op2 & ~0x3) == 0)
 		disassembled = DisassembleXARInstr(instruction);
-	}
-	else if(op0 == 12 && op1 == 1 && op2 == 8 && (op3 >> 2) == 8){
+	else if(op0 == 0xc && op1 == 0x1 && op2 == 0x8 && (op3 & ~0x23) == 0x20)
 		disassembled = DisassembleCryptographicTwoRegisterSHA512Instr(instruction);
-	}
-	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 0){
+	else if((op0 & ~0xa) == 0x1 && (op1 >> 0x1) == 0 && (op2 & ~0xb) == 0)
 		disassembled = DisassembleConversionBetweenFloatingPointAndFixedPointInstr(instruction);
+	else if((op0 & ~0xa) == 0x1 && (op1 >> 0x1) == 0 && (op2 & ~0xb) == 0x4){
+		if((op3 & ~0x1c0) == 0)
+			disassembled = DisassembleConversionBetweenFloatingPointAndIntegerInstr(instruction);
+		else if((op3 & ~0x1e0) == 0x10)
+			disassembled = DisassembleFloatingPointDataProcessingOneSource(instruction);
+		else if((op3 & ~0x1f0) == 0x8)
+			disassembled = DisassembleFloatingPointCompareInstr(instruction);
+		else if((op3 & ~0x1f8) == 0x4)
+			disassembled = DisassembleFloatingPointImmediateInstr(instruction);
+		else if((op3 & ~0x1fc) == 0x1)
+			disassembled = DisassembleFloatingPointConditionalCompare(instruction);
+		else if((op3 & ~0x1fc) == 0x2)
+			disassembled = DisassembleFloatingPointDataProcessingTwoSourceInstr(instruction);
+		else if((op3 & ~0x1fc) == 0x3)
+			disassembled = DisassembleFloatingPointConditionalSelectInstr(instruction);
+		else
+			return strdup(".undefined");
 	}
-	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 6) == 0){
-		disassembled = DisassembleConversionBetweenFloatingPointAndIntegerInstr(instruction);
-	}
-	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 5) == 0x10){
-		disassembled = DisassembleFloatingPointDataProcessingOneSource(instruction);
-	}
-	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 4) == 0x8){
-		disassembled = DisassembleFloatingPointCompareInstr(instruction);
-	}
-	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 3) == 0x4){
-		disassembled = DisassembleFloatingPointImmediateInstr(instruction);
-	}
-	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 2) == 0x1){
-		disassembled = DisassembleFloatingPointConditionalCompare(instruction);
-	}
-	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 2) == 0x2){
-		disassembled = DisassembleFloatingPointDataProcessingTwoSourceInstr(instruction);
-	}
-	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 2) == 0x3){
-		disassembled = DisassembleFloatingPointConditionalSelectInstr(instruction);
-	}
-	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 1){
+	else if((op0 & ~0xa) == 0x1 && (op1 >> 0x1) == 0x1)
 		disassembled = DisassembleFloatingPointDataProcessingThreeSourceInstr(instruction);
-	}
 	else
-		return strdup(".undefined");
-
-	if(!disassembled)
 		return strdup(".unknown");
 	
 	return disassembled;
