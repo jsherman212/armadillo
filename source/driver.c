@@ -768,14 +768,21 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("fjcvtzs w10, d4", 0x1e7e008a, 0);
 	addinstr("fcvtzu x19, h6", 0x9ef900d3, 0);
 	*/
-	
+	/*
 	addinstr("fsqrt s4, s5", 0x1e21c0a4, 0);
 	addinstr("fabs d10, d0", 0x1e60c00a, 0);
 	addinstr("fcvt h9, s2", 0x1e23c049, 0);
 	addinstr("frintp d5, d4", 0x1e64c085, 0);
 	addinstr("fcvt s10, h3", 0x1ee2406a, 0);
 	addinstr("frinti h9, h8", 0x1ee7c109, 0);
+	*/
 
+	addinstr("fcmp h9, h1", 0x1ee12120, 0);
+	addinstr("fcmp s5, 0.0", 0x1e2020a8, 0);
+	addinstr("fcmp d10, d2", 0x1e622140, 0);
+	addinstr("fcmpe s10, s9", 0x1e292150, 0);
+	addinstr("fcmpe d0, 0.0", 0x1e602018, 0);
+	addinstr("fcmpe h6, 0.0", 0x1ee020d8, 0);
 	
 	struct node_t *current = instructions->front;
 

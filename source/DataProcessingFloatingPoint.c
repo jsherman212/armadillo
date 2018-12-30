@@ -2761,6 +2761,71 @@ char *DisassembleFloatingPointDataProcessingOneSource(struct instruction *instru
 
 	sprintf(disassembled, "%s %s, %s", instr, _Rd, _Rn);
 
+	free(_Rd);
+	free(_Rn);
+
+	return disassembled;
+}
+
+char *DisassembleFloatingPointCompareInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int opcode2 = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int opc = getbitsinrange(instruction->hex, 3, 2);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int op = getbitsinrange(instruction->hex, 14, 2);
+	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
+	unsigned int type = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int S = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int M = getbitsinrange(instruction->hex, 31, 1);
+
+	const char *instr = NULL;
+
+	if((opc >> 1) == 0)
+		instr = "fcmp";
+	else
+		instr = "fcmpe";
+
+	char *_Rn = malloc(32);
+	char *_Rm = malloc(32);
+
+	if(type == 3){
+		sprintf(_Rn, "h%d", Rn);
+
+		if(Rm == 0 && (opc == 1 || opc == 3))
+			sprintf(_Rm, "#0.0");
+		else
+			sprintf(_Rm, "h%d", Rm);
+	}
+	else if(type == 0){
+		sprintf(_Rn, "s%d", Rn);
+
+		if(Rm == 0 && (opc == 1 || opc == 3))
+			sprintf(_Rm, "#0.0");
+		else
+			sprintf(_Rm, "s%d", Rm);
+	}
+	else if(type == 1){
+		sprintf(_Rn, "d%d", Rn);
+
+		if(Rm == 0 && (opc == 1 || opc == 3))
+			sprintf(_Rm, "#0.0");
+		else
+			sprintf(_Rm, "d%d", Rm);
+	}
+	else{
+		free(_Rn);
+		free(_Rm);
+		return strdup(".undefined");
+	}
+
+	disassembled = malloc(128);
+	
+	sprintf(disassembled, "%s %s, %s", instr, _Rn, _Rm);
+
+	free(_Rn);
+	free(_Rm);
+	
 	return disassembled;
 }
 
@@ -2858,6 +2923,9 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	}
 	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 5) == 0x10){
 		disassembled = DisassembleFloatingPointDataProcessingOneSource(instruction);
+	}
+	else if((((op0 >> 2) & 1) == 0 && (op0 & 1) == 1) && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 1 && getbitsinrange(op3, 0, 4) == 0x8){
+		disassembled = DisassembleFloatingPointCompareInstr(instruction);
 	}
 	else
 		return strdup(".undefined");
