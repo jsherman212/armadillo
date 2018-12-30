@@ -2177,6 +2177,68 @@ char *DisassembleAdvancedSIMDCopyInstr(struct instruction *instruction){
 	return disassembled;
 }
 
+char *DisassembleAdvancedSIMDAcrossLanesInstr(struct instruction *instruction){
+	char *disassembled = NULL;
+
+	unsigned int Rd = getbitsinrange(instruction->hex, 0, 5);
+	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
+	unsigned int opcode = getbitsinrange(instruction->hex, 12, 5);
+	unsigned int size = getbitsinrange(instruction->hex, 22, 2);
+	unsigned int sz = (size & 1);
+	unsigned int U = getbitsinrange(instruction->hex, 29, 1);
+	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
+
+	const char *instr = NULL;
+
+	const char *instr_tbl_u0[] = {NULL, NULL, NULL, "saddlv", NULL, NULL,
+		NULL, NULL, NULL, NULL, "smaxv", NULL,
+		(size == 0) ? "fmaxnmv" : "fminnmv",
+		NULL, NULL,
+		(size == 0) ? "fmaxv" : "fminv",
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		"sminv", "addv"};
+	const char *instr_tbl_u1[] = {NULL, NULL, NULL, "addlv", NULL, NULL,
+		NULL, NULL, NULL, NULL, "umaxv", NULL,
+		((size >> 1) == 0) ? "fmaxnmv" : "fminnmv",
+		NULL, NULL,
+		((size >> 1) == 0) ? "fmaxv" : "fminv",
+		NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		"uminv", NULL};
+
+	const char *T = NULL;
+	char V = '\0';
+
+	char V_tbl[] = {'b', 'h', 's'};
+	char V_tbl2[] = {'h', 's', 'd'};
+
+	if(U == 0)
+		instr = instr_tbl_u0[opcode];
+	else
+		instr = instr_tbl_u1[opcode];
+
+	if(opcode == 3){
+		V = V_tbl2[size];
+		T = get_arrangement(size, Q);
+	}
+	else if(opcode == 12 || opcode == 15){
+		V = U == 0 ? 'h' : 's';
+		T = get_arrangement2(U == 0, sz, Q);
+	}
+	else{
+		V = V_tbl[size];
+		T = get_arrangement(size, Q);
+	}
+
+	disassembled = malloc(128);
+	
+	sprintf(disassembled, "%s %c%d, %s.%s", instr, V, Rd, ARM64_VectorRegisters[Rn], T);
+
+	if(!disassembled)
+		return strdup(".unknown");
+
+	return disassembled;
+}
+
 char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	char *disassembled = NULL;
 
@@ -2244,6 +2306,9 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
 	}
 	else if((op0 & ~0x4) == 2 && (op1 >> 1) == 0 && ((op2 >> 2) & 1) == 0 && (((op3 >> 5) & 1) == 0 && (op3 & 1) == 0)){
 		disassembled = DisassembleAdvancedSIMDExtractInstr(instruction);
+	}
+	else if(((op0 >> 3) == 0 && (op0 & 1) == 0) && (op1 >> 1) == 0 && (op2 & ~0x8) == 6 && (((op3 >> 8) & 1) == 0 && ((op3 >> 7) & 1) == 0 && ((op3 >> 1) & 1) == 1 && (op3 & 1) == 0)){
+		disassembled = DisassembleAdvancedSIMDAcrossLanesInstr(instruction);
 	}
 	else
 		return strdup(".undefined");

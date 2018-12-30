@@ -723,7 +723,7 @@ int main(int argc, char **argp, const char **envp){
 */
 
 	//addinstr("ext v5.8b, v3.8b, v9.8b, #5", 0x2e092865, 0);	
-	
+	/*
 	addinstr("dup v8.8b, v6.b[3]", 0x0e0704c8, 0);
 	addinstr("dup v5.2d, x5", 0x4e080ca5, 0);
 	addinstr("dup v9.8h, w3", 0x4e020c69, 0);
@@ -733,7 +733,15 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("umov x3, v10.d[1]", 0x4e183d43, 0);
 	addinstr("ins v9.b[0], w3", 0x4e011c69, 0);
 	addinstr("ins v10.h[2], v9.h[1]", 0x6e0a152a, 0);
+	*/
 	
+	addinstr("saddlv s5, v3.4h", 0x0e703865, 0);
+	addinstr("sminv h2, v9.8h", 0x4e71a922, 0);
+	addinstr("fmaxnmv h12, v8.4h", 0x0e30c90c, 0);
+	addinstr("fminv h7, v2.8h", 0x4eb0f847, 0);
+	addinstr("umaxv b20, v5.8b", 0x2e30a8b4, 0);
+	addinstr("fminnmv s4, v7.4s", 0x6eb0c8e4, 0);
+
 	struct node_t *current = instructions->front;
 
 	while(current){
