@@ -1,6 +1,4 @@
-#include <string.h>
 #include "BranchExcSys.h"
-
 
 char *DisassembleConditionalImmediateBranchInstr(struct instruction *instruction){
 	char *disassembled = NULL;
@@ -38,30 +36,22 @@ char *DisassembleExcGenInstr(struct instruction *instruction){
 	unsigned int opc = getbitsinrange(instruction->hex, 21, 3);
 	unsigned int imm16 = getbitsinrange(instruction->hex, 5, 16);
 	
-	// svc, hvc, or smc	
 	if(opc == 0 && op2 == 0){
 		disassembled = malloc(128);
-
-		// ll == 0, nothing
-		// ll == 1, svc
-		// ll == 2, hvc
-		// ll == 3, smc
 		const char *table[] = { NULL, "svc", "hvc", "smc" };
+		if(!check_bounds(ll, ARRAY_SIZE(table)))
+			return strdup(".undefined");
 
 		sprintf(disassembled, "%s #%#x", table[ll], imm16);
 	}
-	// brk or hlt
 	else if((opc == 1 || opc == 2) && op2 == 0 && ll == 0){
 		disassembled = malloc(128);
-		
-		// opc == 0, nothing
-		// opc == 1, brk
-		// opc == 2, hlt
 		const char *table[] = { NULL, "brk", "hlt" };
+		if(!check_bounds(ll, ARRAY_SIZE(table)))
+			return strdup(".undefined");
 		
 		sprintf(disassembled, "%s #%#x", table[opc], imm16);
 	}
-	// dcps1, dcps2, or dcps3
 	else if(opc == 5 && op2 == 0 && ll != 0){
 		// no dcps4 and beyond
 		if(ll > 3)
@@ -73,7 +63,6 @@ char *DisassembleExcGenInstr(struct instruction *instruction){
 	}
 	else
 		return strdup(".undefined");
-
 
 	if(!disassembled)
 		return strdup(".unknown");
@@ -89,46 +78,33 @@ char *DisassembleHintInstr(struct instruction *instruction){
 
 	if(CRm == 0){
 		disassembled = malloc(128);
-		
-		// out of xpacd, xpaci, and xpaclri, xpaclri is the only instruction that falls under system category
 		const char *table[] = { "nop", "yield", "wfe", "wfi", "sev", "sevl", NULL, "xpaclri" };
+		if(!check_bounds(op2, ARRAY_SIZE(table)))
+			return strdup(".undefined");
 
 		sprintf(disassembled, "%s", table[op2]);
 	}
 	else if(CRm == 1){
 		disassembled = malloc(128);
-		
-		// op2 == 0, pacia1716 
-		// op2 == 2, pacib1716
-		// op2 == 4, autia1716
-		// op2 == 6, autib1716
 		const char *table[] = { "pacia1716", NULL, "pacib1716", NULL, "autia1716", NULL, "autib1716" };
+		if(!check_bounds(op2, ARRAY_SIZE(table)))
+			return strdup(".undefined");
 
 		sprintf(disassembled, "%s", table[op2]);
 	}
 	else if(CRm == 2){
 		disassembled = malloc(128);
-
-		// op2 == 0, esb
-		// op2 == 1, psb csync
-		// op2 == 2, tsb csync
-		// op2 == 4, csdb
 		const char *table[] = { "esb", "psb csync", "tsb csync", NULL, "csdb" };
+		if(!check_bounds(op2, ARRAY_SIZE(table)))
+			return strdup(".undefined");
 
 		sprintf(disassembled, "%s", table[op2]);
 	}
 	else if(CRm == 3){
 		disassembled = malloc(128);
-	
-		// op2 == 0, paciaz
-		// op2 == 1, paciasp
-		// op2 == 2, pacibz
-		// op2 == 3, pacibsp
-		// op2 == 4, autiaz
-		// op2 == 5, autiasp
-		// op2 == 6, autibz
-		// op2 == 7, autibsp
 		const char *table[] = { "paciaz", "paciasp", "pacibz", "pacibsp", "autiaz", "autiasp", "autibz", "autibsp" };
+		if(!check_bounds(op2, ARRAY_SIZE(table)))
+			return strdup(".undefined");
 
 		sprintf(disassembled, "%s", table[op2]);
 	}
@@ -163,6 +139,9 @@ char *DisassembleBarrierInstr(struct instruction *instruction){
 			const char *options[] = { "#0x0", "oshld", "oshst", "osh", "#0x4", "nshld", "nshst", "nsh", 
 									"#0x8", "ishld", "ishst", "ish", "#0x12", "ld", "st", "sy" };
 
+			if(!check_bounds(CRm, ARRAY_SIZE(options)))
+				return strdup(".undefined");
+			
 			const char *instr = op2 == 5 ? "dmb" : "dsb";
 
 			sprintf(disassembled, "%s %s", instr, options[CRm]);
@@ -199,8 +178,6 @@ char *DisassembleBarrierInstr(struct instruction *instruction){
 char *DisassemblePSTATEInstr(struct instruction *instruction){
 	char *disassembled = NULL;
 
-	printf("PSTATE\n");
-
 	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
 	unsigned int op2 = getbitsinrange(instruction->hex, 5, 3);
 	unsigned int CRm = getbitsinrange(instruction->hex, 8, 4);
@@ -235,17 +212,10 @@ char *DisassemblePSTATEInstr(struct instruction *instruction){
 char *SysOp(unsigned int op1, unsigned int CRn, unsigned int CRm, unsigned int op2){
 	char *ret = malloc(32);
 
-	//print_bin(op1, 3);
-	//print_bin(CRn, 4);
-	//print_bin(CRm, 4);
-	//print_bin(op2, 3);
-
 	unsigned int result = op1 << 11;
 	result |= (CRn << 7);
 	result |= (CRm << 3);
 	result |= op2;
-
-	//print_bin(result, 14);
 
 	switch(result){
 	case 0x3c0:
@@ -1690,83 +1660,36 @@ char *BranchExcSysDisassemble(struct instruction *instruction){
 	unsigned int op1 = getbitsinrange(instruction->hex, 12, 14);
 	unsigned int op0 = getbitsinrange(instruction->hex, 29, 3);
 	
-	//printf("op0 %#x op1 %#x op2 %#x\n", op0, op1, op2);
-
-	//print_bin(op2, -1);
-	//print_bin(op1, -1);
-	//print_bin(op0, -1);
-
-//	printf("op1 >> 14 = %d\n", (op1 >> 14) & 1);
-	
-	//print_bin((op1 << 28) >> 28, -1);
-	//print_bin(op1 >> 12, -1);
-	
-	//print_bin(op1, 14);
-	//print_bin((op1 << 27) >> 27, -1);
-	//
-
-	// Conditional branch (immediate)
-	if(op0 == 0x2 && (op1 >> 13) == 0){
-		//printf("b.cond\n");
+	if(op0 == 0x2 && (op1 >> 0xd) == 0)
 		disassembled = DisassembleConditionalImmediateBranchInstr(instruction);
+	else if(op0 == 0x6){
+		if((op1 >> 0xc) == 0)
+			disassembled = DisassembleExcGenInstr(instruction);
+		else if(op1 == 0x1032 && op2 == 0x1f)
+			disassembled = DisassembleHintInstr(instruction);
+		else if(op1 == 0x1033)
+			disassembled = DisassembleBarrierInstr(instruction);
+		else if((op1 & ~0x70) == 0x1004)
+			disassembled = DisassemblePSTATEInstr(instruction);
+		else if((op1 & ~0x27f) == 0x1080)
+			disassembled = DisassembleSystemInstr(instruction);
+		else if((op1 & ~0x2ff) == 0x1100)
+			disassembled = DisassembleSystemRegisterMoveInstr(instruction);
+		else if((op1 >> 0xd) == 0x1)
+			disassembled = DisassembleUnconditionalBranchInstr(instruction);
+		else
+			return strdup(".undefined");
 	}
-	// Exception generation
-	else if(op0 == 0x6 && (op1 >> 12) == 0){
-		//printf("exception generation\n");
-		disassembled = DisassembleExcGenInstr(instruction);
-	}
-	// Hints
-	else if(op0 == 0x6 && op1 == 0x1032 && op2 == 0x1f){
-		//printf("Hint\n");
-		disassembled = DisassembleHintInstr(instruction);
-	}
-	// Barriers
-	else if(op0 == 0x6 && op1 == 0x1033){
-		//printf("Barriers\n");
-		disassembled = DisassembleBarrierInstr(instruction);
-	}
-	// PSTATE
-	else if(op0 == 0x6 && (op1 << 28) >> 28 == 0x4 && (op1 >> 7) == 0x20){
-		//printf("pstate\n");
-		disassembled = DisassemblePSTATEInstr(instruction);
-	}
-	// System instructions
-	else if(op0 == 0x6 && (op1 >> 10) == 0x4 && ((op1 >> 7) & 1) == 1 && ((op1 >> 8) & 1) != 1){
-		//printf("system instruction\n");
-		disassembled = DisassembleSystemInstr(instruction);
-	}
-	// System register move
-	else if(op0 == 0x6 && (op1 >> 10) == 0x4 && ((op1 >> 8) & 1) == 1){
-		//printf("system register move\n");
-		disassembled = DisassembleSystemRegisterMoveInstr(instruction);
-	}
-	// Unconditional branch (register)
-	else if(op0 == 0x6 && ((op1 >> 13) & 1) == 1){
-		//printf("Unconditional branch (register)\n");
-		disassembled = DisassembleUnconditionalBranchInstr(instruction);
-	}
-	// Unconditional branch (immediate)
-	else if((op0 & 1) == 0 && (op0 & 2) == 0){
-		//printf("unconditional branch (immediate)\n");
+	else if((op0 & ~0x4) == 0)
 		disassembled = DisassembleUnconditionalBranchImmInstr(instruction);
-	}
-	// Compare and branch (immediate)
-	else if((op0 & 1) == 1 && (op0 & 2) == 0 && ((op1 >> 13) & 1) == 0){
-		//printf("compare and branch (immediate)\n");
-		disassembled = DisassembleCompareAndBranchImmediateInstr(instruction);
-	}
-	// Test and branch (immediate)
-	else if((op0 & 1) == 1 && (op0 & 2) == 0 && ((op1 >> 13) & 1) == 1){
-		//printf("Test and branch (immediate)\n");
-		disassembled = DisassembleTestAndBranchImmediateInstr(instruction);
+	else if((op0 & ~0x4) == 0x1){
+		if((op1 >> 0xd) == 0)
+			disassembled = DisassembleCompareAndBranchImmediateInstr(instruction);
+		else if((op1 >> 0xd) == 0x1)
+			disassembled = DisassembleTestAndBranchImmediateInstr(instruction);
 	}
 	else
 		return strdup(".undefined");
-
-
-
-	if(!disassembled)
-		return strdup(".unknown");
 
 	return disassembled;
 }

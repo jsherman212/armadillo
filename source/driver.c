@@ -254,7 +254,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("tbz x17, 0x1, -0x3200 @ 0x100007f30", 0x360e7011, 0x100007f30);
 	addinstr("tbnz x2, 0x1, 0x4 @ 0x100007f34", 0x37080022, 0x100007f34);
 	addinstr("tbnz x13, 0x0, 0x404 @ 0x100007f38", 0x3700202d, 0x100007f38);
-
+	/*
 	addinstr("st1 {v4.1d}, [x8]", 0x0C007D04, 0);
 	addinstr("ld1 {v9.1d}, [x2]", 0x0C407C49, 0);
 	addinstr("ld2 {v9.4s, v10.4s}, [x16]", 0x4C408A09, 0);
@@ -388,7 +388,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("ldrab x14, [x19, #0x10]!", 0xf8a02e6e, 0);
 	
 	addinstr("ldnp d1, d27, [x19, -0x1c0]", 0x6c646e61, 0);
-	
+	*/
 	/*addinstr("pacga x4, x2, x20", 0x9ad43044, 0);
 	addinstr("crc32cw w4, w2, w4", 0x1AC45844, 0);
 	addinstr("pacga x13, x22, sp", 0x9adf32cd, 0);
