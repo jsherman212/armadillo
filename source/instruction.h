@@ -1,6 +1,8 @@
 #ifndef _INSTRUCTION_H_
 #define _INSTRUCTION_H_
 
+#include <stdlib.h>
+
 struct instruction {
 	unsigned int hex;
 	unsigned long PC;

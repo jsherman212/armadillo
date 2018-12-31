@@ -1376,7 +1376,7 @@ char *LoadsAndStoresDisassemble(struct instruction *instruction){
 		disassembled = DisassembleLoadAndStoreExclusiveInstr(instruction);
 	else if((op0 & ~0xc) == 0x1 && (op2 >> 0x1) == 0)
 		disassembled = DisassembleLoadAndStoreLiteralInstr(instruction);
-	else if((op0 & ~0xc) == 0x2 && (op2 >= 0 && op2 <= 0x3))
+	else if((op0 & ~0xc) == 0x2 && op2 <= 0x3)
 		disassembled = DisassembleLoadAndStoreRegisterPairInstr(instruction, op2);
 	else if((op0 & ~0xc) == 0x3 && (op2 >> 0x1) == 0){
 		if((op3 & ~0x1f) == 0)

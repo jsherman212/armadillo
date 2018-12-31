@@ -45,7 +45,7 @@ char *DisassembleCryptographicThreeRegisterSHAInstr(struct instruction *instruct
 	int suffix_on_all = 0;
 
 	// SHA1C, SHA1P, SHA1M
-	if((opcode >= 0 && opcode <= 2)){
+	if(opcode <= 2){
 		_Rd = ARM64_VectorQRegisters[Rd];
 		_Rn = ARM64_VectorSinglePrecisionRegisters[Rn];
 	}

@@ -1,5 +1,4 @@
 #include "instruction.h"
-#include <stdlib.h>
 
 struct instruction *instruction_new(unsigned int hex, unsigned long PC){
 	struct instruction *i = malloc(sizeof(struct instruction));

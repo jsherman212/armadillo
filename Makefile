@@ -1,5 +1,4 @@
 CC=clang
-CFLAGS=-dynamiclib
 SRCDIR=source
 
 SOURCE_FILES = $(SRCDIR)/armadillo.c \
@@ -23,12 +22,12 @@ OBJECT_FILES = $(SRCDIR)/armadillo.o \
 			   $(SRCDIR)/utils.o
 
 armadillo : $(OBJECT_FILES)
-	$(CC) $(CFLAGS) -o libarmadillo.dylib $(SOURCE_FILES)
+	$(CC) -dynamiclib -o libarmadillo.dylib $(SOURCE_FILES)
 
 $(SRCDIR)/%.o : $(SRCDIR)/%.c $(SRCDIR)/%.h
-	$(CC) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 .PHONY: clean
 
 clean :
-	rm $(OBJECT_FILES)
+	rm libarmadillo.dylib $(OBJECT_FILES)
