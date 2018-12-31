@@ -21,8 +21,4 @@ char *ArmadilloDisassemble(unsigned int hex, unsigned long PC);
 // call this when your instruction is in big endian
 char *ArmadilloDisassembleB(unsigned int hex, unsigned long PC);
 
-// try and disassemble given bytes in little endian
-// returns a string with the instruction
-char *_ArmadilloDisassemble(struct instruction *instr);
-
 #endif
