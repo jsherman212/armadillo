@@ -22,7 +22,7 @@ OBJECT_FILES = $(SRCDIR)/armadillo.o \
 			   $(SRCDIR)/utils.o
 
 armadillo : $(OBJECT_FILES)
-	$(CC) -dynamiclib -o libarmadillo.dylib $(SOURCE_FILES)
+	$(CC) $(CFLAGS) -dynamiclib -o libarmadillo.dylib $(SOURCE_FILES)
 
 $(SRCDIR)/%.o : $(SRCDIR)/%.c $(SRCDIR)/%.h
 	$(CC) $(CFLAGS) -c $< -o $@
