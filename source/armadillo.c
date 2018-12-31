@@ -21,15 +21,16 @@ char *_ArmadilloDisassemble(struct instruction *instr){
 		disassembled = DataProcessingRegisterDisassemble(instr);
 	else if((op0 & ~0x8) == 0x7)
 		disassembled = DataProcessingFloatingPointDisassemble(instr);
-	else{
-		printf("Unknown decode field \n");
-		print_bin(op0, -1);
-	}
-
-	if(!disassembled)
+	else
 		return strdup(".unknown");
 
 	return disassembled;
+}
+
+unsigned int CFSwapInt32(unsigned int arg) {
+	unsigned int result;
+  	result = ((arg & 0xFF) << 24) | ((arg & 0xFF00) << 8) | ((arg >> 8) & 0xFF00) | ((arg >> 24) & 0xFF);
+  	return result;
 }
 
 char *ArmadilloDisassemble(unsigned int hex, unsigned long PC){
@@ -37,4 +38,8 @@ char *ArmadilloDisassemble(unsigned int hex, unsigned long PC){
 	char *disassembled = _ArmadilloDisassemble(instr);
 	free(instr);
 	return disassembled;
+}
+
+char *ArmadilloDisassembleB(unsigned int hex, unsigned long PC){
+	return ArmadilloDisassemble(CFSwapInt32(hex), PC);
 }

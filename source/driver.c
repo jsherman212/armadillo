@@ -706,10 +706,10 @@ int main(int argc, char **argp, const char **envp){
 	while(current){
 		struct testinstr *ti = (struct testinstr *)current->data;
 		printf("Disassembling %s (aka 0x%08x)...\n", ti->name, ti->hex);
-		struct instruction *i = instruction_new(ti->hex, ti->PC);
-		char *ret = _ArmadilloDisassemble(i);
+		//struct instruction *i = instruction_new(ti->hex, ti->PC);
+		char *ret = ArmadilloDisassemble(ti->hex, ti->PC);
 		//printf("ret = %p\n", ret);
-		instruction_free(i);
+		//instruction_free(i);
 		printf("Disassembled: %s\n\n", ret);
  		free(ret);
 

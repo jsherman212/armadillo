@@ -482,8 +482,6 @@ const char *GetSysReg(unsigned int op0, unsigned int CRn, unsigned int op1, unsi
 	systemreg |= (op2 << 4);
 	systemreg |= CRm;
 
-	print_bin(systemreg, 16);
-	
 	switch(systemreg){
 	case 0xc410:
 		return "ACTLR_EL1";

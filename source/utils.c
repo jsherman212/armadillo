@@ -1,5 +1,4 @@
 #include "utils.h"
-#include <math.h>
 
 int HighestSetBit(unsigned int number, int n){
 	int ret = -1;
@@ -51,10 +50,6 @@ unsigned long Replicate(unsigned long val, unsigned int bits){
 		ret |= (val << shift);
 	
 	return ret;
-}
-
-unsigned long Replicate2(unsigned long val, unsigned int N){
-	return (1ULL << N) - 1;
 }
 
 unsigned long _Replicate(unsigned int num, int num_bits, int num_times){
