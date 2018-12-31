@@ -1,5 +1,16 @@
 CC=clang
+CFLAGS=-dynamiclib
 SRCDIR=source
+
+SOURCE_FILES = $(SRCDIR)/armadillo.c \
+			   $(SRCDIR)/bits.c \
+			   $(SRCDIR)/BranchExcSys.c \
+			   $(SRCDIR)/DataProcessingFloatingPoint.c \
+			   $(SRCDIR)/DataProcessingImmediate.c \
+			   $(SRCDIR)/DataProcessingRegister.c \
+			   $(SRCDIR)/instruction.c \
+			   $(SRCDIR)/LoadsAndStores.c \
+			   $(SRCDIR)/utils.c
 
 OBJECT_FILES = $(SRCDIR)/armadillo.o \
 			   $(SRCDIR)/bits.o \
@@ -12,7 +23,7 @@ OBJECT_FILES = $(SRCDIR)/armadillo.o \
 			   $(SRCDIR)/utils.o
 
 armadillo : $(OBJECT_FILES)
-	$(CC) $(OBJECT_FILES)
+	$(CC) $(CFLAGS) -o libarmadillo.dylib $(SOURCE_FILES)
 
 $(SRCDIR)/%.o : $(SRCDIR)/%.c $(SRCDIR)/%.h
 	$(CC) -c $< -o $@

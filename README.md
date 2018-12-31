@@ -1,3 +1,3 @@
 # armadillo
 
-Armadillo is a work in progress ARM64 disassembler. Once finished, it will be integrated with https://github.com/jsherman212/iosdbg
+Armadillo is an ARM64/ARMv8 disassembler.
