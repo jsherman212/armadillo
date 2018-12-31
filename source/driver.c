@@ -150,7 +150,7 @@ int main(int argc, char **argp, const char **envp){
     addinstr("extr x20, x3, x3, #32", 0x93C38074, 0);
     addinstr("extr w1, w13, w13, #1", 0x138D05A1, 0);
 	
-	
+	/*
 	addinstr("b #0x40 @ 0x100007f30", 0x14000010, 0x100007f30);
 	addinstr("b.eq #0x50 @ 0x100007f28", 0x54000280, 0x100007f28);
 	addinstr("b.ne #-0x880 @ 0x100007f2c", 0x54FFBC01, 0x100007f2c);
@@ -254,6 +254,7 @@ int main(int argc, char **argp, const char **envp){
 	addinstr("tbz x17, 0x1, -0x3200 @ 0x100007f30", 0x360e7011, 0x100007f30);
 	addinstr("tbnz x2, 0x1, 0x4 @ 0x100007f34", 0x37080022, 0x100007f34);
 	addinstr("tbnz x13, 0x0, 0x404 @ 0x100007f38", 0x3700202d, 0x100007f38);
+	*/
 	/*
 	addinstr("st1 {v4.1d}, [x8]", 0x0C007D04, 0);
 	addinstr("ld1 {v9.1d}, [x2]", 0x0C407C49, 0);

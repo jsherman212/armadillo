@@ -1,8 +1,4 @@
 #include "DataProcessingImmediate.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
 
 char *DisassemblePCRelativeAddressingInstr(struct instruction *instruction){
 	char *disassembled = NULL;
@@ -16,10 +12,7 @@ char *DisassemblePCRelativeAddressingInstr(struct instruction *instruction){
 	if(op == 0){
 		imm = (immhi << 2) | immlo;
 
-		//if(is_negative(imm, 21))
-		//	imm = sign_extend2(imm, 21);
 		imm = sign_extend(imm, 21);
-
 		imm += instruction->PC;
 	}
 
@@ -76,40 +69,32 @@ char *DisassembleAddSubtractImmediateInstr(struct instruction *instruction){
 	if(rn == 31)
 		rn_reg = sf == 0 ? "wsp" : "sp";
 
-	// in this case, an exception is thrown	
 	if(shift == (1 << 1))
 		return strdup(".undefined");
 	
-	// ADD (immediate)
 	if(s == 0 && op == 0){
 		disassembled = malloc(128);
 		
-		// mov to/from wsp/sp is used as an alias for add in this special case
 		if(shift == 0 && imm == 0 && (rd == 0x1f || rn == 0x1f))
 			sprintf(disassembled, "mov %s, %s", rd_reg, rn_reg);
 		else
 			sprintf(disassembled, "add %s, %s, #%#lx%s", rd_reg, rn_reg, imm, shift == 1 ? ", lsl 12" : "");
 	}
-	// ADDS (immediate)
 	else if(s == 1 && op == 0){
 		disassembled = malloc(128);
 
-		// cmn (immediate) is used as an alias in this case
 		if(rd == 0x1f)
 			sprintf(disassembled, "cmn %s, #%#lx%s", rn_reg, imm, shift == 1 ? ", lsl 12" : "");
 		else
 			sprintf(disassembled, "adds %s, %s, #%#lx%s", rd_reg, rn_reg, imm, shift == 1 ? ", lsl 12" : "");
 	}
-	// SUB (immediate)
 	else if(s == 0 && op == 1){
 		disassembled = malloc(128);
 		sprintf(disassembled, "sub %s, %s, #%#lx%s", rd_reg, rn_reg, imm, shift == 1 ? ", lsl 12" : "");
 	}
-	// SUBS (immediate)
 	else if(op == 1 && s == 1){
 		disassembled = malloc(128);
 
-		// cmp (immediate) is used as an alias in this case
 		if(rd == 0x1f)
 			sprintf(disassembled, "cmp %s, #%#lx%s", rn_reg, imm, shift == 1 ? ", lsl 12" : "");
 		else
@@ -134,7 +119,6 @@ char *DisassembleLogicalImmediateInstr(struct instruction *instruction){
 	if(sf == 0)
 		registers = ARM64_32BitGeneralRegisters;
 
-	// unallocated
 	if(sf == 0 && n == 1)
 		return strdup(".undefined");
 	
@@ -160,31 +144,25 @@ char *DisassembleLogicalImmediateInstr(struct instruction *instruction){
 	if(rn == 31)
 		rn_reg = sf == 0 ? "wsp" : "sp";
 	
-	// AND (immediate)
 	if(opc == 0){
 		disassembled = malloc(128);
 		sprintf(disassembled, "and %s, %s, #%#lx", rd_reg, rn_reg, imm);
 	}
-	// ORR (immediate)
 	else if(opc == 1){
 		disassembled = malloc(128);
 
-		// mov (bitmask immediate) is used in this case
 		if(rn == 0x1f && !MoveWidePreferred(sf, n, imms, immr))
 			sprintf(disassembled, "mov %s, #%#lx", rd_reg, imm);
 		else
 			sprintf(disassembled, "orr %s, %s, #%#lx", rd_reg, registers[rn], imm);
 	}
-	// EOR (immediate)
 	else if(opc == (1 << 1)){
 		disassembled = malloc(128);
 		sprintf(disassembled, "eor %s, %s, #%#lx", rd_reg, registers[rn], imm);
 	}
-	// ANDS (immediate), when opc == 0b11
 	else if(opc == 0x3){
 		disassembled = malloc(128);
 
-		// tst (immediate) is used in this case
 		if(rd == 0x1f)
 			sprintf(disassembled, "tst %s, #%#lx", registers[rn], imm);
 		else
@@ -204,11 +182,9 @@ char *DisassembleMoveWideImmediateInstr(struct instruction *instruction){
 	unsigned int opc = getbitsinrange(instruction->hex, 29, 2);
 	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
 	
-	// unallocated
 	if(opc == 1)
 		return strdup(".undefined");
 	
-	// unallocated
 	if(sf == 0 && (hw >> 1) == 1)
 		return strdup(".undefined");
 
@@ -221,7 +197,6 @@ char *DisassembleMoveWideImmediateInstr(struct instruction *instruction){
 	unsigned long imm16 = getbitsinrange(instruction->hex, 5, 16);
 	unsigned int shift = hw << 4;
 
-	// MOVN
 	if(opc == 0){
 		disassembled = malloc(128);
 		
@@ -232,11 +207,9 @@ char *DisassembleMoveWideImmediateInstr(struct instruction *instruction){
 		else
 			usealias = !(IsZero(imm16) && hw != 0);
 
-		/*unsigned */long result = ~(imm16 << shift);
+		long result = ~(imm16 << shift);
 		
-		// mov (inverted wide immediate) is used in this case
 		if(usealias)
-			// if we are dealing with 32 bit, cut off the top 32 bits of result
 			sprintf(disassembled, "movn %s, #%#lx", registers[rd], sf == 0 ? ~((result << 32) >> 32) : ~result);
 		else{
 			sprintf(disassembled, "mov %s, #%#lx", registers[rd], imm16);
@@ -249,12 +222,9 @@ char *DisassembleMoveWideImmediateInstr(struct instruction *instruction){
 			}
 		}
 	}
-	// MOVZ
-	// opc == 0b10
 	else if(opc == 0x2){
 		disassembled = malloc(128);
 		
-		// mov (wide immediate) is used in this case
 		if(!(IsZero(imm16) && hw != 0))
 			sprintf(disassembled, "mov %s, #%#lx", registers[rd], imm16 << shift);
 		else{
@@ -268,8 +238,6 @@ char *DisassembleMoveWideImmediateInstr(struct instruction *instruction){
 			}
 		}
 	}
-	// MOVK
-	// opc == 0b11
 	else if(opc == 0x3){
 		disassembled = malloc(128);
 
@@ -296,16 +264,12 @@ char *DisassembleBitfieldInstruction(struct instruction *instruction){
 	unsigned int opc = getbitsinrange(instruction->hex, 29, 2);
 	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
 
-	// unallocated
-	// opc == 0b11
 	if(opc == 0x3)
 		return strdup(".undefined");
 
-	// unallocated
 	if(sf == 0 && n == 1)
 		return strdup(".undefined");
 
-	// unallocated
 	if(sf == 1 && n == 0)
 		return strdup(".undefined");
 	
@@ -319,34 +283,24 @@ char *DisassembleBitfieldInstruction(struct instruction *instruction){
 	unsigned int imms = getbitsinrange(instruction->hex, 10, 6);
 	unsigned int immr = getbitsinrange(instruction->hex, 16, 6);
 
-	// undefined
 	if(sf == 1 && n != 1)
 		return strdup(".undefined");
 	
-	// undefined
 	if(sf == 0 && (n != 0 || (immr & (1 << 5)) != 0 || (imms & (1 << 5)) != 0))
 		return strdup(".undefined");
 
 	int regsize = sf == 0 ? 32 : 64;
 	
-	// SBFM
 	if(opc == 0){
 		disassembled = malloc(128);
 		
-		// asr (immediate) is used in this case
 		if((sf == 1 && imms == 0x3f) || (sf == 0 && imms == 0x1f))
 			sprintf(disassembled, "asr %s, %s, #%#x", registers[rd], registers[rn], immr);
-		// sbfiz is used in this case
-		else if(imms < immr){
+		else if(imms < immr)
 			sprintf(disassembled, "sbfiz %s, %s, #%#x, #%#x", registers[rd], registers[rn], regsize - immr, imms + 1);
-		}
-		// sbfx is used in this case
-		else if(BFXPreferred(sf, (opc >> 1), imms, immr)){
+		else if(BFXPreferred(sf, (opc >> 1), imms, immr))
 			sprintf(disassembled, "sbfx %s, %s, #%#x, #%#x", registers[rd], registers[rn], immr, imms - immr + 1);
-		}
-		// sxtb, sxth, sxtw used in this case
 		else if(immr == 0){
-			// imms == 0x7
 			const char *instr = "sxtb";
 
 			if(imms == 0xf)
@@ -356,15 +310,12 @@ char *DisassembleBitfieldInstruction(struct instruction *instruction){
 
 			sprintf(disassembled, "%s %s, %s", instr, sf == 0 ? ARM64_32BitGeneralRegisters[rd] : ARM64_GeneralRegisters[rd], ARM64_32BitGeneralRegisters[rn]);
 		}
-		// normal sbfm
 		else
 			sprintf(disassembled, "sbfm %s, %s, #%#x, #%#x", registers[rd], registers[rn], immr, imms);
 	}
-	// BFM
 	else if(opc == 1){
 		disassembled = malloc(128);
 
-		// bfc is used in this case
 		if(imms < immr){
 			immr = regsize - immr;
 			imms += 1;
@@ -377,32 +328,24 @@ char *DisassembleBitfieldInstruction(struct instruction *instruction){
 			
 			sprintf(disassembled, "%s %s, %s, #%#x, #%#x", instr, registers[rd], registers[rn], immr, imms);
 		}
-		// bfxil is used in this case
 		else if(imms >= immr)
 			sprintf(disassembled, "bfxil %s, %s, #%#x, #%#x", registers[rd], registers[rn], immr, imms - immr + 1);
-		// normal bfm
 		else
 			sprintf(disassembled, "bfm %s, %s, #%#x, #%#x", registers[rd], registers[rn], immr, imms);
 	}
-	// UBFM
 	else if(opc == 0x2){
 		disassembled = malloc(128);
 		
-		// lsl (immediate) is used in this case
 		if(imms + 1 == immr){
 			if((sf == 0 && imms != 0x1f) || (sf == 1 && imms != 0x3f))
 				sprintf(disassembled, "lsl %s, %s, #%#x", registers[rd], registers[rn], -immr % regsize);
 		}
-		// lsr (immediate) is used in this case
 		else if((sf == 0 && imms == 0x1f) || (sf == 1 && imms == 0x3f))
 			sprintf(disassembled, "lsr %s, %s, #%#x", registers[rd], registers[rn], immr);
-		// ubfiz is used in this case
 		else if(imms < immr)
 			sprintf(disassembled, "ubfiz %s, %s, #%#x, #%#x", registers[rd], registers[rn], regsize - immr, imms + 1);
-		// ubfx is used in this case
 		else if(BFXPreferred(sf, (opc >> 1), imms, immr))
 			sprintf(disassembled, "ubfx %s, %s, #%#x, #%#x", registers[rd], registers[rn], immr, imms - immr + 1);
-		// uxtb, uxth used in this case
 		else if(immr == 0){
 			// imms == 0x7
 			const char *instr = "uxtb";
@@ -412,7 +355,6 @@ char *DisassembleBitfieldInstruction(struct instruction *instruction){
 
 			sprintf(disassembled, "%s %s, %s", instr, ARM64_32BitGeneralRegisters[rd], ARM64_32BitGeneralRegisters[rn]);
 		}
-		// normal ubfm
 		else
 			sprintf(disassembled, "ubfm %s, %s, #%#x, #%#x", registers[rd], registers[rn], immr, imms);
 	}
@@ -432,11 +374,9 @@ char *DisassembleExtractInstruction(struct instruction *instruction){
 	unsigned int op21 = getbitsinrange(instruction->hex, 29, 2);
 	unsigned int sf = getbitsinrange(instruction->hex, 31, 1);
 	
-	// unallocated
 	if(n != sf)
 		return strdup(".undefined");
 	
-	// unallocated
 	if(sf == 0 && ((imms >> 5) & 1) == 1)
 		return strdup(".undefined");
 
@@ -452,14 +392,11 @@ char *DisassembleExtractInstruction(struct instruction *instruction){
 	if(op21 == 0 && (n == 0 || n == 1) && o0 == 0){
 		disassembled = malloc(128);
 
-		// ror (immediate) is used in this case
 		if(rn == rm)
 			sprintf(disassembled, "ror %s, %s, #%#x", registers[rd], registers[rn], imms);
-		// normal extr
 		else
 			sprintf(disassembled, "extr %s, %s, %s, #%#x", registers[rd], registers[rn], registers[rm], imms);
 	}
-	// unallocated
 	else
 		return strdup(".undefined");
 
@@ -475,46 +412,28 @@ char *DataProcessingImmediateDisassemble(struct instruction *instruction){
 	
 	char *disassembled = NULL;
 
-	// PC-rel. addressing
-	// This is the only case where op0 is 0
 	if(op0 == 0)
 		disassembled = DisassemblePCRelativeAddressingInstr(instruction);
-	// Add/subtract (immediate, with tags) - unallocated
-	else if(op0 == 1 && (op1 >> 1) == 1)
+	else if(op0 == 0x1){
+		if((op1 >> 0x1) != 0x1)
+			disassembled = DisassembleAddSubtractImmediateInstr(instruction);
+		else
+			return strdup(".undefined");
+	}
+	else if(op0 == 0x2){
+		if((op1 >> 0x1) == 0)
+			disassembled = DisassembleLogicalImmediateInstr(instruction);
+		else
+			disassembled = DisassembleMoveWideImmediateInstr(instruction);
+	}
+	else if(op0 == 0x3){
+		if((op1 >> 0x1) == 0)
+			disassembled = DisassembleBitfieldInstruction(instruction);
+		else
+			disassembled = DisassembleExtractInstruction(instruction);
+	}
+	else
 		return strdup(".undefined");
-	// Add/subtract (immediate)
-	else if(op0 == 1 && (op1 >> 1) != 1){
-		//printf("add/subtract\n");
-		disassembled = DisassembleAddSubtractImmediateInstr(instruction);
-	}
-	// Logical (immediate)
-	// op0 == 0b10
-	else if(op0 == 0x2 && ((op1 >> 1) == 0)){
-		//printf("logical\n");
-		disassembled = DisassembleLogicalImmediateInstr(instruction);
-	}
-	// Move wide (immediate)
-	else if(op0 == 0x2 && ((op1 >> 1) == 1)){
-		//printf("move wide\n");
-		disassembled = DisassembleMoveWideImmediateInstr(instruction);
-	}
-	// Bitfield
-	// op0 == 0b11
-	else if(op0 == 0x3 && (op1 >> 1) == 0){
-		//printf("Bitfield\n");
-
-		disassembled = DisassembleBitfieldInstruction(instruction);
-	}
-	else if(op0 == 0x3 && (op1 >> 1) == 1){
-		//printf("Extract\n");
-	
-		disassembled = DisassembleExtractInstruction(instruction);
-	}
-	else{
-		printf("Unknown\n");
-	}
-
-	//printf("DataProcessingImmediateDisassemble: ret = %p\n", disassembled);
 
 	return disassembled;
 }
