@@ -1,4 +1,5 @@
 CC=clang
+CFLAGS=-fsanitize=address -g
 SRCDIR=source
 
 SOURCE_FILES = $(SRCDIR)/armadillo.c \
@@ -23,6 +24,10 @@ OBJECT_FILES = $(SRCDIR)/armadillo.o \
 
 armadillo : $(OBJECT_FILES)
 	$(CC) $(CFLAGS) -dynamiclib -o libarmadillo.dylib $(SOURCE_FILES)
+
+driver : $(OBJECT_FILES) driver.c linkedlist.c
+	$(MAKE) armadillo
+	$(CC) $(CFLAGS) -L. -larmadillo linkedlist.c driver.c -o driver
 
 $(SRCDIR)/%.o : $(SRCDIR)/%.c $(SRCDIR)/%.h
 	$(CC) $(CFLAGS) -c $< -o $@
