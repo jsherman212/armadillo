@@ -3,6 +3,7 @@ CFLAGS=-fsanitize=address -g
 SRCDIR=source
 
 SOURCE_FILES = $(SRCDIR)/armadillo.c \
+			   $(SRCDIR)/array.c \
 			   $(SRCDIR)/bits.c \
 			   $(SRCDIR)/BranchExcSys.c \
 			   $(SRCDIR)/DataProcessingFloatingPoint.c \
@@ -10,9 +11,11 @@ SOURCE_FILES = $(SRCDIR)/armadillo.c \
 			   $(SRCDIR)/DataProcessingRegister.c \
 			   $(SRCDIR)/instruction.c \
 			   $(SRCDIR)/LoadsAndStores.c \
+			   $(SRCDIR)/strext.c \
 			   $(SRCDIR)/utils.c
 
 OBJECT_FILES = $(SRCDIR)/armadillo.o \
+			   $(SRCDIR)/array.o \
 			   $(SRCDIR)/bits.o \
 			   $(SRCDIR)/BranchExcSys.o \
 			   $(SRCDIR)/DataProcessingFloatingPoint.o \
@@ -20,6 +23,7 @@ OBJECT_FILES = $(SRCDIR)/armadillo.o \
 			   $(SRCDIR)/DataProcessingRegister.o \
 			   $(SRCDIR)/instruction.o \
 			   $(SRCDIR)/LoadsAndStores.o \
+			   $(SRCDIR)/strext.o \
 			   $(SRCDIR)/utils.o
 
 armadillo : $(OBJECT_FILES)

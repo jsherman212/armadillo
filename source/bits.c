@@ -1,7 +1,16 @@
 #include "bits.h"
 
+/*
 unsigned long getbitsinrange(unsigned int number, int start, int amount){
     unsigned int mask = ((1 << amount) - 1) << start;
+    return (number & mask) >> start;
+}
+*/
+
+unsigned int bits(unsigned int number, unsigned int start, unsigned int end){
+    unsigned int amount = (end - start) + 1;
+    unsigned int mask = ((1 << amount) - 1) << start;
+
     return (number & mask) >> start;
 }
 

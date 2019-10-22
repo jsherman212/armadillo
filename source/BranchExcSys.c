@@ -1,5 +1,7 @@
 #include "BranchExcSys.h"
 
+#include "strext.h"
+
 char *DisassembleConditionalImmediateBranchInstr(struct instruction *instruction){
     char *disassembled = NULL;
 
