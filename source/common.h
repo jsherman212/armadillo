@@ -1,6 +1,21 @@
 #ifndef _COMMON_H_
 #define _COMMON_H_
 
+#define NONE (-1)
+#define _64_BIT (64)
+#define _32_BIT (32)
+
+// XXX continue with ..._BIT
+
+#define NO_PREFER_ZR (0)
+#define PREFER_ZR (1)
+
+// XXX macros for magic numbers for clarity
+#define _SZ(x) (x)
+#define _ZR(x) (x)
+#define _SYSREG(x) (x)
+#define _RTBL(x) (x)
+
 #define ADD_FIELD(i, field) \
     do { \
         if(!i->fields) \
@@ -41,7 +56,7 @@
         } \
         i->operands[i->num_operands - 1].type = AD_OP_SHIFT; \
         i->operands[i->num_operands - 1].shift.type = type_; \
-        i->operands[i->num_operands - 1].shift.shift = shift_; \
+        i->operands[i->num_operands - 1].shift.amt = shift_; \
     } while (0)
 
 #define ADD_IMM_OPERAND(i, type_, bits_) \
@@ -71,17 +86,35 @@
         i->operands[i->num_operands - 1].op_mem.off = off_; \
     } while (0)
 
-// XXX XXX XXX XXX left off
+#define DECODE_STR(x) (x->decoded)
+
+#define SET_INSTR_ID(i, id_) \
+    do { \
+        i->instr_id = id_; \
+    } while (0)
+
 #define SET_CC(i, cc_) \
     do { \
+        i->cc = cc_; \
+    } while (0)
 
+static inline const char *GET_GEN_REG(const char **rtbl, int idx,
+        int prefer_zr){
+    if(idx > 31)
+        return "reg idx oob";
+
+    if(idx == 31 && prefer_zr)
+        idx++;
+
+    return rtbl[idx];
+}
 
 static const char *AD_RTBL_GEN_32[] = {
     "w0", "w1", "w2", "w3", "w4", "w5", "w6",
     "w7", "w8", "w9", "w10", "w11", "w12",
     "w13", "w14", "w15", "w16", "w17", "w18",
     "w19", "w20", "w21", "w22", "w23", "w24",
-    "w25", "w26", "w27", "w28", "w29", "w30", "wspwzr"
+    "w25", "w26", "w27", "w28", "w29", "w30", "wsp", "wzr"
 };
 
 static const char *AD_RTBL_GEN_64[] = {
@@ -89,7 +122,7 @@ static const char *AD_RTBL_GEN_64[] = {
     "x7", "x8", "x9", "x10", "x11", "x12",
     "x13", "x14", "x15", "x16", "x17", "x18",
     "x19", "x20", "x21", "x22", "x23", "x24",
-    "x25", "x26", "x27", "x28", "x29", "x30", "spxzr"
+    "x25", "x26", "x27", "x28", "x29", "x30", "sp", "xzr"
 };
 
 static const char *AD_RTBL_FP_8[] = {
@@ -148,6 +181,6 @@ static unsigned long AD_RTBL_FP_16_SZ = sizeof(AD_RTBL_FP_16) / sizeof(*AD_RTBL_
 static unsigned long AD_RTBL_FP_32_SZ = sizeof(AD_RTBL_FP_32) / sizeof(*AD_RTBL_FP_32);
 static unsigned long AD_RTBL_FP_64_SZ = sizeof(AD_RTBL_FP_64) / sizeof(*AD_RTBL_FP_64);
 static unsigned long AD_RTBL_FP_128_SZ = sizeof(AD_RTBL_FP_128) / sizeof(*AD_RTBL_FP_128);
-static unsigned long AD_RTBL_FP_V_128_SZ = sizeof(AD_RTBL_V_FP_128) / sizeof(*AD_RTBL_FP_V_128);
+static unsigned long AD_RTBL_FP_V_128_SZ = sizeof(AD_RTBL_FP_V_128) / sizeof(*AD_RTBL_FP_V_128);
 
 #endif

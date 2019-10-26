@@ -66,34 +66,34 @@ enum {
     AD_OK = 0, AD_ERR
 };
 
+static const int NONE = -1;
+
 enum {
-    NONE = -1, AD_OP_REG, AD_OP_IMM, AD_OP_MEM
+    AD_OP_REG = 0, AD_OP_IMM, AD_OP_MEM
 };
 
 enum {
-    NONE = -1, AD_SHIFT_LSL, AD_SHIFT_LSR, AD_SHIFT_ASR, AD_SHIFT_ROR
+    AD_SHIFT_LSL = 0, AD_SHIFT_LSR, AD_SHIFT_ASR, AD_SHIFT_ROR
 };
 
 enum {
-    NONE = -1, INT, UINT, FLOAT
+    INT = 0, UINT, LONG, ULONG, FLOAT
 };
 
 enum {
-    NONE = -1, AD_G_DataProcessingImmediate = 0, AD_G_BranchExcSys,
+    AD_G_DataProcessingImmediate = 0, AD_G_BranchExcSys,
     AD_G_LoadsAndStores, AD_G_DataProcessingRegister,
     AD_G_DataProcessingFloatingPoint
 };
 
 enum {
-    NONE = -1, AD_CC_EQ, AD_CC_NE, AD_CC_CS, AD_CC_CC, AD_CC_MI, AD_CC_PL,
+    AD_CC_EQ = 0, AD_CC_NE, AD_CC_CS, AD_CC_CC, AD_CC_MI, AD_CC_PL,
     AD_CC_VS, AD_CC_VC, AD_CC_HI, AD_CC_LS, AD_CC_GE, AD_CC_LT, AD_CC_GT,
-    AD_CC_LE, AD_CC_AL, AD_CC_AL
+    AD_CC_LE, AD_CC_AL
 };
 
 enum {
-    NONE = -1,
-
-    X0,
+    X0 = 0,
     X1,
     X2,
     X3,
@@ -128,9 +128,7 @@ enum {
 };
 
 enum {
-    NONE = -1,
-
-    W0,
+    W0 = 0,
     W1,
     W2,
     W3,
@@ -165,9 +163,7 @@ enum {
 };
 
 enum {
-    NONE = -1,
-
-    B0,
+    B0 = 0,
     B1,
     B2,
     B3,
@@ -201,9 +197,7 @@ enum {
 };
 
 enum {
-    NONE = -1,
-
-    H0,
+    H0 = 0,
     H1,
     H2,
     H3,
@@ -237,9 +231,7 @@ enum {
 };
 
 enum {
-    NONE = -1,
-
-    S0,
+    S0 = 0,
     S1,
     S2,
     S3,
@@ -273,9 +265,7 @@ enum {
 };
 
 enum {
-    NONE = -1,
-
-    D0,
+    D0 = 0,
     D1,
     D2,
     D3,
@@ -309,9 +299,7 @@ enum {
 };
 
 enum {
-    NONE = -1,
-
-    Q0,
+    Q0 = 0,
     Q1,
     Q2,
     Q3,
@@ -345,9 +333,7 @@ enum {
 };
 
 enum {
-    NONE = -1,
-
-    V0,
+    V0 = 0,
     V1,
     V2,
     V3,
@@ -379,47 +365,8 @@ enum {
     V29,
     V30
 };
-
 enum {
-    NONE = -1,
-
-    B0,
-    B1,
-    B2,
-    B3,
-    B4,
-    B5,
-    B6,
-    B7,
-    B8,
-    B9,
-    B10,
-    B11,
-    B12,
-    B13,
-    B14,
-    B15,
-    B16,
-    B17,
-    B18,
-    B19,
-    B20,
-    B21,
-    B22,
-    B23,
-    B24,
-    B25,
-    B26,
-    B27,
-    B28,
-    B29,
-    B30
-};
-
-enum {
-    NONE = -1,
-
-    AD_INSTR_ADC,
+    AD_INSTR_ADC = 0,
     AD_INSTR_ADCS,
     AD_INSTR_ADD,
     AD_INSTR_ADDG,
@@ -1185,8 +1132,6 @@ enum {
 };
 
 enum {
-    NONE = -1,
-
     ACTLR_EL1 = 0xc081,
     ACTLR_EL2 = 0xe081,
     ACTLR_EL3 = 0xf081,

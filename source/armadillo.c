@@ -71,8 +71,10 @@ static int _ArmadilloDisassembleNew(struct instruction *i,
         return AD_OK;
     }
     
-    if((op0 & ~0x1) == 0x8)
+    if((op0 & ~0x1) == 0x8){
+        out->group = AD_G_DataProcessingImmediate;
         return DataProcessingImmediateDisassemble(i, out);
+    }
 
     return AD_OK;
 }

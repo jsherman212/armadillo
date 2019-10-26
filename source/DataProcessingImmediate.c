@@ -11,39 +11,47 @@ static int DisassemblePCRelativeAddressingInstr(struct instruction *i,
     unsigned op = bits(i->opcode, 31, 31);
     unsigned immlo = bits(i->opcode, 29, 30);
     unsigned immhi = bits(i->opcode, 5, 23);
-    unsigned rd = bits(i->opcode, 0, 4);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
-    if(rd > AD_RTBL_GEN_64_SZ)
+    if(Rd > AD_RTBL_GEN_64_SZ)
         return 1;
 
     ADD_FIELD(i, op);
     ADD_FIELD(i, immlo);
     ADD_FIELD(i, immhi);
-    ADD_FIELD(i, rd);
+    ADD_FIELD(i, Rd);
 
     unsigned long imm = 0;
 
-    const char *instr = "adr";
+    const char *instr_s_s = NULL;
 
     if(op == 0){
+        instr_s = "adr";
+
         imm = (immhi << 2) | immlo;
         imm = sign_extend(imm, 21);
-        imm += instruction->PC;
+        imm += i->PC;
+
+        SET_INSTR_ID(i, AD_INSTR_ADR);
     }
     else{
-        instr = "adrp";
+        instr_s = "adrp";
 
         imm = ((immhi << 2) | immlo) << 12;
         imm = sign_extend(imm, 32);
-        imm += (instruction->PC & ~0xfff);
+        imm += (i->PC & ~0xfff);
+
+        SET_INSTR_ID(i, AD_INSTR_ADRP);
     }
 
-    ADD_REG_OPERAND(i, rd);
-    ADD_IMM_OPERAND(i, imm);
+    ADD_REG_OPERAND(i, Rd, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
+    ADD_IMM_OPERAND(i, ULONG, *(unsigned long *)&imm);
 
-    concat(&i->decoded, "%s %s, %#lx", instr, ARM64_GeneralRegisters[rd], imm);
+    const char *Rd_s = GET_GEN_REG(AD_RTBL_GEN_64, Rd, NO_PREFER_ZR);
 
-    return A_OK;
+    concat(&DECODE_STR(out), "%s %s, %#lx", instr_s, Rd_s, imm);
+
+    return 0;
 }
 
 static int DisassembleAddSubtractImmediateInstr(struct instruction *i,
@@ -56,71 +64,198 @@ static int DisassembleAddSubtractImmediateInstr(struct instruction *i,
     unsigned Rn = bits(i->opcode, 5, 9);
     unsigned Rd = bits(i->opcode, 0, 4);
 
-    const char **registers = ARM64_32BitGeneralRegisters;
-    size_t sz = num_ARM64_32BitGeneralRegisters;
+    const char **registers = AD_RTBL_GEN_32;
+    size_t len = AD_RTBL_GEN_32_SZ;
 
-    if(sf == 1){
-        registers = ARM64_GeneralRegisters;
-        sz = num_ARM64_GeneralRegisters;
+    if(sf){
+        registers = AD_RTBL_GEN_64;
+        len = AD_RTBL_GEN_64_SZ;
     }
 
-    if(Rn > sz || Rd > sz)
-        return A_ERR;
+    if(Rn > len || Rd > len)
+        return 1;
 
-    ADD_FIELD(i, sf);
-    ADD_FIELD(i, op);
-    ADD_FIELD(i, S);
-    ADD_FIELD(i, sh);
-    ADD_FIELD(i, imm12);
-    ADD_FIELD(i, Rn);
-    ADD_FIELD(i, Rd);
+    ADD_FIELD(out, sf);
+    ADD_FIELD(out, op);
+    ADD_FIELD(out, S);
+    ADD_FIELD(out, sh);
+    ADD_FIELD(out, imm12);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
 
     unsigned long imm = imm12;
 
-    if(sf == 1)
+    if(sf)
         imm <<= 12;
 
-    /* these instructions can modify w?sp */
-    const char *Rd_reg = registers[Rd];
+    const char *Rd_s = GET_GEN_REG(registers, Rd, NO_PREFER_ZR);
+    const char *Rn_s = GET_GEN_REG(registers, Rn, NO_PREFER_ZR);
 
-    if(Rd == 31)
-        Rd_reg = sf == 0 ? "wsp" : "sp";
-
-    const char *Rn_reg = registers[Rn];
-
-    if(Rn == 31)
-        Rn_reg = sf == 0 ? "wsp" : "sp";
+    int instr_id = NONE;
+    int sz = (registers == AD_RTBL_GEN_64 ? _64_BIT : _32_BIT);
+    int shift = sh ? 12 : 0;
 
     if(S == 0 && op == 0){
-        if(sh == 0 && imm == 0 && (rd == 0x1f || rn == 0x1f))
-            sprintf(disassembled, "mov %s, %s", Rd_reg, Rn_reg);
-        else
-            sprintf(disassembled, "add %s, %s, #%#lx%s", Rd_reg, Rn_reg, imm, sh == 1 ? ", lsl 12" : "");
+        if(sh == 0 && imm12 == 0 && (rd == 0x1f || rn == 0x1f)){
+            instr_id = AD_INSTR_MOV;
 
-        // XXX left off on ADD_REG_OPERAND
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+
+            concat(&DECODE_STR(out), "mov %s, %s", Rd_s, Rn_s);
+        }
+        else{
+            instr_id = AD_INSTR_ADD;
+
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, ULONG, *(unsigned long *)&imm);
+
+            concat(&DECODE_STR(out), "add %s, %s, #%#lx", Rd_s, Rn_s, imm);
+
+            if(sh){
+                ADD_SHIFT_OPERAND(out, AD_SHIFT_LSL, shift);
+
+                concat(&DECODE_STR(out), ", lsl %d", shift);
+            }
+        }
     }
     else if(s == 1 && op == 0){
-        if(rd == 0x1f)
-            sprintf(disassembled, "cmn %s, #%#lx%s", Rn_reg, imm, sh == 1 ? ", lsl 12" : "");
-        else
-            sprintf(disassembled, "adds %s, %s, #%#lx%s", Rd_reg, Rn_reg, imm, sh == 1 ? ", lsl 12" : "");
+        if(rd == 0x1f){
+            instr_id = AD_INSTR_CMN;
+
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, ULONG, *(unsigned long *)&imm);
+
+            concat(&DECODE_STR(out), "cmn, %s, #%#lx", Rn_s, imm);
+
+            if(sh){
+                ADD_SHIFT_OPERAND(out, AD_SHIFT_LSL, shift);
+
+                concat(&DECODE_STR(out), ", lsl %d", shift);
+            }
+        }
+        else{
+            instr_id = AD_INSTR_ADDS;
+
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, ULONG, *(unsigned long *)&imm);
+
+            concat(&DECODE_STR(out), "adds %s, %s, %#lx", Rd_s, Rn_s, imm);
+
+            if(sh){
+                ADD_SHIFT_OPERAND(out, AD_SHIFT_LSL, shift);
+
+                concat(&DECODE_STR(out), ", lsl %d", shift);
+            }
+        }
     }
     else if(s == 0 && op == 1){
-        sprintf(disassembled, "sub %s, %s, #%#lx%s", Rd_reg, Rn_reg, imm, sh == 1 ? ", lsl 12" : "");
+        instr_id = AD_INSTR_SUB;
+
+        ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_IMM_OPERAND(out, ULONG, *(unsigned long *)&imm);
+
+        concat(&DECODE_STR(out), "sub %s, %s, %#lx", Rd_s, Rn_s, imm);
+
+        if(sh){
+            ADD_SHIFT_OPERAND(out, AD_SHIFT_LSL, shift);
+
+            concat(&DECODE_STR(out), ", lsl %d", shift);
+        }
     }
     else if(op == 1 && s == 1){
-        if(rd == 0x1f)
-            sprintf(disassembled, "cmp %s, #%#lx%s", Rn_reg, imm, sh == 1 ? ", lsl 12" : "");
-        else
-            sprintf(disassembled, "subs %s, %s, #%#lx%s", Rd_reg, Rn_reg, imm, sh == 1 ? ", lsl 12" : "");
+        if(rd == 0x1f){
+            instr_id = AD_INSTR_CMP;
+
+            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, ULONG, *(unsigned long *)&imm);
+
+            concat(&DECODE_STR(out), "cmp %s, #%#lx", Rn_s, imm);
+
+            if(sh){
+                ADD_SHIFT_OPERAND(out, AD_SHIFT_LSL, shift);
+
+                concat(&DECODE_STR(out), ", lsl %d", shift);
+            }
+        }
+        else{
+            instr_id = AD_INSTR_SUBS;
+
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, ULONG, *(unsigned long *)&imm);
+
+            concat(&DECODE_STR(out), "subs %s, %s, #%#lx", Rd_s, Rn_s, imm);
+
+            if(sh){
+                ADD_SHIFT_OPERAND(out, AD_SHIFT_LSL, shift);
+
+                concat(&DECODE_STR(out), ", lsl %d", shift);
+            }
+        }
     }
 
-    return A_OK;
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-char *DisassembleLogicalImmediateInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleAddSubtractImmediateWithTagsInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned sf = bits(i->opcode, 31, 31);
+    unsigned op = bits(i->opcode, 30, 30);
+    unsigned S = bits(i->opcode, 29, 29);
+    unsigned o2 = bits(i->opcode, 22, 22);
+    unsigned uimm6 = bits(i->opcode, 16, 21);
+    unsigned op3 = bits(i->opcode, 14, 15);
+    unsigned uimm4 = bits(i->opcode, 10, 13);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
+    if(sf == 0)
+        return 1;
+
+    if(sf == 1 && S == 1)
+        return 1;
+
+    if(Rn > AD_RTBL_GEN_64_SZ || Rd > AD_RTBL_GEN_64_SZ)
+        return 1;
+
+    const char *instr_s = NULL;
+    int instr_id = NONE;
+
+    if(op == 0){
+        instr_s = "addg";
+        instr_id = AD_INSTR_ADDG;
+    }
+    else{
+        instr_s = "subg";
+        instr_id = AD_INSTR_SUBG;
+    }
+
+    const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+    const char *Rd_s = GET_GEN_REG(AD_RTBL_GEN_64, Rd, NO_PREFER_ZR);
+
+    ADD_REG_OPERAND(out, Rd, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
+    ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
+    ADD_IMM_OPERAND(out, ULONG, *(unsigned long *)&uimm6);
+    ADD_IMM_OPERAND(out, ULONG, *(unsigned long *)&uimm4);
+
+    SET_INSTR_ID(out, instr_id);
+
+    concat(&DECODE_STR(out), "%s %s, %s, #%#lx, #%#lx", instr_s, Rd_s,
+            Rn_s, uimm6, uimm4);
+
+    return 0;
+}
+
+//char *DisassembleLogicalImmediateInstr(struct instruction *instruction){
+static int DisassembleLogicalImmediateInstr(struct instruction *i,
+        struct ad_insn *out){
     unsigned int n = getbitsinrange(instruction->opcode, 22, 1);
     unsigned int opc = getbitsinrange(instruction->opcode, 29, 2);
     unsigned int sf = getbitsinrange(instruction->opcode, 31, 1);
@@ -417,21 +552,19 @@ char *DisassembleExtractInstruction(struct instruction *instruction){
     return disassembled;
 }
 
-//char *DataProcessingImmediateDisassemble(struct instruction *instruction){
 int DataProcessingImmediateDisassemble(struct instruction *i,
         struct ad_insn *out){
-    //unsigned int op0 = getbitsinrange(instruction->opcode, 24, 2);
-    //unsigned int op1 = getbitsinrange(instruction->opcode, 22, 2);
     unsigned op0 = bits(i->opcode, 23, 25);
 
+    int result = 0;
+
     if((op0 >> 1) == 0)
-        disassembled = DisassemblePCRelativeAddressingInstr(i, out);
-    else if(op0 == 0x1){
-        if((op1 >> 0x1) != 0x1)
-            disassembled = DisassembleAddSubtractImmediateInstr(instruction);
-        else
-            return strdup(".undefined");
+        result = DisassemblePCRelativeAddressingInstr(i, out);
+    else if(op0 == 2){
+        disassembled = DisassembleAddSubtractImmediateInstr(instruction);
     }
+    else if(op0 == 3)
+        result = DisassembleAddSubtractImmediateWithTagsInstr(i, out);
     else if(op0 == 0x2){
         if((op1 >> 0x1) == 0)
             disassembled = DisassembleLogicalImmediateInstr(instruction);
@@ -448,5 +581,5 @@ int DataProcessingImmediateDisassemble(struct instruction *i,
         return strdup(".undefined");
     }
 
-    return A_OK;
+    return result;
 }
