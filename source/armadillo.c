@@ -14,52 +14,6 @@
 #include "DataProcessingRegister.h"
 #include "LoadsAndStores.h"
 
-
-char *_ArmadilloDisassemble(struct instruction *instr){
-    unsigned int op0 = getbitsinrange(instr->opcode, 25, 4);
-
-    char *disassembled = NULL;
-
-    if(op0 == 0)
-        return strdup(".undefined");
-    else if(op0 == 1)
-        return strdup(".undefined");
-    else if((op0 & ~0x1) == 0x2)
-        return strdup(".undefined");
-    else if((op0 & ~0x1) == 0x8)
-        disassembled = DataProcessingImmediateDisassemble(instr);
-    else if((op0 & ~0x1) == 0xa)
-        disassembled = BranchExcSysDisassemble(instr);
-    else if((op0 & ~0xa) == 0x4)
-        disassembled = LoadsAndStoresDisassemble(instr);
-    else if((op0 & ~0x8) == 0x5)
-        disassembled = DataProcessingRegisterDisassemble(instr);
-    else if((op0 & ~0x8) == 0x7)
-        disassembled = DataProcessingFloatingPointDisassemble(instr);
-    else
-        return strdup(".unknown");
-
-    return disassembled;
-}
-
-unsigned int CFSwapInt32(unsigned int arg) {
-    unsigned int result;
-    result = ((arg & 0xFF) << 24) | ((arg & 0xFF00) << 8) |
-        ((arg >> 8) & 0xFF00) | ((arg >> 24) & 0xFF);
-    return result;
-}
-
-char *ArmadilloDisassemble(unsigned int opcode, unsigned long PC){
-    struct instruction *instr = instruction_new(opcode, PC);
-    char *disassembled = _ArmadilloDisassemble(instr);
-    free(instr);
-    return disassembled;
-}
-
-char *ArmadilloDisassembleB(unsigned int opcode, unsigned long PC){
-    return ArmadilloDisassemble(CFSwapInt32(opcode), PC);
-}
-
 static int _ArmadilloDisassembleNew(struct instruction *i,
         struct ad_insn **_out){
     struct ad_insn *out = *_out;
@@ -83,7 +37,7 @@ int ArmadilloDisassembleNew(unsigned int opcode, unsigned long PC,
         struct ad_insn **out){
     // XXX *out must be NULL
     if(!out || (out && *out))
-        return A_ERR;
+        return AD_ERR;
 
     *out = malloc(sizeof(struct ad_insn));
 

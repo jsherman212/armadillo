@@ -1,6 +1,18 @@
-#include "utils.h"
+//#include "utils.h"
 
-int HighestSetBit(unsigned int number, int n){
+/* Thanks https://github.com/xerub/macho/blob/master/patchfinder64.c */
+static unsigned long RORZeroExtendOnes(unsigned int M, unsigned int N,
+        unsigned int R){
+    unsigned long val = Ones(M, N);
+
+    if(R == 0)
+        return val;
+
+    return ((val >> R) & (((unsigned long)1 << (N - R)) - 1)) |
+        ((val & (((unsigned long)1 << R) - 1)) << (N - R));
+}
+
+int HighestSetBit(unsigned int number, unsigned int n){
     int ret = -1;
 
     for(int i = n-1; i>=0; i--){
@@ -11,7 +23,7 @@ int HighestSetBit(unsigned int number, int n){
     return ret;
 }
 
-int LowestSetBit(int number, int n){
+int LowestSetBit(unsigned int number, unsigned int n){
     int ret = n;
 
     for(int i=0; i<n; i++){
@@ -32,15 +44,26 @@ unsigned long Ones(int len, int N){
     return ret;
 }
 
-/* Thanks https://github.com/xerub/macho/blob/master/patchfinder64.c */
-unsigned long RORZeroExtendOnes(unsigned int M, unsigned int N, unsigned int R){
-    unsigned long val = Ones(M, N);
+int DecodeBitMasks(unsigned int N, unsigned int imms, unsigned int immr,
+        int immediate, unsigned long *out){
+    unsigned int num = (N << 6) | (~imms & 0x3f);
+    unsigned int len = HighestSetBit(num, 7);
 
-    if(R == 0)
-        return val;
+    if(len < 1)
+        return -1;
 
-    return ((val >> R) & (((unsigned long)1 << (N - R)) - 1)) |
-        ((val & (((unsigned long)1 << R) - 1)) << (N - R));
+    unsigned int levels = Ones(len, 0);
+
+    if(immediate && ((imms & levels) == levels))
+        return -1;
+
+    unsigned int S = imms & levels;
+    unsigned int R = immr & levels;
+    unsigned int esize = 1 << len;
+
+    *out = Replicate(RORZeroExtendOnes(S + 1, esize, R), esize);
+
+    return 0;
 }
 
 /* Thanks https://github.com/xerub/macho/blob/master/patchfinder64.c */
@@ -60,30 +83,6 @@ unsigned long _Replicate(unsigned int num, int num_bits, int num_times){
         result |= num;
     }
     return result;
-}
-
-int DecodeBitMasks(unsigned int N, unsigned int imms, unsigned int immr,
-        int immediate, unsigned long *out){
-    // & 0x3f zeros everything except the first 7 bits
-    // argument to HighestSetBit is N:NOT(imms)
-    unsigned int num = (N << 6) | (~imms & 0x3f);
-    unsigned int len = HighestSetBit(num, 7);
-
-    if(len < 1)
-        return -1;
-
-    unsigned int levels = Ones(len, 0);
-
-    if(immediate && ((imms & levels) == levels))
-        return -1;
-
-    unsigned int S = imms & levels;
-    unsigned int R = immr & levels;
-    unsigned int esize = 1 << len;
-
-    *out = Replicate(RORZeroExtendOnes(S + 1, esize, R), esize);
-
-    return 0;
 }
 
 int MoveWidePreferred(unsigned int sf, unsigned int immN, unsigned int immr,
@@ -155,22 +154,23 @@ char *decode_reg_extend(unsigned int op){
     };
 }
 
+static const char *cond_table[] = { 
+	"eq,ne", "cs,cc", "mi,pl", "vs,vc",
+	"hi,ls", "ge,lt", "gt,le", "al"
+};
+
 char *decode_cond(unsigned int cond){
     unsigned int shifted = cond >> 1;
     char *decoded = malloc(8);
 
-    // three because snprintf writes the NULL byte
+    /* three because snprintf writes the NULL byte */
     snprintf(decoded, 3, "%s", cond_table[shifted]);
 
-    // the condition after the comma is used when this condition is met
+    /* the condition after the comma is used when this condition is met */
     if((cond & 1) == 1 && cond != 0xf)
         sprintf(decoded, "%s", cond_table[shifted] + 3);
 
     return decoded;
-}
-
-int check_bounds(int index, int size){
-    return index >= 0 && index < size;
 }
 
 const char *get_arrangement(unsigned int size, unsigned int Q){
@@ -183,6 +183,5 @@ const char *get_arrangement(unsigned int size, unsigned int Q){
     if(size == 3)
         return Q == 0 ? "1d" : "2d";
 
-    // should never reach
     return NULL;
 }

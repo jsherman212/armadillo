@@ -33,7 +33,7 @@
         if(!i->operands) \
             i->operands = malloc(sizeof(struct ad_operand) * ++i->num_operands); \
         else{ \
-            struct *operands_rea = realloc(i->operands, \
+            struct ad_operand *operands_rea = realloc(i->operands, \
                     sizeof(struct ad_operand) * ++i->num_operands); \
             i->operands = operands_rea; \
         } \
@@ -50,13 +50,13 @@
         if(!i->operands) \
             i->operands = malloc(sizeof(struct ad_operand) * ++i->num_operands); \
         else{ \
-            struct *operands_rea = realloc(i->operands, \
+            struct ad_operand *operands_rea = realloc(i->operands, \
                     sizeof(struct ad_operand) * ++i->num_operands); \
             i->operands = operands_rea; \
         } \
         i->operands[i->num_operands - 1].type = AD_OP_SHIFT; \
-        i->operands[i->num_operands - 1].shift.type = type_; \
-        i->operands[i->num_operands - 1].shift.amt = shift_; \
+        i->operands[i->num_operands - 1].op_shift.type = type_; \
+        i->operands[i->num_operands - 1].op_shift.amt = shift_; \
     } while (0)
 
 #define ADD_IMM_OPERAND(i, type_, bits_) \
@@ -64,7 +64,7 @@
         if(!i->operands) \
             i->operands = malloc(sizeof(struct ad_operand) * ++i->num_operands); \
         else{ \
-            struct *operands_rea = realloc(i->operands, \
+            struct ad_operand *operands_rea = realloc(i->operands, \
                     sizeof(struct ad_operand) * ++i->num_operands); \
             i->operands = operands_rea; \
         } \
@@ -78,7 +78,7 @@
         if(!i->operands) \
             i->operands = malloc(sizeof(struct ad_operand) * ++i->num_operands); \
         else{ \
-            struct *operands_rea = realloc(i->operands, \
+            struct ad_operand *operands_rea = realloc(i->operands, \
                     sizeof(struct ad_operand) * ++i->num_operands); \
             i->operands = operands_rea; \
         } \
@@ -98,7 +98,7 @@
         i->cc = cc_; \
     } while (0)
 
-static inline const char *GET_GEN_REG(const char **rtbl, int idx,
+static inline const char *GET_GEN_REG(const char **rtbl, unsigned int idx,
         int prefer_zr){
     if(idx > 31)
         return "reg idx oob";
