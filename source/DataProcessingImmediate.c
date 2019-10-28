@@ -69,7 +69,7 @@ static int DisassembleAddSubtractImmediateInstr(struct instruction *i,
     const char **registers = AD_RTBL_GEN_32;
     size_t len = AD_RTBL_GEN_32_SZ;
 
-    if(sf){
+    if(sf == 1){
         registers = AD_RTBL_GEN_64;
         len = AD_RTBL_GEN_64_SZ;
     }
@@ -118,7 +118,7 @@ static int DisassembleAddSubtractImmediateInstr(struct instruction *i,
             if(sh){
                 ADD_SHIFT_OPERAND(out, AD_SHIFT_LSL, shift);
 
-                concat(&DECODE_STR(out), ", lsl %d", shift);
+                concat(&DECODE_STR(out), ", lsl #%d", shift);
             }
         }
     }
@@ -135,7 +135,7 @@ static int DisassembleAddSubtractImmediateInstr(struct instruction *i,
             if(sh){
                 ADD_SHIFT_OPERAND(out, AD_SHIFT_LSL, shift);
 
-                concat(&DECODE_STR(out), ", lsl %d", shift);
+                concat(&DECODE_STR(out), ", lsl #%d", shift);
             }
         }
         else{
@@ -150,7 +150,7 @@ static int DisassembleAddSubtractImmediateInstr(struct instruction *i,
             if(sh){
                 ADD_SHIFT_OPERAND(out, AD_SHIFT_LSL, shift);
 
-                concat(&DECODE_STR(out), ", lsl %d", shift);
+                concat(&DECODE_STR(out), ", lsl #%d", shift);
             }
         }
     }
@@ -166,7 +166,7 @@ static int DisassembleAddSubtractImmediateInstr(struct instruction *i,
         if(sh){
             ADD_SHIFT_OPERAND(out, AD_SHIFT_LSL, shift);
 
-            concat(&DECODE_STR(out), ", lsl %d", shift);
+            concat(&DECODE_STR(out), ", lsl #%d", shift);
         }
     }
     else if(S == 1 && op == 1){
@@ -181,7 +181,7 @@ static int DisassembleAddSubtractImmediateInstr(struct instruction *i,
             if(sh){
                 ADD_SHIFT_OPERAND(out, AD_SHIFT_LSL, shift);
 
-                concat(&DECODE_STR(out), ", lsl %d", shift);
+                concat(&DECODE_STR(out), ", lsl #%d", shift);
             }
         }
         else{
@@ -196,7 +196,7 @@ static int DisassembleAddSubtractImmediateInstr(struct instruction *i,
             if(sh){
                 ADD_SHIFT_OPERAND(out, AD_SHIFT_LSL, shift);
 
-                concat(&DECODE_STR(out), ", lsl %d", shift);
+                concat(&DECODE_STR(out), ", lsl #%d", shift);
             }
         }
     }
@@ -227,6 +227,16 @@ static int DisassembleAddSubtractImmediateWithTagsInstr(struct instruction *i,
     if(Rn > AD_RTBL_GEN_64_SZ || Rd > AD_RTBL_GEN_64_SZ)
         return 1;
 
+    ADD_FIELD(out, sf);
+    ADD_FIELD(out, op);
+    ADD_FIELD(out, S);
+    ADD_FIELD(out, o2);
+    ADD_FIELD(out, uimm6);
+    ADD_FIELD(out, op3);
+    ADD_FIELD(out, uimm4);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
+
     const char *instr_s = NULL;
     int instr_id = NONE;
 
@@ -247,270 +257,465 @@ static int DisassembleAddSubtractImmediateWithTagsInstr(struct instruction *i,
     ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&uimm6);
     ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&uimm4);
 
-    SET_INSTR_ID(out, instr_id);
-
     concat(&DECODE_STR(out), "%s %s, %s, #%#lx, #%#lx", instr_s, Rd_s,
             Rn_s, uimm6, uimm4);
+
+    SET_INSTR_ID(out, instr_id);
 
     return 0;
 }
 
-//char *DisassembleLogicalImmediateInstr(struct instruction *instruction){
 static int DisassembleLogicalImmediateInstr(struct instruction *i,
         struct ad_insn *out){
-    unsigned int n = getbitsinrange(instruction->opcode, 22, 1);
-    unsigned int opc = getbitsinrange(instruction->opcode, 29, 2);
-    unsigned int sf = getbitsinrange(instruction->opcode, 31, 1);
+    unsigned sf = bits(i->opcode, 31, 31);
+    unsigned opc = bits(i->opcode, 29, 30);
+    unsigned N = bits(i->opcode, 22, 22);
+    unsigned immr = bits(i->opcode, 16, 21);
+    unsigned imms = bits(i->opcode, 10, 15);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 5);
 
-    const char **registers = ARM64_GeneralRegisters;
+    if(sf == 0 && N == 1)
+        return 1;
 
-    if(sf == 0)
-        registers = ARM64_32BitGeneralRegisters;
-
-    if(sf == 0 && n == 1)
-        return strdup(".undefined");
-
-    unsigned int rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int imms = getbitsinrange(instruction->opcode, 10, 6); 
-    unsigned int immr = getbitsinrange(instruction->opcode, 16, 6);
-    unsigned long imm;
-
-    DecodeBitMasks(n, imms, immr, 1, &imm);
+    unsigned long imm = 0;
+    DecodeBitMasks(N, imms, immr, 1, &imm);
 
     if(imm == -1)
-        return strdup(".undefined");
+        return 1;
 
-    // these instructions can modify (w)sp
-    const char *rd_reg = registers[rd];
+    ADD_FIELD(out, sf);
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, N);
+    ADD_FIELD(out, immr);
+    ADD_FIELD(out, imms);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
 
-    if(rd == 31)
-        rd_reg = sf == 0 ? "wsp" : "sp";
+    const char **registers = AD_RTBL_GEN_32;
+    size_t len = AD_RTBL_GEN_32_SZ;
 
-    const char *rn_reg = registers[rn];
+    if(sf == 1){
+        registers = AD_RTBL_GEN_64;
+        len = AD_RTBL_GEN_64_SZ;
+    }
 
-    if(rn == 31)
-        rn_reg = sf == 0 ? "wsp" : "sp";
+    if(Rn > len || Rd > len)
+        return 1;
+
+    const char *Rn_s = GET_GEN_REG(registers, Rn, NO_PREFER_ZR);
+    const char *Rd_s = GET_GEN_REG(registers, Rd, NO_PREFER_ZR);
+
+    int instr_id = NONE;
+    int sz = (registers == AD_RTBL_GEN_64 ? _64_BIT : _32_BIT);
 
     if(opc == 0){
-        disassembled = malloc(128);
-        sprintf(disassembled, "and %s, %s, #%#lx", rd_reg, rn_reg, imm);
+        instr_id = AD_INSTR_AND;
+
+        ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&imm);
+
+        concat(&DECODE_STR(out), "and %s, %s, #%#lx", Rd_s, Rn_s, imm);
     }
     else if(opc == 1){
-        disassembled = malloc(128);
+        if(Rn == 0x1f && !MoveWidePreferred(sf, N, imms, immr)){
+            instr_id = AD_INSTR_MOV;
 
-        if(rn == 0x1f && !MoveWidePreferred(sf, n, imms, immr))
-            sprintf(disassembled, "mov %s, #%#lx", rd_reg, imm);
-        else
-            sprintf(disassembled, "orr %s, %s, #%#lx", rd_reg, registers[rn], imm);
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&imm);
+
+            concat(&DECODE_STR(out), "mov %s, #%#lx", Rd_s, imm);
+        }
+        else{
+            instr_id = AD_INSTR_ORR;
+
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&imm);
+
+            concat(&DECODE_STR(out), "orr %s, %s, #%#lx", Rd_s, Rn_s, imm);
+        }
     }
-    else if(opc == (1 << 1)){
-        disassembled = malloc(128);
-        sprintf(disassembled, "eor %s, %s, #%#lx", rd_reg, registers[rn], imm);
+    else if(opc == 2){
+        instr_id = AD_INSTR_EOR;
+
+        ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&imm);
+
+        concat(&DECODE_STR(out), "eor %s, %s, #%#lx", Rd_s, Rn_s, imm);
     }
-    else if(opc == 0x3){
-        disassembled = malloc(128);
+    else if(opc == 3){
+        if(Rd == 0x1f){
+            instr_id = AD_INSTR_TST;
 
-        if(rd == 0x1f)
-            sprintf(disassembled, "tst %s, #%#lx", registers[rn], imm);
-        else
-            sprintf(disassembled, "ands %s, %s, #%#lx", registers[rd], registers[rn], imm);
+            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&imm);
+
+            concat(&DECODE_STR(out), "tst %s, #%#lx", Rn_s, imm);
+        }
+        else{
+            instr_id = AD_INSTR_ANDS;
+
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&imm);
+
+            concat(&DECODE_STR(out), "ands %s, %s, #%#lx", Rd_s, Rn_s, imm);
+        }
     }
 
-    if(!disassembled)
-        return strdup(".unknown");
+    SET_INSTR_ID(out, instr_id);
 
-    return disassembled;
+    return 0;
 }
 
-char *DisassembleMoveWideImmediateInstr(struct instruction *instruction){
-    char *disassembled = NULL;
-
-    unsigned int hw = getbitsinrange(instruction->opcode, 21, 2);
-    unsigned int opc = getbitsinrange(instruction->opcode, 29, 2);
-    unsigned int sf = getbitsinrange(instruction->opcode, 31, 1);
+static int DisassembleMoveWideImmediateInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned sf = bits(i->opcode, 31, 31);
+    unsigned opc = bits(i->opcode, 29, 30);
+    unsigned hw = bits(i->opcode, 21, 22);
+    unsigned imm16 = bits(i->opcode, 5, 20);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
     if(opc == 1)
-        return strdup(".undefined");
+        return 1;
 
     if(sf == 0 && (hw >> 1) == 1)
-        return strdup(".undefined");
+        return 1;
 
-    const char **registers = ARM64_GeneralRegisters;
+    const char **registers = AD_RTBL_GEN_32;
+    size_t len = AD_RTBL_GEN_32_SZ;
 
-    if(sf == 0)
-        registers = ARM64_32BitGeneralRegisters;
+    if(sf == 1){
+        registers = AD_RTBL_GEN_64;
+        len = AD_RTBL_GEN_64_SZ;
+    }
 
-    unsigned int rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned long imm16 = getbitsinrange(instruction->opcode, 5, 16);
-    unsigned int shift = hw << 4;
+    if(Rd > len)
+        return 1;
+
+    ADD_FIELD(out, sf);
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, hw);
+    ADD_FIELD(out, imm16);
+    ADD_FIELD(out, Rd);
+
+    const char *Rd_s = GET_GEN_REG(registers, Rd, NO_PREFER_ZR);
+
+    int instr_id = NONE;
+    int sz = (registers == AD_RTBL_GEN_64 ? _64_BIT : _32_BIT);
+
+    unsigned shift = hw << 4;
 
     if(opc == 0){
-        disassembled = malloc(128);
-
-        int usealias = 0;
+        int alias = !(IsZero(imm16) && hw != 0);
 
         if(sf == 0)
-            usealias = !(IsZero(imm16) && hw != 0) && !IsOnes(imm16, 16);
-        else
-            usealias = !(IsZero(imm16) && hw != 0);
+            alias = (alias && !IsOnes(imm16, 16));
 
-        long result = ~(imm16 << shift);
+        if(alias){
+            instr_id = AD_INSTR_MOV;
+            unsigned long imm = (imm16 << 2) | hw;
 
-        if(usealias)
-            sprintf(disassembled, "movn %s, #%#lx", registers[rd], sf == 0 ? ~((result << 32) >> 32) : ~result);
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&imm);
+
+            concat(&DECODE_STR(out), "mov %s, #%#lx", Rd_s, imm);
+        }
         else{
-            sprintf(disassembled, "mov %s, #%#lx", registers[rd], imm16);
+            instr_id = AD_INSTR_MOVN;
+
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&imm16);
+
+            concat(&DECODE_STR(out), "movn %s, #%#lx", Rd_s, imm16);
 
             if(shift != 0){
-                char *lslstr = malloc(64);
-                sprintf(lslstr, ", lsl #%d", shift);
-                sprintf(disassembled, "%s%s", disassembled, lslstr);
-                free(lslstr);
+                ADD_SHIFT_OPERAND(out, AD_SHIFT_LSL, shift);
+
+                concat(&DECODE_STR(out), ", lsl #%d", shift);
             }
         }
     }
-    else if(opc == 0x2){
-        disassembled = malloc(128);
+    else if(opc == 2){
+        if(!(IsZero(imm16) && hw != 0)){
+            instr_id = AD_INSTR_MOV;
+            unsigned long imm = (imm16 << 2) | hw;
 
-        if(!(IsZero(imm16) && hw != 0))
-            sprintf(disassembled, "mov %s, #%#lx", registers[rd], imm16 << shift);
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&imm);
+
+            concat(&DECODE_STR(out), "mov %s, #%#lx", Rd_s, imm);
+        }
         else{
-            sprintf(disassembled, "movz %s, #%#lx", registers[rd], imm16);
+            instr_id = AD_INSTR_MOVZ;
+
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&imm16);
+
+            concat(&DECODE_STR(out), "movz %s, #%#lx", Rd_s, imm16);
 
             if(shift != 0){
-                char *lslstr = malloc(64);
-                sprintf(lslstr, ", lsl #%d", shift);
-                sprintf(disassembled, "%s%s", disassembled, lslstr);
-                free(lslstr);
+                ADD_SHIFT_OPERAND(out, AD_SHIFT_LSL, shift);
+
+                concat(&DECODE_STR(out), ", lsl #%d", shift);
             }
         }
     }
-    else if(opc == 0x3){
-        disassembled = malloc(128);
+    else if(opc == 3){
+        instr_id = AD_INSTR_MOVK;
 
-        sprintf(disassembled, "movk %s, #%#lx", registers[rd], imm16);
+        ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&imm16);
+
+        concat(&DECODE_STR(out), "movk %s, #%#lx", Rd_s, imm16);
 
         if(shift != 0){
-            char *lslstr = malloc(64);
-            sprintf(lslstr, ", lsl #%d", shift);
-            sprintf(disassembled, "%s%s", disassembled, lslstr);
-            free(lslstr);
+            ADD_SHIFT_OPERAND(out, AD_SHIFT_LSL, shift);
+
+            concat(&DECODE_STR(out), ", lsl #%d", shift);
         }
     }
 
-    if(!disassembled)
-        return strdup(".unknown");
+    SET_INSTR_ID(out, instr_id);
 
-    return disassembled;
+    return 0;
 }
 
-char *DisassembleBitfieldInstruction(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleBitfieldInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned sf = bits(i->opcode, 31, 31);
+    unsigned opc = bits(i->opcode, 29, 30);
+    unsigned N = bits(i->opcode, 22, 22);
+    unsigned immr = bits(i->opcode, 16, 21);
+    unsigned imms = bits(i->opcode, 10, 15);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
-    unsigned int n = getbitsinrange(instruction->opcode, 22, 1);
-    unsigned int opc = getbitsinrange(instruction->opcode, 29, 2);
-    unsigned int sf = getbitsinrange(instruction->opcode, 31, 1);
+    if(opc == 3)
+        return 1;
 
-    if(opc == 0x3)
-        return strdup(".undefined");
+    if(sf == 0 && N == 1)
+        return 1;
 
-    if(sf == 0 && n == 1)
-        return strdup(".undefined");
+    if(sf == 1 && N == 0)
+        return 1;
 
-    if(sf == 1 && n == 0)
-        return strdup(".undefined");
+    const char **registers = AD_RTBL_GEN_32;
+    size_t len = AD_RTBL_GEN_32_SZ;
 
-    const char **registers = ARM64_GeneralRegisters;
+    if(sf == 1){
+        registers = AD_RTBL_GEN_64;
+        len = AD_RTBL_GEN_64_SZ;
+    }
 
-    if(sf == 0)
-        registers = ARM64_32BitGeneralRegisters;
+    if(Rn > len || Rd > len)
+        return 1;
 
-    unsigned int rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int imms = getbitsinrange(instruction->opcode, 10, 6);
-    unsigned int immr = getbitsinrange(instruction->opcode, 16, 6);
+    ADD_FIELD(out, sf);
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, N);
+    ADD_FIELD(out, immr);
+    ADD_FIELD(out, imms);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
+   
+    const char *Rn_s = GET_GEN_REG(registers, Rn, PREFER_ZR);
+    const char *Rd_s = GET_GEN_REG(registers, Rd, PREFER_ZR);
 
-    if(sf == 1 && n != 1)
-        return strdup(".undefined");
-
-    if(sf == 0 && (n != 0 || (immr & (1 << 5)) != 0 || (imms & (1 << 5)) != 0))
-        return strdup(".undefined");
-
-    int regsize = sf == 0 ? 32 : 64;
+    int instr_id = NONE;
+    int sz = (registers == AD_RTBL_GEN_64 ? _64_BIT : _32_BIT);
 
     if(opc == 0){
-        disassembled = malloc(128);
+        if((sf == 1 && imms == 0x3f) || (sf == 0 && imms == 0x1f)){
+            instr_id = AD_INSTR_ASR;
 
-        if((sf == 1 && imms == 0x3f) || (sf == 0 && imms == 0x1f))
-            sprintf(disassembled, "asr %s, %s, #%#x", registers[rd], registers[rn], immr);
-        else if(imms < immr)
-            sprintf(disassembled, "sbfiz %s, %s, #%#x, #%#x", registers[rd], registers[rn], regsize - immr, imms + 1);
-        else if(BFXPreferred(sf, (opc >> 1), imms, immr))
-            sprintf(disassembled, "sbfx %s, %s, #%#x, #%#x", registers[rd], registers[rn], immr, imms - immr + 1);
-        else if(immr == 0){
-            const char *instr = "sxtb";
+            ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&immr);
 
-            if(imms == 0xf)
-                instr = "sxth";
-            else if(imms == 0x1f)
-                instr = "sxtw";
-
-            sprintf(disassembled, "%s %s, %s", instr, sf == 0 ? ARM64_32BitGeneralRegisters[rd] : ARM64_GeneralRegisters[rd], ARM64_32BitGeneralRegisters[rn]);
+            concat(&DECODE_STR(out), "asr %s, %s, #%#x", Rd_s, Rn_s, immr);
         }
-        else
-            sprintf(disassembled, "sbfm %s, %s, #%#x, #%#x", registers[rd], registers[rn], immr, imms);
+        else if(imms < immr){
+            instr_id = AD_INSTR_SBFIZ;
+
+            unsigned lsb = sz - immr;
+            unsigned width = imms + 1;
+
+            ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&lsb);
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&width);
+
+            concat(&DECODE_STR(out), "sbfiz %s, %s, #%#x, #%#x", Rd_s, Rn_s, lsb, width);
+        }
+        else if(BFXPreferred(sf, (opc >> 1), imms, immr)){
+            instr_id = AD_INSTR_SBFX;
+
+            unsigned lsb = sz - immr;
+            unsigned width = imms - immr + 1;
+
+            ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&lsb);
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&width);
+
+            concat(&DECODE_STR(out), "sbfx %s, %s, #%#x, #%#x", Rd_s, Rn_s, lsb, width);
+        }
+        else if(immr == 0){
+            instr_id = AD_INSTR_SXTB;
+            const char *instr_s = "sxtb";
+
+            if(imms == 0xf){
+                instr_id = AD_INSTR_SXTH;
+                instr_s = "sxth";
+            }
+            else if(imms == 0x1f){
+                instr_id = AD_INSTR_SXTW;
+                instr_s = "sxtw";
+            }
+
+            ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+
+            concat(&DECODE_STR(out), "%s %s, %s", instr_s, Rd_s, Rn_s);
+        }
+        else{
+            instr_id = AD_INSTR_SBFM;
+
+            ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&immr);
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imms);
+
+            concat(&DECODE_STR(out), "sbfm %s, %s, #%#x, #%#x", Rd_s, Rn_s, immr, imms);
+        }
     }
     else if(opc == 1){
-        disassembled = malloc(128);
-
         if(imms < immr){
-            immr = regsize - immr;
-            imms += 1;
+            unsigned lsb = sz - immr;
+            unsigned width = imms + 1;
 
-            // assume bfc
-            const char *instr = "bfc";
+            instr_id = AD_INSTR_BFC;
+            const char *instr_s = "bfc";
 
-            if(rd != 0x1f)
-                instr = "bfi";
+            if(Rd != 0x1f){
+                instr_id = AD_INSTR_BFI;
+                instr_s = "bfi";
+            }
 
-            sprintf(disassembled, "%s %s, %s, #%#x, #%#x", instr, registers[rd], registers[rn], immr, imms);
+            ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&lsb);
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&width);
+
+            concat(&DECODE_STR(out), "%s %s, %s, #%#x, #%#x",
+                    instr_s, Rd_s, Rn_s, lsb, width);
         }
-        else if(imms >= immr)
-            sprintf(disassembled, "bfxil %s, %s, #%#x, #%#x", registers[rd], registers[rn], immr, imms - immr + 1);
-        else
-            sprintf(disassembled, "bfm %s, %s, #%#x, #%#x", registers[rd], registers[rn], immr, imms);
-    }
-    else if(opc == 0x2){
-        disassembled = malloc(128);
+        else if(imms >= immr){
+            instr_id = AD_INSTR_BFXIL;
 
+            unsigned lsb = sz - immr;
+            unsigned width = imms - immr + 1;
+
+            ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&lsb);
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&width);
+
+            concat(&DECODE_STR(out), "bfxil %s, %s, #%#x, #%#x", Rd_s, Rn_s, lsb, width);
+        }
+        else{
+            instr_id = AD_INSTR_BFM;
+
+            ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&immr);
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imms);
+
+            concat(&DECODE_STR(out), "bfm %s, %s, #%#x, #%#x", Rd_s, Rn_s, immr, imms);
+        }
+    }
+    else if(opc == 2){
         if(imms + 1 == immr){
-            if((sf == 0 && imms != 0x1f) || (sf == 1 && imms != 0x3f))
-                sprintf(disassembled, "lsl %s, %s, #%#x", registers[rd], registers[rn], -immr % regsize);
+            if((sf == 0 && imms != 0x1f) || (sf == 1 && imms != 0x3f)){
+                instr_id = AD_INSTR_LSL;
+
+                unsigned shift = immr;
+
+                ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+                ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+                ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&shift);
+
+                concat(&DECODE_STR(out), "lsl %s, %s, #%#x", Rd_s, Rn_s, shift);
+            }
         }
-        else if((sf == 0 && imms == 0x1f) || (sf == 1 && imms == 0x3f))
-            sprintf(disassembled, "lsr %s, %s, #%#x", registers[rd], registers[rn], immr);
-        else if(imms < immr)
-            sprintf(disassembled, "ubfiz %s, %s, #%#x, #%#x", registers[rd], registers[rn], regsize - immr, imms + 1);
-        else if(BFXPreferred(sf, (opc >> 1), imms, immr))
-            sprintf(disassembled, "ubfx %s, %s, #%#x, #%#x", registers[rd], registers[rn], immr, imms - immr + 1);
+        else if((sf == 0 && imms == 0x1f) || (sf == 1 && imms == 0x3f)){
+            instr_id = AD_INSTR_LSR;
+
+            ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&immr);
+
+            concat(&DECODE_STR(out), "lsr %s, %s, #%#x", Rd_s, Rn_s, immr);
+        }
+        else if(imms < immr){
+            instr_id = AD_INSTR_UBFIZ;
+
+            unsigned lsb = sz - immr;
+            unsigned width = imms + 1;
+
+            ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&lsb);
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&width);
+
+            concat(&DECODE_STR(out), "ubfiz %s, %s, #%#x, #%#x", Rd_s, Rn_s, lsb, width);
+        }
+        else if(BFXPreferred(sf, (opc >> 1), imms, immr)){
+            instr_id = AD_INSTR_UBFX;
+
+            unsigned lsb = immr;
+            unsigned width = imms - immr + 1;
+
+            ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&lsb);
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&width);
+
+            concat(&DECODE_STR(out), "ubfx %s, %s, #%#x, #%#x", Rd_s, Rn_s, lsb, width);
+        }
         else if(immr == 0){
-            // imms == 0x7
-            const char *instr = "uxtb";
+            instr_id = AD_INSTR_UXTB;
+            const char *instr_s = "uxtb";
 
-            if(imms == 0xf)
-                instr = "uxth";
+            if(imms == 0xf){
+                instr_id = AD_INSTR_UXTH;
+                instr_s = "uxth";
+            }
 
-            sprintf(disassembled, "%s %s, %s", instr, ARM64_32BitGeneralRegisters[rd], ARM64_32BitGeneralRegisters[rn]);
+            ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+
+            concat(&DECODE_STR(out), "%s %s, %s", instr_s, Rd_s, Rn_s);
         }
-        else
-            sprintf(disassembled, "ubfm %s, %s, #%#x, #%#x", registers[rd], registers[rn], immr, imms);
+        else{
+            instr_id = AD_INSTR_UBFM;
+
+            ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&immr);
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imms);
+
+            concat(&DECODE_STR(out), "ubfm %s, %s, #%#x, #%#x", Rd_s, Rn_s, immr, imms);
+        }
     }
 
-    if(!disassembled)
-        return strdup(".unknown");
+    SET_INSTR_ID(out, instr_id);
 
-    return disassembled;
+    return 0;
 }
 
 char *DisassembleExtractInstruction(struct instruction *instruction){
@@ -562,11 +767,18 @@ int DataProcessingImmediateDisassemble(struct instruction *i,
 
     if((op0 >> 1) == 0)
         result = DisassemblePCRelativeAddressingInstr(i, out);
-    else if(op0 == 2){
-        disassembled = DisassembleAddSubtractImmediateInstr(instruction);
-    }
+    else if(op0 == 2)
+        result = DisassembleAddSubtractImmediateInstr(i, out);
     else if(op0 == 3)
         result = DisassembleAddSubtractImmediateWithTagsInstr(i, out);
+    else if(op0 == 4)
+        result = DisassembleLogicalImmediateInstr(i, out);
+    else if(op0 == 5)
+        result = DisassembleMoveWideImmediateInstr(i, out);
+    else if(op0 == 6)
+        result = DisassembleBitfieldInstr(i, out);
+
+    /*
     else if(op0 == 0x2){
         if((op1 >> 0x1) == 0)
             disassembled = DisassembleLogicalImmediateInstr(instruction);
@@ -582,6 +794,7 @@ int DataProcessingImmediateDisassemble(struct instruction *i,
     else{
         return strdup(".undefined");
     }
+    */
 
     return result;
 }
