@@ -23,9 +23,6 @@ static int _ArmadilloDisassembleNew(struct instruction *i,
     struct ad_insn *out = *_out;
 
     unsigned op0 = bits(i->opcode, 25, 28);
-    //unsigned op0 = getbitsinrange(i->opcode, 25, 4);
-
-    //printf("%s: op0 %d op0>>1 %d (op0&~1) %d\n", __func__, op0, op0 >> 1, op0&~1);
 
     if(op0 <= 3){
         concat(&DECODE_STR(out), ".long #%#x", i->opcode);
@@ -34,6 +31,10 @@ static int _ArmadilloDisassembleNew(struct instruction *i,
     else if((op0 >> 1) == 4){
         out->group = AD_G_DataProcessingImmediate;
         return DataProcessingImmediateDisassemble(i, out);
+    }
+    else if((op0 >> 1) == 5){
+        out->group = AD_G_BranchExcSys;
+        return BranchExcSysDisassemble(i, out);
     }
     else{
         concat(&DECODE_STR(out), ".long #%#x", i->opcode);

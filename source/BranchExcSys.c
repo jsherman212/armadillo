@@ -1,77 +1,110 @@
-#include "BranchExcSys.h"
+#include <stdio.h>
+#include <stdlib.h>
 
+#include "adefs.h"
+#include "bits.h"
+#include "common.h"
+#include "instruction.h"
+#include "utils.h"
 #include "strext.h"
 
-char *DisassembleConditionalImmediateBranchInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleConditionalImmediateBranchInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned o1 = bits(i->opcode, 24, 24);
+    unsigned imm19 = bits(i->opcode, 5, 23);
+    unsigned o0 = bits(i->opcode, 4, 4);
+    unsigned cond = bits(i->opcode, 0, 3);
 
-    unsigned int o0 = getbitsinrange(instruction->opcode, 4, 1);
-    unsigned int o1 = getbitsinrange(instruction->opcode, 24, 1);
+    if(o1 != 0 && o0 != 0)
+        return 1;
 
-    if(o0 == 0 && o1 == 0){
-        disassembled = malloc(128);
+    ADD_FIELD(out, o1);
+    ADD_FIELD(out, imm19);
+    ADD_FIELD(out, o0);
+    ADD_FIELD(out, cond);
 
-        unsigned int cond = getbitsinrange(instruction->opcode, 0, 4);
-        unsigned int imm19 = getbitsinrange(instruction->opcode, 5, 19);
+    long imm = sign_extend(imm19 << 2, 64) + i->PC;
+    char *dc = decode_cond(cond);
 
-        imm19 = sign_extend(imm19 << 2, 19);
-        char *decoded_cond = decode_cond(cond);
+    ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&imm);
 
-        sprintf(disassembled, "b.%s #%#lx", decoded_cond, (signed int)imm19 + instruction->PC);
+    concat(&DECODE_STR(out), "b.%s #%#lx", dc, imm);
 
-        free(decoded_cond);
-    }
-    else
-        return strdup(".undefined");	
+    free(dc);
 
-    if(!disassembled)
-        return strdup(".unknown");
+    SET_INSTR_ID(out, AD_INSTR_B);
+    SET_CC(out, cond);
 
-    return disassembled;
+    return 0;
 }
 
-char *DisassembleExcGenInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleExcGenInstr(struct instruction *i, struct ad_insn *out){
+    unsigned opc = bits(i->opcode, 21, 23);
+    unsigned imm16 = bits(i->opcode, 5, 20);
+    unsigned op2 = bits(i->opcode, 2, 4);
+    unsigned LL = bits(i->opcode, 0, 1);
 
-    unsigned int ll = getbitsinrange(instruction->opcode, 0, 2);
-    unsigned int op2 = getbitsinrange(instruction->opcode, 2, 3);
-    unsigned int opc = getbitsinrange(instruction->opcode, 21, 3);
-    unsigned int imm16 = getbitsinrange(instruction->opcode, 5, 16);
+    if(op2 != 0)
+        return 1;
 
-    if(opc == 0 && op2 == 0){
-        disassembled = malloc(128);
-        const char *table[] = { NULL, "svc", "hvc", "smc" };
-        if(!check_bounds(ll, ARRAY_SIZE(table)))
-            return strdup(".undefined");
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, imm16);
+    ADD_FIELD(out, op2);
+    ADD_FIELD(out, LL);
 
-        sprintf(disassembled, "%s #%#x", table[ll], imm16);
+    int instr_id = NONE;
+
+    if(opc == 0 && LL > 0){
+        struct {
+            const char *instr_s;
+            int instr_id;
+        } tab[] = {
+            { NULL, NONE },
+            { "svc", AD_INSTR_SVC },
+            { "hvc", AD_INSTR_HVC },
+            { "smc", AD_INSTR_SMC }
+        };
+
+        instr_id = tab[LL].instr_id;
+
+        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imm16);
+
+        concat(&DECODE_STR(out), "%s #%#x", tab[LL].instr_s, imm16);
     }
-    else if((opc == 1 || opc == 2) && op2 == 0 && ll == 0){
-        disassembled = malloc(128);
-        const char *table[] = { NULL, "brk", "hlt" };
-        if(!check_bounds(ll, ARRAY_SIZE(table)))
-            return strdup(".undefined");
+    else if((opc == 1 || opc == 2) && LL == 0){
+        struct {
+            const char *instr_s;
+            int instr_id;
+        } tab[] = {
+            { NULL, NONE },
+            { "brk", AD_INSTR_BRK },
+            { "hlt", AD_INSTR_HLT }
+        };
 
-        sprintf(disassembled, "%s #%#x", table[opc], imm16);
+        instr_id = tab[opc].instr_id;
+
+        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imm16);
+
+        concat(&DECODE_STR(out), "%s #%#x", tab[opc].instr_s, imm16);
     }
-    else if(opc == 5 && op2 == 0 && ll != 0){
-        // no dcps4 and beyond
-        if(ll > 3)
-            return strdup(".undefined");
+    else if(opc == 5 && LL > 0){
+        int tab[] = { NONE, AD_INSTR_DCPS1, AD_INSTR_DCPS2, AD_INSTR_DCPS3 };
+        instr_id = tab[LL];
 
-        disassembled = malloc(128);
+        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imm16);
 
-        sprintf(disassembled, "dcps%d, #%#x", ll, imm16);
+        concat(&DECODE_STR(out), "dcps%d #%#x", LL, imm16);
     }
-    else
-        return strdup(".undefined");
+    else{
+        return 1;
+    }
 
-    if(!disassembled)
-        return strdup(".unknown");
+    SET_INSTR_ID(out, instr_id);
 
-    return disassembled;
+    return 0;
 }
 
+/*
 char *DisassembleHintInstr(struct instruction *instruction){
     char *disassembled = NULL;
 
@@ -1652,14 +1685,22 @@ char *DisassembleTestAndBranchImmediateInstr(struct instruction *instruction){
 
     return disassembled;
 }
+*/
+int BranchExcSysDisassemble(struct instruction *i, struct ad_insn *out){
+    unsigned op0 = bits(i->opcode, 29, 31);
+    unsigned op1 = bits(i->opcode, 12, 25);
+    unsigned op2 = bits(i->opcode, 0, 4);
 
-char *BranchExcSysDisassemble(struct instruction *instruction){
-    char *disassembled = NULL;
+    int result = 0;
 
-    unsigned int op2 = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int op1 = getbitsinrange(instruction->opcode, 12, 14);
-    unsigned int op0 = getbitsinrange(instruction->opcode, 29, 3);
+    if(op0 == 2)
+        result = DisassembleConditionalImmediateBranchInstr(i, out);
+    else if(op0 == 6 && (op1 >> 12) == 0)
+        result = DisassembleExcGenInstr(i, out);
+    else
+        result = 1;
 
+    /*
     if(op0 == 0x2 && (op1 >> 0xd) == 0)
         disassembled = DisassembleConditionalImmediateBranchInstr(instruction);
     else if(op0 == 0x6){
@@ -1688,8 +1729,7 @@ char *BranchExcSysDisassemble(struct instruction *instruction){
         else if((op1 >> 0xd) == 0x1)
             disassembled = DisassembleTestAndBranchImmediateInstr(instruction);
     }
-    else
-        return strdup(".undefined");
+    */
 
-    return disassembled;
+    return result;
 }
