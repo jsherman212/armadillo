@@ -360,6 +360,7 @@ enum {
     V29,
     V30
 };
+
 enum {
     AD_INSTR_ADC = 0,
     AD_INSTR_ADCS,
@@ -657,6 +658,7 @@ enum {
     AD_INSTR_PACIBSP,
     AD_INSTR_PACIBZ,
     AD_INSTR_PLD,
+    AD_INSTR_PSB_CSYNC,
     AD_INSTR_PSSBB,
     AD_INSTR_RBIT,
     AD_INSTR_RET,
@@ -795,6 +797,7 @@ enum {
     AD_INSTR_TBNZ,
     AD_INSTR_TBZ,
     AD_INSTR_TLBI,
+    AD_INSTR_TSB_CSYNC,
     AD_INSTR_TST,
     AD_INSTR_UBFIZ,
     AD_INSTR_UBFM,

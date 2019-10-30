@@ -23,7 +23,7 @@ static int DisassembleConditionalImmediateBranchInstr(struct instruction *i,
     ADD_FIELD(out, o0);
     ADD_FIELD(out, cond);
 
-    long imm = sign_extend(imm19 << 2, 64) + i->PC;
+    unsigned long imm = sign_extend(imm19 << 2, 64) + i->PC;
     char *dc = decode_cond(cond);
 
     ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&imm);
@@ -104,58 +104,94 @@ static int DisassembleExcGenInstr(struct instruction *i, struct ad_insn *out){
     return 0;
 }
 
-/*
-char *DisassembleHintInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleHintInstr(struct instruction *i, struct ad_insn *out){
+    unsigned CRm = bits(i->opcode, 8, 11);
+    unsigned op2 = bits(i->opcode, 5, 7);
 
-    unsigned int op2 = getbitsinrange(instruction->opcode, 5, 3);
-    unsigned int CRm = getbitsinrange(instruction->opcode, 8, 4);
+    ADD_FIELD(out, CRm);
+    ADD_FIELD(out, op2);
 
-    if(CRm == 0){
-        disassembled = malloc(128);
-        const char *table[] = { "nop", "yield", "wfe", "wfi", "sev", "sevl", NULL, "xpaclri" };
-        if(!check_bounds(op2, ARRAY_SIZE(table)))
-            return strdup(".undefined");
+    int instr_id = NONE;
 
-        sprintf(disassembled, "%s", table[op2]);
+    struct itab {
+        const char *instr_s;
+        int instr_id;
+    };
+
+    struct itab first[] = {
+        { "nop", AD_INSTR_NOP },
+        { "yield", AD_INSTR_YIELD },
+        { "wfe", AD_INSTR_WFE },
+        { "wfi", AD_INSTR_WFI },
+        { "sev", AD_INSTR_SEV },
+        { "sevl", AD_INSTR_SEVL },
+        { NULL, NONE },
+        { "xpaclri", AD_INSTR_XPACLRI }
+    };
+
+    struct itab second[] = {
+        { "pacia1716", AD_INSTR_PACIA1716 },
+        { NULL, NONE },
+        { "pacib1716", AD_INSTR_PACIB1716 },
+        { NULL, NONE },
+        { "autia1716", AD_INSTR_AUTIA1716 },
+        { NULL, NONE },
+        { "autib1716", AD_INSTR_AUTIB1716 }
+    };
+
+    struct itab third[] = {
+        { "esb", AD_INSTR_ESB },
+        { "psb csync", AD_INSTR_PSB_CSYNC },
+        { "tsb csync", AD_INSTR_TSB_CSYNC },
+        { "csdb", AD_INSTR_CSDB }
+    };
+
+    struct itab fourth[] = {
+        { "paciaz", AD_INSTR_PACIAZ },
+        { "paciasp", AD_INSTR_PACIASP },
+        { "pacibz", AD_INSTR_PACIBZ },
+        { "pacibsp", AD_INSTR_PACIBSP },
+        { "autiaz", AD_INSTR_AUTIAZ },
+        { "autiasp", AD_INSTR_AUTIASP },
+        { "autibz", AD_INSTR_AUTIBZ },
+        { "autibsp", AD_INSTR_AUTIBSP }
+    };
+
+    struct itab *tab = NULL;
+
+    if(CRm == 0)
+        tab = first;
+    else if(CRm == 1)
+        tab = second;
+    else if(CRm == 2)
+        tab = third;
+    else if(CRm == 3)
+        tab = fourth;
+    
+    if(CRm == 6 && (op2 << 2) == 0){
+        instr_id = AD_INSTR_BTI;
+
+        unsigned indirection = op2 >> 1;
+
+        const char *tbl[] = { "", " c", " j", " jc" };
+
+        concat(&DECODE_STR(out), "bti%s", tbl[indirection]);
     }
-    else if(CRm == 1){
-        disassembled = malloc(128);
-        const char *table[] = { "pacia1716", NULL, "pacib1716", NULL, "autia1716", NULL, "autib1716" };
-        if(!check_bounds(op2, ARRAY_SIZE(table)))
-            return strdup(".undefined");
-
-        sprintf(disassembled, "%s", table[op2]);
-    }
-    else if(CRm == 2){
-        disassembled = malloc(128);
-        const char *table[] = { "esb", "psb csync", "tsb csync", NULL, "csdb" };
-        if(!check_bounds(op2, ARRAY_SIZE(table)))
-            return strdup(".undefined");
-
-        sprintf(disassembled, "%s", table[op2]);
-    }
-    else if(CRm == 3){
-        disassembled = malloc(128);
-        const char *table[] = { "paciaz", "paciasp", "pacibz", "pacibsp", "autiaz", "autiasp", "autibz", "autibsp" };
-        if(!check_bounds(op2, ARRAY_SIZE(table)))
-            return strdup(".undefined");
-
-        sprintf(disassembled, "%s", table[op2]);
-    }
-    // some kind of hint instruction?
     else{
-        disassembled = malloc(128);
+        if(!tab)
+            return 1;
 
-        sprintf(disassembled, "hint #%#x", (CRm << 4) | op2);
+        instr_id = tab[op2].instr_id;
+
+        concat(&DECODE_STR(out), "%s", tab[op2].instr_s);
     }
 
-    if(!disassembled)
-        return strdup(".unknown");
+    SET_INSTR_ID(out, instr_id);
 
-    return disassembled;
+    return 0;
 }
 
+/*
 char *DisassembleBarrierInstr(struct instruction *instruction){
     char *disassembled = NULL;
 
@@ -1695,10 +1731,17 @@ int BranchExcSysDisassemble(struct instruction *i, struct ad_insn *out){
 
     if(op0 == 2)
         result = DisassembleConditionalImmediateBranchInstr(i, out);
-    else if(op0 == 6 && (op1 >> 12) == 0)
-        result = DisassembleExcGenInstr(i, out);
-    else
+    else if(op0 == 6){
+        if((op1 >> 12) == 0)
+            result = DisassembleExcGenInstr(i, out);
+        else if(op1 == 0x1032 && op2 == 0x1f)
+            result = DisassembleHintInstr(i, out);
+
+
+    }
+    else{
         result = 1;
+    }
 
     /*
     if(op0 == 0x2 && (op1 >> 0xd) == 0)

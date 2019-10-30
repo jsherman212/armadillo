@@ -303,6 +303,7 @@ static const char *AD_INSTR_TABLE[] = {
     "AD_INSTR_PACIBSP",
     "AD_INSTR_PACIBZ",
     "AD_INSTR_PLD",
+    "AD_INSTR_PSB_CSYNC",
     "AD_INSTR_PSSBB",
     "AD_INSTR_RBIT",
     "AD_INSTR_RET",
@@ -441,6 +442,7 @@ static const char *AD_INSTR_TABLE[] = {
     "AD_INSTR_TBNZ",
     "AD_INSTR_TBZ",
     "AD_INSTR_TLBI",
+    "AD_INSTR_TSB_CSYNC",
     "AD_INSTR_TST",
     "AD_INSTR_UBFIZ",
     "AD_INSTR_UBFM",
@@ -769,8 +771,9 @@ static const char *AD_INSTR_TABLE[] = {
     "AD_INSTR_XTN",
     "AD_INSTR_XTN2",
     "AD_INSTR_ZIP1",
-    "AD_INSTR_ZIP2"
+    "AD_INSTR_ZIP2",
 };
+
 
 static const char *AD_GET_SYSREG_STRING(unsigned int encoding){
     switch(encoding){
@@ -1441,6 +1444,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("b.cc #0x8290 @ 0x100007f34", 0x54041483, 0x100007f34);
     addinstr("b.al #0x3990 @ 0x100007f34", 0x5401CC8E, 0x100007f34);
     */
+    /*
     addinstr("svc #40", 0xD4000501, 0);
     addinstr("smc #4", 0xD4000083, 0);
     addinstr("hvc #0", 0xD4000002, 0);
@@ -1449,7 +1453,34 @@ int main(int argc, char **argv, const char **envp){
     addinstr("dcps1 #4", 0xD4A00081, 0);
     addinstr("dcps2 #8", 0xD4A00102, 0);
     addinstr("dcps3 #12", 0xD4A00183, 0);
+    */
+    addinstr("nop", 0xD503201F, 0);
+    addinstr("yield", 0xD503203F, 0);
+    addinstr("wfe", 0xD503205F, 0);
+    addinstr("wfi", 0xD503207F, 0);
+    addinstr("sev", 0xD503209F, 0);
+    addinstr("sevl", 0xD50320BF, 0);
 
+    addinstr("xpaclri", 0xd50320ff, 0);
+    //addinstr("xpacd x5", 0xdac147e5, 0);
+    //addinstr("xpaci x19", 0xdac143f3, 0);
+
+
+    addinstr("pacia1716", 0xd503211f, 0);
+    addinstr("pacib1716", 0xd503215f, 0);
+    addinstr("autia1716", 0xd503219f, 0);
+    addinstr("autib1716", 0xd50321df, 0);
+
+    addinstr("esb", 0xd503221f, 0);
+
+    addinstr("paciaz", 0xd503231f, 0);
+    addinstr("paciasp", 0xd503233f, 0);
+    addinstr("pacibz", 0xd503235f, 0);
+    addinstr("pacibsp", 0xd503237f, 0);
+    addinstr("autiaz", 0xd503239f, 0);
+    addinstr("autiasp", 0xd50323bf, 0);
+    addinstr("autibz", 0xd50323df, 0);
+    addinstr("autibsp", 0xd50323ff, 0);
 
     for(struct node *current = instructions->front;
             current;
