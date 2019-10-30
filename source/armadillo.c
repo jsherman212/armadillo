@@ -3,7 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "armadillo.h"
+#include "adefs.h"
 #include "bits.h"
 #include "instruction.h"
 #include "strext.h"
@@ -13,24 +13,34 @@
 #include "DataProcessingFloatingPoint.h"
 #include "DataProcessingRegister.h"
 #include "LoadsAndStores.h"
+unsigned long getbitsinrange(unsigned int number, int start, int amount){
+    unsigned int mask = ((1 << amount) - 1) << start;
+    return (number & mask) >> start;
+}
 
 static int _ArmadilloDisassembleNew(struct instruction *i,
         struct ad_insn **_out){
     struct ad_insn *out = *_out;
 
     unsigned op0 = bits(i->opcode, 25, 28);
+    //unsigned op0 = getbitsinrange(i->opcode, 25, 4);
+
+    //printf("%s: op0 %d op0>>1 %d (op0&~1) %d\n", __func__, op0, op0 >> 1, op0&~1);
 
     if(op0 <= 3){
-        concat(&out->decoded, ".long %#x", i->opcode);
-        return AD_OK;
+        concat(&DECODE_STR(out), ".long #%#x", i->opcode);
+        return 0;
     }
-    
-    if((op0 & ~0x1) == 0x8){
+    else if((op0 >> 1) == 4){
         out->group = AD_G_DataProcessingImmediate;
         return DataProcessingImmediateDisassemble(i, out);
     }
+    else{
+        concat(&DECODE_STR(out), ".long #%#x", i->opcode);
+        return 0;
+    }
 
-    return AD_OK;
+    return 0;
 }
 
 int ArmadilloDisassembleNew(unsigned int opcode, unsigned long PC,

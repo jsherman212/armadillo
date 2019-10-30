@@ -17,11 +17,11 @@ OBJECT_FILES = $(SRCDIR)/armadillo.o \
 			   $(SRCDIR)/utils.o
 
 armadillo : $(OBJECT_FILES)
-	$(CC) $(CFLAGS) -dynamiclib -o libarmadillo.dylib $(SOURCE_FILES)
+	$(CC) $(CFLAGS) -dynamiclib -o libarmadillo.dylib $(OBJECT_FILES)
 
-driver : $(OBJECT_FILES) driver85.c linkedlist.c
+driver85 : $(OBJECT_FILES) driver85.c linkedlist.c
 	$(MAKE) armadillo
-	$(CC) $(CFLAGS) -L. -larmadillo linkedlist.c driver85.c -o driver
+	$(CC) $(CFLAGS) -L. -larmadillo linkedlist.c driver85.c -o driver85
 
 $(SRCDIR)/%.o : $(SRCDIR)/%.c $(SRCDIR)/%.h
 	$(CC) $(CFLAGS) -c $< -o $@

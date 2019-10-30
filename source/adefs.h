@@ -1,6 +1,13 @@
 #ifndef _ADEFS_H_
 #define _ADEFS_H_
 
+/* macros to enable cleaner "signed" hex in format strings */
+#define S_X "%s%#x"
+#define S_LX "%s%#lx"
+
+#define S_A(x) ((int)x) < 0 ? "-" : "", ((int)x) < 0 ? -((int)x) : ((int)x)
+#define S_LA(x) ((long)x) < 0 ? "-" : "", ((long)x) < 0 ? -((long)x) : ((long)x)
+
 struct ad_operand {
     int type;
     
@@ -23,7 +30,7 @@ struct ad_operand {
     /* type == AD_OP_IMM */
     struct {
         int type;
-        int bits;
+        long bits;
     } op_imm;
 
     /* type == AD_OP_MEM */
