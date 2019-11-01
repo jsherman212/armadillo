@@ -1454,6 +1454,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("dcps2 #8", 0xD4A00102, 0);
     addinstr("dcps3 #12", 0xD4A00183, 0);
     */
+    /*
     addinstr("nop", 0xD503201F, 0);
     addinstr("yield", 0xD503203F, 0);
     addinstr("wfe", 0xD503205F, 0);
@@ -1481,6 +1482,17 @@ int main(int argc, char **argv, const char **envp){
     addinstr("autiasp", 0xd50323bf, 0);
     addinstr("autibz", 0xd50323df, 0);
     addinstr("autibsp", 0xd50323ff, 0);
+    */
+
+    addinstr("clrex #5", 0xD503355F, 0);
+    addinstr("dmb ish", 0xD5033BBF, 0);
+    addinstr("dmb osh", 0xD50333BF, 0);
+    addinstr("dmb sy", 0xD5033FBF, 0);
+    addinstr("dmb oshld", 0xD50331BF, 0);
+    addinstr("isb sy", 0xD5033FDF, 0);
+    addinstr("isb #5", 0xD50335DF, 0);
+    addinstr("dsb ish", 0xD5033B9F, 0);
+    addinstr("dsb #8", 0xD503389F, 0);
 
     for(struct node *current = instructions->front;
             current;

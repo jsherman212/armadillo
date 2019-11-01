@@ -113,11 +113,6 @@ static int DisassembleHintInstr(struct instruction *i, struct ad_insn *out){
 
     int instr_id = NONE;
 
-    struct itab {
-        const char *instr_s;
-        int instr_id;
-    };
-
     struct itab first[] = {
         { "nop", AD_INSTR_NOP },
         { "yield", AD_INSTR_YIELD },
@@ -191,10 +186,89 @@ static int DisassembleHintInstr(struct instruction *i, struct ad_insn *out){
     return 0;
 }
 
-/*
-char *DisassembleBarrierInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleBarrierInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned CRm = bits(i->opcode, 8, 11);
+    unsigned op2 = bits(i->opcode, 5, 7);
+    unsigned Rt = bits(i->opcode, 0, 4);
 
+    if(op2 == 0 || op2 == 1)
+        return 1;
+
+    if(Rt != 0x1f)
+        return 1;
+
+    ADD_FIELD(out, CRm);
+    ADD_FIELD(out, op2);
+    ADD_FIELD(out, Rt);
+
+    int instr_id = NONE;
+
+    if(op2 == 4 || op2 == 5){
+        const char *barrier_ops[] = { "#0x0", "oshld", "oshst", "osh", "#0x4",
+            "nshld", "nshst", "nsh", "#0x8", "ishld", "ishst", "ish", "#0xb",
+            "ld", "st", "sy"
+        };
+
+        const char *instr_s = NULL;
+
+        if(op2 == 5){
+            instr_s = "dmb";
+            instr_id = AD_INSTR_DMB;
+
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&CRm);
+        }
+        else if((CRm & ~4) != 0){
+            instr_s = "dsb";
+            instr_id = AD_INSTR_DSB;
+
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&CRm);
+        }
+        else if(CRm == 0){
+            instr_s = "ssbb";
+            instr_id = AD_INSTR_SSBB;
+        }
+        else if(CRm == 4){
+            instr_s = "pssbb";
+            instr_id = AD_INSTR_PSSBB;
+        }
+
+        if(!instr_s)
+            return 1;
+
+        concat(&DECODE_STR(out), "%s", instr_s);
+
+        if(instr_id == AD_INSTR_DSB || instr_id == AD_INSTR_DMB)
+            concat(&DECODE_STR(out), " %s", barrier_ops[CRm]);
+    }
+    else if(op2 == 2){
+        instr_id = AD_INSTR_CLREX;
+
+        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&CRm);
+
+        concat(&DECODE_STR(out), "clrex");
+
+        if(CRm != 0)
+            concat(&DECODE_STR(out), " #%#x", CRm);
+    }
+    else if(op2 == 6){
+        instr_id = AD_INSTR_ISB;
+
+        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&CRm);
+
+        concat(&DECODE_STR(out), "isb");
+
+        if(CRm == 0xf)
+            concat(&DECODE_STR(out), " sy");
+        else
+            concat(&DECODE_STR(out), " #%#x", CRm);
+    }
+    else if(op2 == 0xf){
+        instr_id = AD_INSTR_SB;
+
+        concat(&DECODE_STR(out), "sb");
+    }
+    /*
     unsigned int Rt = getbitsinrange(instruction->opcode, 0, 5);
     unsigned int op2 = getbitsinrange(instruction->opcode, 5, 3);
     unsigned int CRm = getbitsinrange(instruction->opcode, 8, 4);
@@ -237,15 +311,14 @@ char *DisassembleBarrierInstr(struct instruction *instruction){
             }
         }
     }
-    else
-        return strdup(".undefined");
+    */
 
-    if(!disassembled)
-        return strdup(".unknown");
+    SET_INSTR_ID(out, instr_id);
 
-    return disassembled;
+    return 0;
 }
 
+/*
 char *DisassemblePSTATEInstr(struct instruction *instruction){
     char *disassembled = NULL;
 
@@ -1736,7 +1809,8 @@ int BranchExcSysDisassemble(struct instruction *i, struct ad_insn *out){
             result = DisassembleExcGenInstr(i, out);
         else if(op1 == 0x1032 && op2 == 0x1f)
             result = DisassembleHintInstr(i, out);
-
+        else if(op1 == 0x1033)
+            result = DisassembleBarrierInstr(i, out);
 
     }
     else{
