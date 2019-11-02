@@ -24,10 +24,10 @@ static int _ArmadilloDisassembleNew(struct instruction *i,
 
     unsigned op0 = bits(i->opcode, 25, 28);
 
-    //printf("%s: op0 %d op0>>1 %d\n", __func__, op0, op0>>1);
+//    printf("%s: op0 %d op0>>1 %d\n", __func__, op0, op0>>1);
 
     if(op0 <= 3){
-        concat(&DECODE_STR(out), ".long #%#x (op0<3)", i->opcode);
+        concat(&DECODE_STR(out), ".long #%#x (op0<=3)", i->opcode);
         return 0;
     }
     else if((op0 >> 1) == 4){

@@ -113,7 +113,7 @@ struct itab {
 static inline const char *GET_GEN_REG(const char **rtbl, unsigned int idx,
         int prefer_zr){
     if(idx > 31)
-        return "reg idx oob";
+        return "(reg idx oob)";
 
     if(idx == 31 && prefer_zr)
         idx++;

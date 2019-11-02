@@ -34,6 +34,7 @@ static const char *AD_INSTR_TABLE[] = {
     "AD_INSTR_AUTIBSP",
     "AD_INSTR_AUTIBZ",
     "AD_INSTR_AXFLAG",
+    "AD_INSTR_ARM_DDI",
     "AD_INSTR_B",
     "AD_INSTR_BFC",
     "AD_INSTR_BFI",
@@ -75,7 +76,7 @@ static const char *AD_INSTR_TABLE[] = {
     "AD_INSTR_CCMN",
     "AD_INSTR_CCMP",
     "AD_INSTR_CFINV",
-    "AD_INSTR_SYS",
+    "AD_INSTR_CFP",
     "AD_INSTR_CINC",
     "AD_INSTR_CINV",
     "AD_INSTR_CLREX",
@@ -85,6 +86,7 @@ static const char *AD_INSTR_TABLE[] = {
     "AD_INSTR_CMP",
     "AD_INSTR_CMPP",
     "AD_INSTR_CNEG",
+    "AD_INSTR_CPP",
     "AD_INSTR_CRC32B",
     "AD_INSTR_CRC32H",
     "AD_INSTR_CRC32W",
@@ -107,6 +109,7 @@ static const char *AD_INSTR_TABLE[] = {
     "AD_INSTR_DMB",
     "AD_INSTR_DRPS",
     "AD_INSTR_DSB",
+    "AD_INSTR_DVP",
     "AD_INSTR_EON",
     "AD_INSTR_EOR",
     "AD_INSTR_ERET",
@@ -438,6 +441,7 @@ static const char *AD_INSTR_TABLE[] = {
     "AD_INSTR_SXTB",
     "AD_INSTR_SXTH",
     "AD_INSTR_SXTW",
+    "AD_INSTR_SYS",
     "AD_INSTR_SYSL",
     "AD_INSTR_TBNZ",
     "AD_INSTR_TBZ",
@@ -773,7 +777,6 @@ static const char *AD_INSTR_TABLE[] = {
     "AD_INSTR_ZIP1",
     "AD_INSTR_ZIP2",
 };
-
 
 static const char *AD_GET_SYSREG_STRING(unsigned int encoding){
     switch(encoding){
@@ -1484,6 +1487,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("autibsp", 0xd50323ff, 0);
     */
 
+    /*
     addinstr("clrex #5", 0xD503355F, 0);
     addinstr("dmb ish", 0xD5033BBF, 0);
     addinstr("dmb osh", 0xD50333BF, 0);
@@ -1493,7 +1497,28 @@ int main(int argc, char **argv, const char **envp){
     addinstr("isb #5", 0xD50335DF, 0);
     addinstr("dsb ish", 0xD5033B9F, 0);
     addinstr("dsb #8", 0xD503389F, 0);
+    */
+    // e547c1da
+    //  002038D5
+    //addinstr("mrs x0, ttbr0_el1", 0xd5382000, 0);
+    //addinstr("mrs x2, #3, c15, c7, #0", 0xd53bf702, 0);
+    /*addinstr("msr SPSel, #3", 0xD50043BF, 0);
+    addinstr("sys #3, C7, C1, #4, x0", 0xD50B7180, 0);	
+    addinstr("at s1e1r, x0", 0xD5087800, 0);
+    addinstr("tlbi IPAS2E1IS, x4", 0xD50C8024, 0);
+    addinstr("ic ivau, x0", 0xD50B7520, 0);
+    addinstr("ic iallu", 0xD508751F, 0);
+    addinstr("dc CIVAC, x14", 0xD50B7E2E, 0);
+    */
+    //addinstr("sysl x4, #5, C4, C3, #4", 0xD52D4384, 0);
 
+    
+    addinstr("msr ACTLR_EL1, x5", 0xD5181025, 0);
+    addinstr("mrs x0, ttbr0_el1", 0xd5382000, 0);
+    addinstr("mrs x2, #3, c15, c7, #0", 0xd53bf702, 0);
+    addinstr("msr DBGWCR5_EL1, x11", 0xD51005EB, 0);
+    addinstr("mrs x23, DBGWCR5_EL1", 0xD53005F7, 0);
+    
     for(struct node *current = instructions->front;
             current;
             current = current->next){
