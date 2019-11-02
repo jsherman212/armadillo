@@ -1513,12 +1513,34 @@ int main(int argc, char **argv, const char **envp){
     //addinstr("sysl x4, #5, C4, C3, #4", 0xD52D4384, 0);
 
     
+    /*
     addinstr("msr ACTLR_EL1, x5", 0xD5181025, 0);
     addinstr("mrs x0, ttbr0_el1", 0xd5382000, 0);
     addinstr("mrs x2, #3, c15, c7, #0", 0xd53bf702, 0);
     addinstr("msr DBGWCR5_EL1, x11", 0xD51005EB, 0);
     addinstr("mrs x23, DBGWCR5_EL1", 0xD53005F7, 0);
-    
+    */
+    /*
+    addinstr("blr x1", 0xD63F0020, 0);
+    addinstr("blraaz x4", 0xd63f089f, 0);
+    addinstr("blrabz x5", 0xd63f0cbf, 0);
+    addinstr("ret", 0xD65F03C0, 0);
+    addinstr("retaa", 0xd65f0bff, 0);
+    addinstr("retab", 0xd65f0fff, 0);
+    addinstr("eret", 0xD69F03E0, 0);
+    addinstr("eretaa", 0xd69f0bff, 0);
+    addinstr("eretab", 0xd69f0fff, 0);
+    addinstr("drps", 0xD6BF03E0, 0);
+    */
+    addinstr("braa x1, x25", 0xd71f0839, 0);
+    addinstr("braa x4, sp", 0xd71f089f, 0);
+    addinstr("brab x6, x1", 0xd71f0cc1, 0);
+    addinstr("brab x8, sp", 0xd71f0d1f, 0);
+    addinstr("blraa x1, x25", 0xd73f0839, 0);
+    addinstr("blraa x4, sp", 0xd73f089f, 0);
+    addinstr("blrab x6, x1", 0xd73f0cc1, 0);
+    addinstr("blrab x8, sp", 0xd73f0d1f, 0);
+
     for(struct node *current = instructions->front;
             current;
             current = current->next){

@@ -1227,20 +1227,12 @@ static int DisassembleSystemRegisterMoveInstr(struct instruction *i,
 
     if(instr_id == AD_INSTR_MRS){
         ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
-
-        if(free_sreg_s)
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&sreg);
-        else
-            ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), PREFER_ZR, _SYSREG(sreg), _RTBL(AD_RTBL_GEN_64));
+        ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), PREFER_ZR, _SYSREG(sreg), _RTBL(AD_RTBL_GEN_64));
 
         concat(&DECODE_STR(out), "mrs %s, %s", Rt_s, sreg_s);
     }
     else{
-        if(free_sreg_s)
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&sreg);
-        else
-            ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), PREFER_ZR, _SYSREG(sreg), _RTBL(AD_RTBL_GEN_64));
-
+        ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), PREFER_ZR, _SYSREG(sreg), _RTBL(AD_RTBL_GEN_64));
         ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
 
         concat(&DECODE_STR(out), "msr %s, %s", sreg_s, Rt_s);
@@ -1256,115 +1248,107 @@ static int DisassembleSystemRegisterMoveInstr(struct instruction *i,
     return 0;
 }
 
-/*
-char *DisassembleUnconditionalBranchInstr(struct instruction *instruction){
-    char *disassembled = NULL;
-
-    unsigned int op4 = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int op3 = getbitsinrange(instruction->opcode, 10, 6);
-    unsigned int op2 = getbitsinrange(instruction->opcode, 16, 5);
-    unsigned int opc = getbitsinrange(instruction->opcode, 21, 4);
+static int DisassembleUnconditionalBranchRegisterInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned opc = bits(i->opcode, 21, 24);
+    unsigned op2 = bits(i->opcode, 16, 20);
+    unsigned op3 = bits(i->opcode, 10, 15);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned op4 = bits(i->opcode, 0, 4);
 
     if(op2 != 0x1f)
-        return strdup(".undefined");
+        return 1;
 
-    // BR, BRAAZ, BRABZ
-    if(opc == 0){
-        // BR
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, op2);
+    ADD_FIELD(out, op3);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, op4);
+
+    int instr_id = NONE;
+
+    if((opc == 0 || opc == 1) || (opc == 8 || opc == 9)){
+        const char *instr_s = NULL;
+
+        if((opc == 0 || opc == 1) && (op3 == 0 && op4 == 0)){
+            instr_s = opc == 0 ? "br" : "blr";
+            instr_id = opc == 0 ? AD_INSTR_BR : AD_INSTR_BLR;
+        }
+        else if((opc == 0 || opc == 1) && op4 == 0x1f){
+            if(opc == 0){
+                instr_s = op3 == 2 ? "braaz" : "brabz";
+                instr_id = op3 == 2 ? AD_INSTR_BRAAZ : AD_INSTR_BRABZ;
+            }
+            else{
+                instr_s = op3 == 2 ? "blraaz" : "blrabz";
+                instr_id = op3 == 2 ? AD_INSTR_BLRAAZ : AD_INSTR_BLRABZ;
+            }
+        }
+        else if(opc == 8 || opc == 9){
+            if(opc == 8){
+                instr_s = op3 == 2 ? "braa" : "brab";
+                instr_id = op3 == 2 ? AD_INSTR_BRAA : AD_INSTR_BRAB;
+            }
+            else{
+                instr_s = op3 == 2 ? "blraa" : "blrab";
+                instr_id = op3 == 2 ? AD_INSTR_BLRAA : AD_INSTR_BLRAB;
+            }
+
+        }
+
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
+        const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+        concat(&DECODE_STR(out), "%s %s", instr_s, Rn_s);
+
+        if(opc == 8 || opc == 9){
+            unsigned Rm = op4;
+
+            ADD_REG_OPERAND(out, Rm, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
+            const char *Rm_s = GET_GEN_REG(AD_RTBL_GEN_64, Rm, NO_PREFER_ZR);
+
+            concat(&DECODE_STR(out), ", %s", Rm_s);
+        }
+    }
+    else if(opc == 2 || opc == 4){
+        const char *instr_s = NULL;
+
         if(op3 == 0 && op4 == 0){
-            disassembled = malloc(128);
-            sprintf(disassembled, "br %s", ARM64_GeneralRegisters[Rn]);
+            instr_s = opc == 2 ? "ret" : "eret";
+            instr_id = opc == 2 ? AD_INSTR_RET : AD_INSTR_ERET;
         }
-        // BRAAZ or BRABZ
         else if(op4 == 0x1f){
-            disassembled = malloc(128);
-
-            const char *instr = op3 == 0x2 ? "braaz" : "brabz";
-
-            sprintf(disassembled, "%s %s", instr, ARM64_GeneralRegisters[Rn]);
+            if(opc == 2){
+                instr_s = op3 == 2 ? "retaa" : "retab";
+                instr_id = op3 == 2 ? AD_INSTR_RETAA : AD_INSTR_RETAB;
+            }
+            else{
+                instr_s = op3 == 2 ? "eretaa" : "eretab";
+                instr_id = op3 == 2 ? AD_INSTR_ERETAA : AD_INSTR_ERETAB;
+            }
         }
-        else
-            return strdup(".undefined");
-    }
-    // BLR, BLRAAZ, BLRABZ
-    else if(opc == 1){
-        // BLR
-        if(op3 == 0 && op4 == 0){
-            disassembled = malloc(128);
-            sprintf(disassembled, "blr %s", ARM64_GeneralRegisters[Rn]);
+
+        concat(&DECODE_STR(out), "%s", instr_s);
+
+        if(instr_id == AD_INSTR_RET && Rn != 0x1e){
+            ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
+            const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+            concat(&DECODE_STR(out), ", %s", Rn_s);
         }
-        // BLRAAZ or BLRABZ
-        else if(op4 == 0x1f){
-            disassembled = malloc(128);
-
-            const char *instr = op3 == 0x2 ? "blraaz" : "blrabz";
-
-            sprintf(disassembled, "%s %s", instr, ARM64_GeneralRegisters[Rn]);
-        }
-        else
-            return strdup(".undefined");
     }
-    // RET, RETAA, RETAB
-    else if(opc == 2){
-        if(op3 == 0 && op4 == 0)
-            return strdup("ret");
+    else if(opc == 5){
+        instr_id = AD_INSTR_DRPS;
 
-        if(op3 == 0x2)
-            return strdup("retaa");
-
-        if(op3 == 0x3)
-            return strdup("retab");
-
-        return strdup(".undefined");
+        concat(&DECODE_STR(out), "drps");
     }
-    // ERET, ERETAA, ERETAB
-    else if(opc == 4){
-        if(op3 == 0 && op4 == 0)
-            return strdup("eret");
 
-        if(op3 == 0x2)
-            return strdup("eretaa");
+    SET_INSTR_ID(out, instr_id);
 
-        if(op3 == 0x3)
-            return strdup("eretab");
-
-        return strdup(".undefined");
-    }
-    // DRPS
-    else if(opc == 5 && op2 == 0x1f && op3 == 0 && Rn == 0x1f && op4 == 0)
-        return strdup("drps");
-    // BRAA or BRAB
-    else if(opc == 8){
-        disassembled = malloc(128);
-
-        const char *instr = "braa";
-
-        if(op3 == 3)
-            instr = "brab";
-
-        sprintf(disassembled, "%s %s, %s", instr, ARM64_GeneralRegisters[Rn], op4 == 0x1f ? "sp" : ARM64_GeneralRegisters[op4]);
-    }
-    // BLRAA, BLRAB
-    else if(opc == 9){
-        disassembled = malloc(128);
-
-        const char *instr = "blraa";
-
-        if(op3 == 3)
-            instr = "blrab";
-
-        sprintf(disassembled, "%s %s, %s", instr, ARM64_GeneralRegisters[Rn], op4 == 0x1f ? "sp" : ARM64_GeneralRegisters[op4]);
-    }
-    else
-        return strdup(".undefined");
-
-    if(!disassembled)
-        return strdup(".unknown");
-
-    return disassembled;
+    return 0;
 }
 
+/*
 char *DisassembleUnconditionalBranchImmInstr(struct instruction *instruction){
     char *disassembled = NULL;
 
@@ -1460,6 +1444,8 @@ int BranchExcSysDisassemble(struct instruction *i, struct ad_insn *out){
             result = DisassembleSystemInstr(i, out);
         else if(((op1 >> 8) & ~2) == 0x11)
             result = DisassembleSystemRegisterMoveInstr(i, out);
+        else if((op1 >> 13) == 1)
+            result = DisassembleUnconditionalBranchRegisterInstr(i, out);
     }
     else{
         result = 1;
@@ -1482,7 +1468,7 @@ int BranchExcSysDisassemble(struct instruction *i, struct ad_insn *out){
         else if((op1 & ~0x2ff) == 0x1100)
             disassembled = DisassembleSystemRegisterMoveInstr(instruction);
         else if((op1 >> 0xd) == 0x1)
-            disassembled = DisassembleUnconditionalBranchInstr(instruction);
+            disassembled = DisassembleUnconditionalBranchRegisterInstr(instruction);
         else
             return strdup(".undefined");
     }
