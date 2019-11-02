@@ -14,6 +14,7 @@ struct itab {
 #define S_LA(x) ((long)x) < 0 ? "-" : "", ((long)x) < 0 ? -((long)x) : ((long)x)
 
 #define NONE (-1)
+#define _128_BIT (128)
 #define _64_BIT (64)
 #define _32_BIT (32)
 
@@ -117,6 +118,13 @@ static inline const char *GET_GEN_REG(const char **rtbl, unsigned int idx,
 
     if(idx == 31 && prefer_zr)
         idx++;
+
+    return rtbl[idx];
+}
+
+static inline const char *GET_FP_REG(const char **rtbl, unsigned int idx){
+    if(idx > 31)
+        return "(reg idx oob)";
 
     return rtbl[idx];
 }

@@ -1,6 +1,14 @@
-#include "LoadsAndStores.h"
+#include <stdio.h>
+#include <stdlib.h>
 
-int get_post_idx_immediate_offset(int regamount, unsigned int Q){
+#include "adefs.h"
+#include "bits.h"
+#include "common.h"
+#include "instruction.h"
+#include "utils.h"
+#include "strext.h"
+
+static int get_post_idx_immediate_offset(int regamount, unsigned int Q){
     if(regamount == 1)
         return Q == 0 ? 8 : 16;
     if(regamount == 2)
@@ -10,120 +18,110 @@ int get_post_idx_immediate_offset(int regamount, unsigned int Q){
     if(regamount == 4)
         return Q == 0 ? 32 : 64;
 
-    // should never reach
     return -1;
 }
 
-char *DisassembleLoadStoreMultStructuresInstr(struct instruction *instruction, int postidx){
-    char *disassembled = NULL;
-
-    unsigned int Vt = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int size = getbitsinrange(instruction->opcode, 10, 2);
-    unsigned int opcode = getbitsinrange(instruction->opcode, 12, 4);
-    unsigned int Rm = getbitsinrange(instruction->opcode, 16, 5);
-    unsigned int L = getbitsinrange(instruction->opcode, 22, 1);
-    unsigned int Q = getbitsinrange(instruction->opcode, 30, 1);
+static int DisassembleLoadStoreMultStructuresInstr(struct instruction *i,
+        struct ad_insn *out, int postidxed){
+    unsigned Q = bits(i->opcode, 30, 30);
+    unsigned L = bits(i->opcode, 22, 22);
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned opcode = bits(i->opcode, 12, 15);
+    unsigned size = bits(i->opcode, 10, 11);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rt = bits(i->opcode, 0, 4);
 
     const char *T = get_arrangement(size, Q);
 
     if(!T)
-        return strdup(".undefined");
+        return 1;
 
-    // figure out the register where storing or loading data at/from
-    const char *Xn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+    ADD_FIELD(out, Q);
+    ADD_FIELD(out, L);
 
-    // we need to figure out if this is LDx or STx
-    const char *prefix = NULL;
+    if(!postidxed)
+        ADD_FIELD(out, Rm);
 
-    if(L == 1)
-        prefix = "ld";
-    else if(L == 0)
-        prefix = "st";
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rt);
+
+    char *instr_s = NULL;
+    int instr_id = NONE;
+
+    if(L == 0)
+        concat(&instr_s, "st");
     else
-        return strdup(".unknown");
+        concat(&instr_s, "ld");
 
-    unsigned int selem = 0, regcount = 0;
+    unsigned regcnt, selem;
 
-    // LD4 or ST4 (4 registers)
-    if(opcode == 0){
-        selem = 4;
-        regcount = 4;
-    }
-    // LD1 or ST1 (4 registers)
-    else if(opcode == 2){
-        selem = 1;
-        regcount = 4;
-    }
-    // LD3 or ST3 (3 registers)
-    else if(opcode == 4){
-        selem = 3;
-        regcount = 3;
-    }
-    // LD1 or ST1 (3 registers)
-    else if(opcode == 6){
-        selem = 1;
-        regcount = 3;
-    }
-    // LD1 or ST1 (1 register)
-    else if(opcode == 7){
-        selem = 1;
-        regcount = 1;
-    }
-    // LD2 or ST2 (2 registers)
-    else if(opcode == 8){
-        selem = 2;
-        regcount = 2;
-    }
-    // LD1 or ST1 (2 registers)
-    else if(opcode == 0xa){
-        selem = 1;
-        regcount = 2;
-    }
+    switch(opcode){
+        case 0: regcnt = 4; selem = 4; break;
+        case 0x2: regcnt = 4; selem = 1; break;
+        case 0x4: regcnt = 3; selem = 3; break;
+        case 0x6: regcnt = 3; selem = 1; break;
+        case 0x7: regcnt = 1; selem = 1; break;
+        case 0x8: regcnt = 2; selem = 2; break;
+        case 0xa: regcnt = 2; selem = 1; break;
+        default: return 1;
+    };
+
+    if(L == 0)
+        instr_id = (AD_INSTR_ST1 - 1) + selem;
     else
-        return strdup(".unknown");
+        /* the way the AD_INSTR_* enum is set up makes this more complicated */
+        instr_id = (AD_INSTR_LD1 - 1) + ((selem * 2) - 1);
 
-    char *instrtype = malloc(8);
-    sprintf(instrtype, "%s%d", prefix, selem);
+    concat(&instr_s, "%d", selem);
 
-    // now we can finally start to build the instruction
-    disassembled = malloc(256);
-    sprintf(disassembled, "%s {", instrtype);
+    concat(&DECODE_STR(out), "%s { ", instr_s);
 
-    free(instrtype);
+    free(instr_s);
+    instr_s = NULL;
 
-    for(int i=Vt; i<(regcount+Vt); i++)
-        sprintf(disassembled, "%s%s.%s, ", disassembled, ARM64_VectorRegisters[i], T);
+    for(int i=Rt; i<(Rt+regcnt)-1; i++){
+        ADD_REG_OPERAND(out, i, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_FP_V_128));
+        const char *Ri_s = GET_FP_REG(AD_RTBL_FP_V_128, i);
 
-    // cut off the extra space from the end of the loop
-    disassembled[strlen(disassembled) - 2] = '\0';
+        concat(&DECODE_STR(out), "%s.%s, ", Ri_s, T);
+    }
 
-    // append the rest of the instruction
-    sprintf(disassembled, "%s}, [%s]", disassembled, Xn);
+    ADD_REG_OPERAND(out, (Rt+regcnt)-1, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_FP_V_128));
+    const char *last_Rt_s = GET_FP_REG(AD_RTBL_FP_V_128, (Rt+regcnt)-1);
 
-    // if this is a post-index varient, tack on the
-    // post-index register or immediate
-    if(postidx){
-        // if Rm is not 0x1f, we have a post-index register
-        if(Rm != 0x1f)
-            sprintf(disassembled, "%s, %s", disassembled, ARM64_GeneralRegisters[Rm]);
-        // otherwise, we have a post-index immediate
+    ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
+    const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+    concat(&DECODE_STR(out), "%s.%s }, [%s]", last_Rt_s, T, Rn_s);
+
+    if(postidxed){
+        if(Rm != 0x1f){
+            ADD_REG_OPERAND(out, Rm, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
+            const char *Rm_s = GET_GEN_REG(AD_RTBL_GEN_64, Rm, NO_PREFER_ZR);
+
+            concat(&DECODE_STR(out), ", %s", Rm_s);
+        }
         else{
-            int imm = get_post_idx_immediate_offset(regcount, Q);
+            int imm = get_post_idx_immediate_offset(regcnt, Q);
 
             if(imm == -1)
-                return strdup(".unknown");
+                return 1;
 
-            sprintf(disassembled, "%s, #%d", disassembled, imm);
+            /* imm is unsigned, that fxn returns -1 for error checking */
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imm);
+
+            concat(&DECODE_STR(out), ", #%#x", (unsigned)imm);
         }
     }
 
-    if(!disassembled)
-        return strdup(".unknown");
+    SET_INSTR_ID(out, instr_id);
 
-    return disassembled;
+    return 0;
 }
 
+/*
 char *DisassembleLoadStoreSingleStructuresInstr(struct instruction *instruction, int postidx){
     char *disassembled = NULL;
 
@@ -283,153 +281,6 @@ char *DisassembleLoadStoreSingleStructuresInstr(struct instruction *instruction,
 
     return disassembled;
 }
-
-/***********************
-
-00:0:0:0:0:-
-STXRB <Ws>, <Wt>, [<Xn|SP>{,#0}] 
-
-01:0:0:0:0:-
-STXRH <Ws>, <Wt>, [<Xn|SP>{,#0}] 
-
-10:0:0:0:0:-
-STXR <Ws>, <Wt>, [<Xn|SP>{,#0}] 
-
-11:0:0:0:0:-
-STXR <Ws>, <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-
-00:0:0:0:1:-
-STLXRB <Ws>, <Wt>, [<Xn|SP>{,#0}] 
-
-01:0:0:0:1:-
-STLXRH <Ws>, <Wt>, [<Xn|SP>{,#0}] 
-
-10:0:0:0:1:-
-STLXR <Ws>, <Wt>, [<Xn|SP>{,#0}] 
-
-11:0:0:0:1-
-STLXR <Ws>, <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-
-10:0:0:1:0:-
-STXP <Ws>, <Wt1>, <Wt2>, [<Xn|SP>{,#0}] 
-
-11:0:0:1:0:-
-STXP <Ws>, <Xt1>, <Xt2>, [<Xn|SP>{,#0}] 
-
------------------------
-
-10:0:0:1:1:-
-STLXP <Ws>, <Wt1>, <Wt2>, [<Xn|SP>{,#0}] 
-
-11:0:0:1:1:-
-STLXP <Ws>, <Xt1>, <Xt2>, [<Xn|SP>{,#0}] 
-
------------------------
-
-00:0:1:0:0:-
-LDXRB <Wt>, [<Xn|SP>{,#0}] 
-
-01:0:1:0:0:-
-LDXRH <Wt>, [<Xn|SP>{,#0}]
-
-10:0:1:0:0:-
-LDXR <Wt>, [<Xn|SP>{,#0}] 
-
-11:0:1:0:0:-
-LDXR <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-
-00:0:1:0:1:-
-LDAXRB <Wt>, [<Xn|SP>{,#0}] 
-
-01:0:1:0:1:-
-LDAXRH <Wt>, [<Xn|SP>{,#0}] 
-
-10:0:1:0:1:-
-LDAXR <Wt>, [<Xn|SP>{,#0}] 
-
-11:0:1:0:1:-
-LDAXR <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-
-10:0:1:1:0:-
-LDXP <Wt1>, <Wt2>, [<Xn|SP>{,#0}]
-
-11:0:1:1:0:-
-LDXP <Xt1>, <Xt2>, [<Xn|SP>{,#0}] 
-
------------------------
-
-10:0:1:1:1:-
-LDAXP <Wt1>, <Wt2>, [<Xn|SP>{,#0}] 
-
-11:0:1:1:1:-
-LDAXP <Xt1>, <Xt2>, [<Xn|SP>{,#0}] 
-
------------------------
-
-00:1:0:0:0:-
-STLLRB <Wt>, [<Xn|SP>{,#0}] 
-
-01:1:0:0:0:-
-STLLRH <Wt>, [<Xn|SP>{,#0}] 
-
-10:1:0:0:0:-
-STLLR <Wt>, [<Xn|SP>{,#0}] 
-
-11:1:0:0:0:-
-STLLR <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-
-00:1:0:0:1:-
-STLRB <Wt>, [<Xn|SP>{,#0}] 
-
-01:1:0:0:1:-
-STLRH <Wt>, [<Xn|SP>{,#0}] 
-
-10:1:0:0:1:-
-STLR <Wt>, [<Xn|SP>{,#0}] 
-
-11:1:0:0:1-
-STLR <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-
-00:1:1:0:0:-
-LDLARB <Wt>, [<Xn|SP>{,#0}] 
-
-01:1:1:0:0:-
-LDLARH <Wt>, [<Xn|SP>{,#0}] 
-
-10:1:1:0:0:-
-LDLAR <Wt>, [<Xn|SP>{,#0}] 
-
-11:1:1:0:0:-
-LDLAR <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-
-00:1:1:0:1:-
-LDARB <Wt>, [<Xn|SP>{,#0}] 
-
-01:1:1:0:1:-
-LDARH <Wt>, [<Xn|SP>{,#0}] 
-
-10:1:1:0:1:-
-LDAR <Wt>, [<Xn|SP>{,#0}] 
-
-11:1:1:0:1-
-LDAR <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-***********************/
 
 char *DisassembleLoadAndStoreExclusiveInstr(struct instruction *instruction){
     char *disassembled = NULL;
@@ -1358,10 +1209,26 @@ char *DisassembleLoadAndStorePACInstr(struct instruction *instruction){
 
     return disassembled;
 }
+*/
 
-char *LoadsAndStoresDisassemble(struct instruction *instruction){
-    char *disassembled = NULL;
+int LoadsAndStoresDisassemble(struct instruction *i, struct ad_insn *out){
+    int result = 0;
 
+    unsigned op0 = bits(i->opcode, 28, 31);
+    unsigned op1 = bits(i->opcode, 26, 26);
+    unsigned op2 = bits(i->opcode, 23, 24);
+    unsigned op3 = bits(i->opcode, 16, 21);
+    unsigned op4 = bits(i->opcode, 10, 11);
+
+    if((op0 & ~4) == 0 && (op2 == 0 || op2 == 1) && (op3 >> 5) == 0){
+        result = DisassembleLoadStoreMultStructuresInstr(i, out, op2);
+    }
+    else{
+        result = 1;
+    }
+
+
+    /*
     unsigned int op0 = getbitsinrange(instruction->opcode, 28, 4);
     unsigned int op1 = getbitsinrange(instruction->opcode, 26, 1);
     unsigned int op2 = getbitsinrange(instruction->opcode, 23, 2);
@@ -1394,8 +1261,7 @@ char *LoadsAndStoresDisassemble(struct instruction *instruction){
     }
     else if(((op0 & ~0xc) == 0x3 && (op2 >> 0x1) == 0x1))
         disassembled = DisassembleLoadAndStoreRegisterInstr(instruction, UNSIGNED_IMMEDIATE);
-    else
-        return strdup(".undefined");
+    */
 
-    return disassembled;
+    return result;
 }

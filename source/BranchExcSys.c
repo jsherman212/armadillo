@@ -274,8 +274,7 @@ static int DisassembleBarrierInstr(struct instruction *i,
     return 0;
 }
 
-static int DisassemblePSTATEInstr(struct instruction *i,
-        struct ad_insn *out){
+static int DisassemblePSTATEInstr(struct instruction *i, struct ad_insn *out){
     unsigned op1 = bits(i->opcode, 16, 18);
     unsigned CRm = bits(i->opcode, 8, 11);
     unsigned op2 = bits(i->opcode, 5, 7);

@@ -38,6 +38,10 @@ static int _ArmadilloDisassembleNew(struct instruction *i,
         out->group = AD_G_BranchExcSys;
         return BranchExcSysDisassemble(i, out);
     }
+    else if((op0 & ~0xa) == 4){
+        out->group = AD_G_LoadsAndStores;
+        return LoadsAndStoresDisassemble(i, out);
+    }
     else{
         concat(&DECODE_STR(out), ".long #%#x (else)", i->opcode);
         return 0;

@@ -1,10 +1,6 @@
 #ifndef _LOADSANDSTORES_H_
 #define _LOADSANDSTORES_H_
 
-#include "common.h"
-#include "instruction.h"
-#include "utils.h"
-
 #define NO_ALLOCATE 0
 #define POST_INDEXED 1
 #define OFFSET 2
@@ -110,6 +106,6 @@ static const char *unprivileged_instr_tbl[] = {
     "ldtr",
     NULL };
 
-char *LoadsAndStoresDisassemble(struct instruction *instruction);
+int LoadsAndStoresDisassemble(struct instruction *, struct ad_insn *);
 
 #endif
