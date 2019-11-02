@@ -1532,6 +1532,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("eretab", 0xd69f0fff, 0);
     addinstr("drps", 0xD6BF03E0, 0);
     */
+    /*
     addinstr("braa x1, x25", 0xd71f0839, 0);
     addinstr("braa x4, sp", 0xd71f089f, 0);
     addinstr("brab x6, x1", 0xd71f0cc1, 0);
@@ -1540,6 +1541,23 @@ int main(int argc, char **argv, const char **envp){
     addinstr("blraa x4, sp", 0xd73f089f, 0);
     addinstr("blrab x6, x1", 0xd73f0cc1, 0);
     addinstr("blrab x8, sp", 0xd73f0d1f, 0);
+    */
+    /*
+    addinstr("b 0x55c0 @ 0x100007f2c", 0x14001570, 0x100007f2c);
+    addinstr("b -0x354 @ 0x100007f30", 0x17ffff2b, 0x100007f30);
+    addinstr("bl 0x48 @ 0x100007f34", 0x94000012, 0x100007f34);
+    addinstr("bl -0x300 @ 0x100007f38", 0x97ffff40, 0x100007f38);
+    */
+
+    addinstr("cbz x9, #0x40 @ 0x100007f2c", 0xB4000209, 0x100007f2c);
+    addinstr("cbz x17, -0x340 @ 0x100007f30", 0xb4ffe611, 0x100007f30);
+    addinstr("cbnz x2, #0x900 @ 0x100007f34", 0xb5004802, 0x100007f34);
+    addinstr("cbnz x13, -0x50 @ 0x100007f38", 0xB5FFFD8D, 0x100007f38);
+
+    addinstr("tbz x9, 0x0, 0x5000 @ 0x100007f2c", 0x36028009, 0x100007f2c);
+    addinstr("tbz x17, 0x1, -0x3200 @ 0x100007f30", 0x360e7011, 0x100007f30);
+    addinstr("tbnz x2, 0x1, 0x4 @ 0x100007f34", 0x37080022, 0x100007f34);
+    addinstr("tbnz x13, 0x0, 0x404 @ 0x100007f38", 0x3700202d, 0x100007f38);
 
     for(struct node *current = instructions->front;
             current;

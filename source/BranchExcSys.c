@@ -1348,80 +1348,130 @@ static int DisassembleUnconditionalBranchRegisterInstr(struct instruction *i,
     return 0;
 }
 
-/*
-char *DisassembleUnconditionalBranchImmInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleUnconditionalBranchImmInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned op = bits(i->opcode, 31, 31);
+    unsigned imm26 = bits(i->opcode, 0, 25);
 
-    unsigned int op = getbitsinrange(instruction->opcode, 31, 1);
-    unsigned int imm26 = getbitsinrange(instruction->opcode, 0, 26);
+    ADD_FIELD(out, op);
+    ADD_FIELD(out, imm26);
 
-    const char *type = "b";
+    const char *instr_s = NULL;
+    int instr_id = NONE;
 
-    if(op == 1)
-        type = "bl";
+    if(op == 0){
+        instr_s = "b";
+        instr_id = AD_INSTR_B;
+    }
+    else{
+        instr_s = "bl";
+        instr_id = AD_INSTR_BL;
+    }
 
     imm26 = sign_extend(imm26 << 2, 28);
 
-    disassembled = malloc(128);
+    long imm = (signed)imm26 + i->PC;
 
-    sprintf(disassembled, "%s #%#lx", type, (signed int)imm26 + instruction->PC);
+    ADD_IMM_OPERAND(out, AD_LONG, *(long *)&imm);
 
-    return disassembled;
+    concat(&DECODE_STR(out), "%s "S_LX"", instr_s, S_LA(imm));
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-char *DisassembleCompareAndBranchImmediateInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleCompareAndBranchImmediateInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned sf = bits(i->opcode, 31, 31);
+    unsigned op = bits(i->opcode, 24, 24);
+    unsigned imm19 = bits(i->opcode, 5, 23);
+    unsigned Rt = bits(i->opcode, 0, 4);
 
-    unsigned int Rt = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int imm19 = getbitsinrange(instruction->opcode, 5, 19);
-    unsigned int op = getbitsinrange(instruction->opcode, 24, 1);
-    unsigned int sf = getbitsinrange(instruction->opcode, 31, 1);
+    const char **registers = AD_RTBL_GEN_32;
+    size_t len = AD_RTBL_GEN_32_SZ;
 
-    const char **registers = ARM64_GeneralRegisters;
+    if(sf == 1){
+        registers = AD_RTBL_GEN_64;
+        len = AD_RTBL_GEN_64_SZ;
+    }
 
-    if(sf == 0)
-        registers = ARM64_32BitGeneralRegisters;
+    if(Rt > len)
+        return 1;
+
+    ADD_FIELD(out, sf);
+    ADD_FIELD(out, op);
+    ADD_FIELD(out, imm19);
+    ADD_FIELD(out, Rt);
+
+    const char *Rt_s = GET_GEN_REG(registers, Rt, NO_PREFER_ZR);
+
+    const char *instr_s = op == 0 ? "cbz" : "cbnz";
+    int instr_id = op == 0 ? AD_INSTR_CBZ : AD_INSTR_CBNZ;
+    int sz = (registers == AD_RTBL_GEN_64 ? _64_BIT : _32_BIT);
 
     imm19 = sign_extend(imm19 << 2, 21);
 
-    const char *instr = op == 0 ? "cbz" : "cbnz";
+    long imm = (signed)imm19 + i->PC;
 
-    disassembled = malloc(128);
+    ADD_REG_OPERAND(out, Rt, sz, NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+    ADD_IMM_OPERAND(out, AD_LONG, *(long *)&imm);
 
-    sprintf(disassembled, "%s %s, #%#lx", instr, registers[Rt], (signed int)imm19 + instruction->PC);
+    concat(&DECODE_STR(out), "%s %s, "S_LX"", instr_s, Rt_s, S_LA(imm));
 
-    return disassembled;
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-char *DisassembleTestAndBranchImmediateInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleTestAndBranchImmediateInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned b5 = bits(i->opcode, 31, 31);
+    unsigned op = bits(i->opcode, 24, 24);
+    unsigned b40 = bits(i->opcode, 19, 23);
+    unsigned imm14 = bits(i->opcode, 5, 18);
+    unsigned Rt = bits(i->opcode, 0, 4);
 
-    unsigned int Rt = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int imm14 = getbitsinrange(instruction->opcode, 5, 14);
-    unsigned int b40 = getbitsinrange(instruction->opcode, 19, 5);
-    unsigned int op = getbitsinrange(instruction->opcode, 24, 1);
-    unsigned int b5 = getbitsinrange(instruction->opcode, 31, 1);
+    const char **registers = AD_RTBL_GEN_32;
+    size_t len = AD_RTBL_GEN_32_SZ;
 
-    const char **registers = ARM64_GeneralRegisters;
+    if(b5 == 1){
+        registers = AD_RTBL_GEN_64;
+        len = AD_RTBL_GEN_64_SZ;
+    }
 
-    if(b5 == 0)
-        registers = ARM64_32BitGeneralRegisters;
+    if(Rt > len)
+        return 1;
 
-    const char *instr = "tbz";
+    ADD_FIELD(out, b5);
+    ADD_FIELD(out, op);
+    ADD_FIELD(out, b40);
+    ADD_FIELD(out, imm14);
+    ADD_FIELD(out, Rt);
 
-    if(op == 1)
-        instr = "tbnz";
+    const char *Rt_s = GET_GEN_REG(registers, Rt, PREFER_ZR);
 
-    unsigned int imm = (b5 << 6) | b40;
+    const char *instr_s = op == 0 ? "tbz" : "tbnz";
+    int instr_id = op == 0 ? AD_INSTR_TBZ : AD_INSTR_TBNZ;
+    int sz = (registers == AD_RTBL_GEN_64 ? _64_BIT : _32_BIT);
+
+    unsigned int bit_pos = (b5 << 6) | b40;
+
     imm14 = sign_extend(imm14 << 2, 16);
 
-    disassembled = malloc(128);
+    long imm = (signed)imm14 + i->PC;
 
-    sprintf(disassembled, "%s %s, #%#x, #%#lx", instr, registers[Rt], imm, (signed int)imm14 + instruction->PC);
+    ADD_REG_OPERAND(out, Rt, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&bit_pos);
+    ADD_IMM_OPERAND(out, AD_LONG, *(long *)&imm);
 
-    return disassembled;
+    concat(&DECODE_STR(out), "%s %s, #%#x, #"S_LX"", instr_s, Rt_s, bit_pos, S_LA(imm));
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
-*/
+
 int BranchExcSysDisassemble(struct instruction *i, struct ad_insn *out){
     unsigned op0 = bits(i->opcode, 29, 31);
     unsigned op1 = bits(i->opcode, 12, 25);
@@ -1447,40 +1497,18 @@ int BranchExcSysDisassemble(struct instruction *i, struct ad_insn *out){
         else if((op1 >> 13) == 1)
             result = DisassembleUnconditionalBranchRegisterInstr(i, out);
     }
+    else if((op0 & ~4) == 0){
+        result = DisassembleUnconditionalBranchImmInstr(i, out);
+    }
+    else if((op0 & ~4) == 1){
+        if((op1 >> 13) == 0)
+            result = DisassembleCompareAndBranchImmediateInstr(i, out);
+        else
+            result = DisassembleTestAndBranchImmediateInstr(i, out);
+    }
     else{
         result = 1;
     }
-
-    /*
-    if(op0 == 0x2 && (op1 >> 0xd) == 0)
-        disassembled = DisassembleConditionalImmediateBranchInstr(instruction);
-    else if(op0 == 0x6){
-        if((op1 >> 0xc) == 0)
-            disassembled = DisassembleExcGenInstr(instruction);
-        else if(op1 == 0x1032 && op2 == 0x1f)
-            disassembled = DisassembleHintInstr(instruction);
-        else if(op1 == 0x1033)
-            disassembled = DisassembleBarrierInstr(instruction);
-        else if((op1 & ~0x70) == 0x1004)
-            disassembled = DisassemblePSTATEInstr(instruction);
-        else if((op1 & ~0x27f) == 0x1080)
-            disassembled = DisassembleSystemInstr(instruction);
-        else if((op1 & ~0x2ff) == 0x1100)
-            disassembled = DisassembleSystemRegisterMoveInstr(instruction);
-        else if((op1 >> 0xd) == 0x1)
-            disassembled = DisassembleUnconditionalBranchRegisterInstr(instruction);
-        else
-            return strdup(".undefined");
-    }
-    else if((op0 & ~0x4) == 0)
-        disassembled = DisassembleUnconditionalBranchImmInstr(instruction);
-    else if((op0 & ~0x4) == 0x1){
-        if((op1 >> 0xd) == 0)
-            disassembled = DisassembleCompareAndBranchImmediateInstr(instruction);
-        else if((op1 >> 0xd) == 0x1)
-            disassembled = DisassembleTestAndBranchImmediateInstr(instruction);
-    }
-    */
 
     return result;
 }
