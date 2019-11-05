@@ -249,12 +249,14 @@ static int DisassembleAddSubtractImmediateWithTagsInstr(struct instruction *i,
     const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
     const char *Rd_s = GET_GEN_REG(AD_RTBL_GEN_64, Rd, NO_PREFER_ZR);
 
+    uimm6 <<= 4;
+
     ADD_REG_OPERAND(out, Rd, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
     ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
-    ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&uimm6);
-    ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&uimm4);
+    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&uimm6);
+    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&uimm4);
 
-    concat(&DECODE_STR(out), "%s %s, %s, #%#lx, #%#lx", instr_s, Rd_s,
+    concat(&DECODE_STR(out), "%s %s, %s, #%#x, #%#x", instr_s, Rd_s,
             Rn_s, uimm6, uimm4);
 
     SET_INSTR_ID(out, instr_id);

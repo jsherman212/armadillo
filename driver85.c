@@ -1578,7 +1578,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("st1 {v4.2s, v5.2s}, [x20]", 0x0C00AA84, 0);
     */
 
-
+    /*
     addinstr("st1 {v4.b}[6], [x22]", 0x0D001AC4, 0);
     addinstr("st3 {v1.d, v2.d, v3.d}[0], [x5], #24", 0x0D9FA4A1, 0);
     addinstr("st3 {v11.d, v12.d, v13.d}[1], [x2], x4", 0x4D84A44B, 0);
@@ -1588,6 +1588,45 @@ int main(int argc, char **argv, const char **envp){
     addinstr("ld1r {v2.4h}, [x2], #2", 0x0DDFC442, 0);
     addinstr("ld2r {v28.2s, v29.2s}, [sp], x20", 0x0DF4CBFC, 0);
     addinstr("ld3r {v15.2d, v16.2d, v17.2d}, [x1], #24", 0x4DDFEC2F, 0);
+    */
+
+    /*
+    addinstr("stzgm	x8, [sp]", 0xd92003e8, 0);
+    addinstr("ldgm	x10, [x21]", 0xd9e002aa, 0);
+    addinstr("ldg	x2, [sp]", 0xd96003e2, 0);
+    addinstr("ldg	x3, [sp, #-0x100]", 0xd97f03e3, 0);
+    addinstr("ldg	x3, [sp, #0x1f0]", 0xd961f3e3, 0);
+    addinstr("ldg	x5, [x20, #0x200]", 0xd9620285, 0);
+    addinstr("subg	sp, sp, #0x100, #0x4", 0xd19013ff, 0);
+    */
+    
+    /*addinstr("addg	x0, x1, #0x0, #0x1", 0x91800420, 0);
+    addinstr("addg	sp, x2, #0x20, #0x3", 0x91820c5f, 0);
+    addinstr("addg	x0, sp, #0x40, #0x5", 0x918417e0, 0);
+    addinstr("addg	x3, x4, #0x3f0, #0x6", 0x91bf1883, 0);
+    addinstr("addg	x5, x6, #0x70, #0xf", 0x91873cc5, 0);
+    addinstr("subg	x0, x1, #0x0, #0x1", 0xd1800420, 0);
+    addinstr("subg	sp, x2, #0x20, #0x3", 0xd1820c5f, 0);
+    addinstr("subg	x0, sp, #0x40, #0x5", 0xd18417e0, 0);
+    addinstr("subg	x3, x4, #0x3f0, #0x6", 0xd1bf1883, 0);
+    addinstr("subg	x5, x6, #0x70, #0xf", 0xd1873cc5, 0);
+    */
+    addinstr("stg	sp, [sp], #0x100", 0xd92107ff, 0);
+    addinstr("stg	x20, [x4, #-0x20]!", 0xd93fec94, 0);
+    addinstr("stg	x2, [x24, #-0x200]", 0xd93e0b02, 0);
+    addinstr("stg	x2, [x4]", 0xd9200882, 0);
+    addinstr("stzg	sp, [sp], #0x100", 0xd96107ff, 0);
+addinstr("stzg	x20, [x4, #-0x20]!", 0xd97fec94, 0);
+addinstr("stzg	x2, [x24, #-0x200]", 0xd97e0b02, 0);
+addinstr("stzg	x2, [x4]", 0xd9600882, 0);
+addinstr("st2g	sp, [sp], #0x100", 0xd9a107ff, 0);
+addinstr("st2g	x20, [x4, #-0x20]!", 0xd9bfec94, 0);
+addinstr("st2g	x2, [x24, #-0x200]", 0xd9be0b02, 0);
+addinstr("st2g	x2, [x4]", 0xd9a00882, 0);
+addinstr("stz2g	sp, [sp], #0x100", 0xd9e107ff, 0);
+addinstr("stz2g	x20, [x4, #-0x20]!", 0xd9ffec94, 0);
+addinstr("stz2g	x2, [x24, #-0x200]", 0xd9fe0b02, 0);
+addinstr("stz2g	x2, [x4]", 0xd9e00882, 0);
 
 
     for(struct node *current = instructions->front;

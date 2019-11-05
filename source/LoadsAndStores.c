@@ -267,7 +267,6 @@ static int DisassembleLoadStoreSingleStructuresInstr(struct instruction *i,
 
                 concat(&DECODE_STR(out), ", #%#x", imm);
             }
-
         }
         else{
             if(Rm != 0x1f){
@@ -299,6 +298,126 @@ static int DisassembleLoadStoreSingleStructuresInstr(struct instruction *i,
 
     return 0;
 }
+
+static int DisassembleLoadStoreMemoryTagsInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned opc = bits(i->opcode, 22, 23);
+    unsigned imm9 = bits(i->opcode, 12, 20);
+    unsigned op2 = bits(i->opcode, 10, 11);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rt = bits(i->opcode, 0, 4);
+
+    if((opc == 2 || opc == 3) && imm9 != 0 && op2 == 0)
+        return 1;
+
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, imm9);
+    ADD_FIELD(out, op2);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rt);
+
+    int instr_id = NONE;
+
+    const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+    const char *Rt_s = GET_GEN_REG(AD_RTBL_GEN_64, Rt, NO_PREFER_ZR);
+
+    if((opc == 0 || opc == 2 || opc == 3) && imm9 == 0 && op2 == 0){
+        const char *instr_s = NULL;
+
+        if(opc == 0){
+            instr_s = "stzgm";
+            instr_id = AD_INSTR_STZGM;
+        }
+        else if(opc == 2){
+            instr_s = "stgm";
+            instr_id = AD_INSTR_STGM;
+        }
+        else{
+            instr_s = "ldgm";
+            instr_id = AD_INSTR_LDGM;
+        }
+
+        ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_64));
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_64));
+
+        concat(&DECODE_STR(out), "%s %s, [%s]", instr_s, Rt_s, Rn_s);
+    }
+    else if(opc == 1 && op2 == 0){
+        instr_id = AD_INSTR_LDG;
+
+        ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_64));
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_64));
+
+        concat(&DECODE_STR(out), "ldg %s, [%s", Rt_s, Rn_s);
+
+        if(imm9 != 0){
+            signed simm = sign_extend(imm9, 9) << 4;
+
+            ADD_IMM_OPERAND(out, AD_INT, *(int *)&simm);
+
+            concat(&DECODE_STR(out), ", #"S_X"", S_A(simm));
+        }
+
+        concat(&DECODE_STR(out), "]");
+    }
+    else if(op2 > 0){
+        enum {
+            post = 1, signed_ = 2, pre
+        };
+
+        const char *instr_s = NULL;
+
+        if(opc == 0){
+            instr_s = "stg";
+            instr_id = AD_INSTR_STG;
+        }
+        else if(opc == 1){
+            instr_s = "stzg";
+            instr_id = AD_INSTR_STZG;
+        }
+        else if(opc == 2){
+            instr_s = "st2g";
+            instr_id = AD_INSTR_ST2G;
+        }
+        else if(opc == 3){
+            instr_s = "stz2g";
+            instr_id = AD_INSTR_STZ2G;
+        }
+
+        ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_64));
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_64));
+
+        concat(&DECODE_STR(out), "%s %s, [%s", instr_s, Rt_s, Rn_s);
+
+        if(imm9 == 0)
+            concat(&DECODE_STR(out), "]");
+        else{
+            signed simm = sign_extend(imm9, 9) << 4;
+
+            ADD_IMM_OPERAND(out, AD_INT, *(int *)&simm);
+
+            if(op2 == post)
+                concat(&DECODE_STR(out), "], #"S_X"", S_A(simm));
+            else{
+                concat(&DECODE_STR(out), ", #"S_X"]", S_A(simm));
+
+                if(op2 == pre)
+                    concat(&DECODE_STR(out), "!");
+            }
+        }
+    }
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
+}
+
 /*
 char *DisassembleLoadAndStoreExclusiveInstr(struct instruction *instruction){
     char *disassembled = NULL;
@@ -1242,6 +1361,8 @@ int LoadsAndStoresDisassemble(struct instruction *i, struct ad_insn *out){
         result = DisassembleLoadStoreMultStructuresInstr(i, out, op2);
     else if((op0 & ~4) == 0 && (op2 == 2 || op2 == 3))
         result = DisassembleLoadStoreSingleStructuresInstr(i, out, op2 != 2);
+    else if(op0 == 13 && (op2 >> 1) == 1 && (op3 >> 5) == 1)
+        result = DisassembleLoadStoreMemoryTagsInstr(i, out);
     else{
         result = 1;
     }
