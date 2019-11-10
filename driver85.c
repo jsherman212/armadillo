@@ -1645,6 +1645,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("ldxp w13, w2, [x3]", 0x887F086D, 0);
     addinstr("stllr w2, [x3]", 0x889f7c62, 0);
     addinstr("ldlarb w3, [x4]", 0x08df7c83, 0);
+    /*
     addinstr("caspa x6, x7, x2, x3, [x8]", 0x48667d02, 0);
     addinstr("caspal x6, x7, x2, x3, [x8]", 0x4866fd02, 0);
     addinstr("cash w5, w6, [x4]", 0x48a57c86, 0);
@@ -1656,7 +1657,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("casl x5, x6, [x4]", 0xc8a5fc86, 0);
     addinstr("casab	w2, w5, [x9]", 0x08e27d25, 0);
     addinstr("caslb	w1, w0, [sp]", 0x08a1ffe0, 0);
-
+    */
 
     for(struct node *current = instructions->front;
             current;

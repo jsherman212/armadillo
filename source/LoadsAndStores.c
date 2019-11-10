@@ -443,119 +443,120 @@ static int DisassembleLoadAndStoreExclusiveInstr(struct instruction *i,
     unsigned encoding = (o2 << 3) | (L << 2) | (o1 << 1) | o0;
     int instr_id = NONE;
 
-    if(Rt2 == 0x1f){
-        if((size == 0 || size == 1) && (encoding == 2 || encoding == 3 ||
-                    encoding == 6 || encoding == 7)){
-            unsigned sz = size & 1;
-            const char **registers = AD_RTBL_GEN_32;
+    if((size == 0 || size == 1) && (encoding == 2 || encoding == 3 ||
+                encoding == 6 || encoding == 7)){
+        unsigned sz = size & 1;
+        const char **registers = AD_RTBL_GEN_32;
 
-            if(sz == 1)
-                registers = AD_RTBL_GEN_64;
+        if(sz == 1)
+            registers = AD_RTBL_GEN_64;
 
-            int rsz = (registers == AD_RTBL_GEN_64 ? _64_BIT : _32_BIT);
+        int rsz = (registers == AD_RTBL_GEN_64 ? _64_BIT : _32_BIT);
 
-            const char *Rs_s = GET_GEN_REG(registers, Rs, PREFER_ZR);
-            const char *Rs1_s = GET_GEN_REG(registers, Rs + 1, PREFER_ZR);
-            const char *Rt_s = GET_GEN_REG(registers, Rt, PREFER_ZR);
-            const char *Rt1_s = GET_GEN_REG(registers, Rt + 1, PREFER_ZR);
+        const char *Rs_s = GET_GEN_REG(registers, Rs, PREFER_ZR);
+        const char *Rs1_s = GET_GEN_REG(registers, Rs + 1, PREFER_ZR);
+        const char *Rt_s = GET_GEN_REG(registers, Rt, PREFER_ZR);
+        const char *Rt1_s = GET_GEN_REG(registers, Rt + 1, PREFER_ZR);
 
-            /* always 64 bit */
-            const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+        /* always 64 bit */
+        const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
 
-            ADD_REG_OPERAND(out, Rs, rsz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
-            ADD_REG_OPERAND(out, Rs + 1, rsz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
-            ADD_REG_OPERAND(out, Rt, rsz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
-            ADD_REG_OPERAND(out, Rt + 1, rsz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rs, rsz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rs + 1, rsz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rt, rsz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rt + 1, rsz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
 
-            ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_64));
 
-            const char *instr_s = NULL;
+        const char *instr_s = NULL;
 
-            if(encoding == 2){
-                instr_s = "casp";
-                instr_id = AD_INSTR_CASP;
-            }
-            else if(encoding == 3){
-                instr_s = "caspl";
-                instr_id = AD_INSTR_CASPL;
-            }
-            else if(encoding == 6){
-                instr_s = "caspa";
-                instr_id = AD_INSTR_CASPA;
-            }
-            else{
-                instr_s = "caspal";
-                instr_id = AD_INSTR_CASPAL;
-            }
-
-            concat(&DECODE_STR(out), "%s %s, %s, %s, %s, [%s]", instr_s,
-                    Rs_s, Rs1_s, Rt_s, Rt1_s, Rn_s);
+        if(encoding == 2){
+            instr_s = "casp";
+            instr_id = AD_INSTR_CASP;
         }
-        else if((size == 0 || size == 1 || size == 2 || size == 3) &&
-                (encoding == 10 || encoding == 11 || encoding == 14 || encoding == 15)){
-            const char **Rs_Rt_Rtbl = AD_RTBL_GEN_32;
-            unsigned Rs_Rt_Sz = _32_BIT;
-
-            if(size == 3){
-                Rs_Rt_Rtbl = AD_RTBL_GEN_64;
-                Rs_Rt_Sz = _64_BIT;
-            }
-
-            const char *Rs_s = GET_GEN_REG(Rs_Rt_Rtbl, Rs, PREFER_ZR);
-            const char *Rt_s = GET_GEN_REG(Rs_Rt_Rtbl, Rt, PREFER_ZR);
-            const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
-
-            ADD_REG_OPERAND(out, Rs, Rs_Rt_Sz, NO_PREFER_ZR, _SYSREG(NONE), Rs_Rt_Rtbl);
-            ADD_REG_OPERAND(out, Rt, Rs_Rt_Sz, NO_PREFER_ZR, _SYSREG(NONE), Rs_Rt_Rtbl);
-            ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
-
-            const char *instr_s = NULL;
-
-            if(encoding == 10){
-                instr_s = "cas";
-                instr_id = AD_INSTR_CASB;
-            }
-            else if(encoding == 11){
-                instr_s = "casl";
-                instr_id = AD_INSTR_CASLB;
-            }
-            else if(encoding == 14){
-                instr_s = "casa";
-                instr_id = AD_INSTR_CASAB;
-            }
-            else{
-                instr_s = "casal";
-                instr_id = AD_INSTR_CASALB;
-            }
-
-            const char *suffix = NULL; 
-
-            if(size == 0)
-                suffix = "b";
-            else if(size == 1){
-                instr_id += 4;
-                suffix = "h";
-            }
-            else{
-                if(encoding == 10)
-                    instr_id += 10;
-                else if(encoding == 11)
-                    instr_id += 12;
-                else
-                    instr_id += 13;
-
-                suffix = "";
-            }
-
-            concat(&DECODE_STR(out), "%s%s %s, %s, [%s]", instr_s, suffix,
-                    Rs_s, Rt_s, Rn_s);
+        else if(encoding == 3){
+            instr_s = "caspl";
+            instr_id = AD_INSTR_CASPL;
         }
+        else if(encoding == 6){
+            instr_s = "caspa";
+            instr_id = AD_INSTR_CASPA;
+        }
+        else{
+            instr_s = "caspal";
+            instr_id = AD_INSTR_CASPAL;
+        }
+
+        concat(&DECODE_STR(out), "%s %s, %s, %s, %s, [%s]", instr_s,
+                Rs_s, Rs1_s, Rt_s, Rt1_s, Rn_s);
+    }
+    else if((size == 0 || size == 1 || size == 2 || size == 3) &&
+            (encoding == 10 || encoding == 11 || encoding == 14 || encoding == 15)){
+        const char **Rs_Rt_Rtbl = AD_RTBL_GEN_32;
+        unsigned Rs_Rt_Sz = _32_BIT;
+
+        if(size == 3){
+            Rs_Rt_Rtbl = AD_RTBL_GEN_64;
+            Rs_Rt_Sz = _64_BIT;
+        }
+
+        const char *Rs_s = GET_GEN_REG(Rs_Rt_Rtbl, Rs, PREFER_ZR);
+        const char *Rt_s = GET_GEN_REG(Rs_Rt_Rtbl, Rt, PREFER_ZR);
+        const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+        ADD_REG_OPERAND(out, Rs, Rs_Rt_Sz, PREFER_ZR, _SYSREG(NONE), Rs_Rt_Rtbl);
+        ADD_REG_OPERAND(out, Rt, Rs_Rt_Sz, PREFER_ZR, _SYSREG(NONE), Rs_Rt_Rtbl);
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_64));
+
+        const char *instr_s = NULL;
+
+        /* we'll figure out the suffixes and adjust insn ID later */
+        if(encoding == 10){
+            instr_s = "cas";
+            instr_id = AD_INSTR_CASB;
+        }
+        else if(encoding == 11){
+            instr_s = "casl";
+            instr_id = AD_INSTR_CASLB;
+        }
+        else if(encoding == 14){
+            instr_s = "casa";
+            instr_id = AD_INSTR_CASAB;
+        }
+        else{
+            instr_s = "casal";
+            instr_id = AD_INSTR_CASALB;
+        }
+
+        const char *suffix = NULL; 
+
+        if(size == 0)
+            suffix = "b";
+        else if(size == 1){
+            instr_id += 4;
+            suffix = "h";
+        }
+        else{
+            if(encoding == 10)
+                instr_id += 10;
+            else if(encoding == 11)
+                instr_id += 12;
+            else
+                instr_id += 13;
+
+            suffix = "";
+        }
+
+        concat(&DECODE_STR(out), "%s%s %s, %s, [%s]", instr_s, suffix,
+                Rs_s, Rt_s, Rn_s);
     }
     else if(size == 0 || size == 1){
         /* We'll figure out if this deals with bytes or halfwords later.
          * For now, set the instruction id to the instruction which deals with
          * bytes, and if we find out this instruction actually deals
-         * with halfwords, we increment the instruction ID. Addtionally,
+         * with halfwords, we increment the instruction ID. Additionally,
          * we'll add the last character to the instruction string later on.
          */
         struct itab tab[] = {
@@ -576,180 +577,130 @@ static int DisassembleLoadAndStoreExclusiveInstr(struct instruction *i,
         };
 
         const char *instr_s = tab[encoding].instr_s;
+
+        if(!instr_s)
+            return 1;
+
         instr_id = tab[encoding].instr_id;
 
         /* insn deals with bytes */
         if(size == 0)
-            concat(&DECODE_STR(out), "%sb", instr_s);
+            concat(&DECODE_STR(out), "%sb ", instr_s);
         else{
-            concat(&DECODE_STR(out), "%sh", instr_s);
+            concat(&DECODE_STR(out), "%sh ", instr_s);
 
             instr_id++;
         }
 
-
-        /*
-        if(encoding == 0 || encoding == 1){
+        if(instr_id == AD_INSTR_STXRB || instr_id == AD_INSTR_STLXRB ||
+                instr_id == AD_INSTR_STXRH || instr_id == AD_INSTR_STLXRH){
             const char *Rs_s = GET_GEN_REG(AD_RTBL_GEN_32, Rs, PREFER_ZR);
-            const char *Rt_s = GET_GEN_REG(AD_RTBL_GEN_32, Rt, PREFER_ZR);
-            const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
 
-            ADD_REG_OPERAND(out, Rs, _SZ(_32_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_32));
-            ADD_REG_OPERAND(out, Rt, _SZ(_32_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_32));
-            ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
+            ADD_REG_OPERAND(out, Rs, _SZ(_32_BIT), PREFER_ZR, _SYSREG(NONE),
+                    _RTBL(AD_RTBL_GEN_32));
 
-            const char *instr_s = NULL;
-
+            concat(&DECODE_STR(out), "%s, ", Rs_s);
         }
-        */
 
+        const char *Rt_s = GET_GEN_REG(AD_RTBL_GEN_32, Rt, PREFER_ZR);
+        const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+        ADD_REG_OPERAND(out, Rt, _SZ(_32_BIT), NO_PREFER_ZR, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_32));
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_64));
+
+        concat(&DECODE_STR(out), "%s, [%s]", Rt_s, Rn_s);
     }
+    else if(size == 2 || size == 3){
+        struct itab tab[] = {
+            { "stxr", AD_INSTR_STXR },
+            { "stlxr", AD_INSTR_STLXR },
+            { "stxp", AD_INSTR_STXP },
+            { "stlxp", AD_INSTR_STLXP },
+            { "ldxr", AD_INSTR_LDXR },
+            { "ldaxr", AD_INSTR_LDAXR },
+            { "ldxp", AD_INSTR_LDXP },
+            { "ldaxp", AD_INSTR_LDAXP },
+            { "stllr", AD_INSTR_STLLR },
+            { "stlr", AD_INSTR_STLR },
+            { NULL, NONE },
+            { NULL, NONE },
+            { "ldlar", AD_INSTR_LDLAR },
+            { "ldar", AD_INSTR_LDAR },
+        };
 
+        const char *instr_s = tab[encoding].instr_s;
 
-    SET_INSTR_ID(out, instr_id);
+        if(!instr_s)
+            return 1;
 
-    /*
-    char *disassembled = NULL;
+        instr_id = tab[encoding].instr_id;
 
-    unsigned int Rt = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int Rt2 = getbitsinrange(instruction->opcode, 10, 5);
-    unsigned int o0 = getbitsinrange(instruction->opcode, 15, 1);
-    unsigned int Rs = getbitsinrange(instruction->opcode, 16, 5);
-    unsigned int o1 = getbitsinrange(instruction->opcode, 21, 1);
-    unsigned int L = getbitsinrange(instruction->opcode, 22, 1);
-    unsigned int o2 = getbitsinrange(instruction->opcode, 23, 1);
-    unsigned int size = getbitsinrange(instruction->opcode, 30, 2);
-    unsigned int sz = getbitsinrange(instruction->opcode, 30, 1);
+        const char *Rs_s = GET_GEN_REG(AD_RTBL_GEN_32, Rs, PREFER_ZR);
+        
+        const char **Rt_Rtbl = AD_RTBL_GEN_32;
+        unsigned Rt_Sz = _32_BIT;
 
-    unsigned int encoding = (o2 << 3) | (L << 2) | (o1 << 1) | o0;
+        unsigned Rt1 = Rt;
+        const char **Rt1_Rtbl = AD_RTBL_GEN_32;
+        unsigned Rt1_Sz = _32_BIT;
 
-    const char **registers = ARM64_32BitGeneralRegisters;
+        const char **Rt2_Rtbl = AD_RTBL_GEN_32;
+        unsigned Rt2_Sz = _32_BIT;
 
-    if(size == 3)
-        registers = ARM64_GeneralRegisters;
+        if(size == 3){
+            Rt_Rtbl = AD_RTBL_GEN_64;
+            Rt_Sz = _64_BIT;
 
-    disassembled = malloc(128);
-    sprintf(disassembled, ".unknown");
+            Rt1_Rtbl = AD_RTBL_GEN_64;
+            Rt1_Sz = _64_BIT;
 
-    if(encoding == 0){
-        // another stxr in case it is the 64 bit version
-        const char *instr_tbl[] = {"stxrb", "stxrh", "stxr", "stxr"};
+            Rt2_Rtbl = AD_RTBL_GEN_64;
+            Rt2_Sz = _64_BIT;
+        }
 
-        const char *_Rs = ARM64_32BitGeneralRegisters[Rs];
-        const char *_Rt = registers[Rt];
-        const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+        const char *Rt_s = GET_GEN_REG(Rt_Rtbl, Rt, PREFER_ZR);
+        const char *Rt1_s = Rt_s;
+        const char *Rt2_s = GET_GEN_REG(Rt2_Rtbl, Rt2, PREFER_ZR);
+        const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
 
-        sprintf(disassembled, "%s %s, %s, [%s]", instr_tbl[size], _Rs, _Rt, _Rn);
-    }
-    else if(encoding == 1){
-        const char *instr_tbl[] = {"stlxrb", "stlxrh", "stlxr", "stlxr"};
+        concat(&DECODE_STR(out), "%s ", instr_s);
 
-        const char *_Rs = ARM64_32BitGeneralRegisters[Rs];
-        const char *_Rt = registers[Rt];
-        const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+        if(instr_id == AD_INSTR_STXR || instr_id == AD_INSTR_STLXR){
+            ADD_REG_OPERAND(out, Rs, _SZ(_32_BIT), PREFER_ZR, _SYSREG(NONE),
+                    _RTBL(AD_RTBL_GEN_32));
+            ADD_REG_OPERAND(out, Rt, Rt_Sz, PREFER_ZR, _SYSREG(NONE), Rt_Rtbl);
 
-        sprintf(disassembled, "%s %s, %s, [%s]", instr_tbl[size], _Rs, _Rt, _Rn);
-    }
-    else if(encoding == 2 || encoding == 3){
-        const char *_Rs = ARM64_32BitGeneralRegisters[Rs];
-        const char *_Rt1 = registers[Rt];
-        const char *_Rt2 = registers[Rt2];
-        const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+            concat(&DECODE_STR(out), "%s, %s", Rs_s, Rt_s);
+        }
+        else if(instr_id == AD_INSTR_STXP || instr_id == AD_INSTR_STLXP){
+            ADD_REG_OPERAND(out, Rs, _SZ(_32_BIT), PREFER_ZR, _SYSREG(NONE),
+                    _RTBL(AD_RTBL_GEN_32));
+            ADD_REG_OPERAND(out, Rt1, Rt1_Sz, PREFER_ZR, _SYSREG(NONE), Rt1_Rtbl);
+            ADD_REG_OPERAND(out, Rt2, Rt2_Sz, PREFER_ZR, _SYSREG(NONE), Rt2_Rtbl);
 
-        sprintf(disassembled, "%s %s, %s, %s, [%s]", encoding == 2 ? "stxp" : "stlxp", _Rs, _Rt1, _Rt2, _Rn);
-    }
-    else if(encoding == 4){
-        const char *instr_tbl[] = {"ldxrb", "ldxrh", "ldxr", "ldxr"};
+            concat(&DECODE_STR(out), "%s, %s, %s", Rs_s, Rt1_s, Rt2_s);
+        }
+        else if(instr_id == AD_INSTR_LDXP || instr_id == AD_INSTR_LDAXP){
+            ADD_REG_OPERAND(out, Rt1, Rt1_Sz, PREFER_ZR, _SYSREG(NONE), Rt1_Rtbl);
+            ADD_REG_OPERAND(out, Rt2, Rt2_Sz, PREFER_ZR, _SYSREG(NONE), Rt2_Rtbl);
 
-        const char *_Rt = registers[Rt];
-        const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-        sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
-    }
-    else if(encoding == 5){
-        const char *instr_tbl[] = {"ldaxrb", "ldaxrh", "ldaxr", "ldaxr"};
-
-        const char *_Rt = registers[Rt];
-        const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-        sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
-    }
-    else if(encoding == 6 || encoding == 7){
-        if(Rt2 == 0x1f){
-            if(sz == 1)
-                registers = ARM64_GeneralRegisters;
-
-            const char *_Rs = registers[Rs];
-            const char *_Rs2 = registers[Rs + 1];
-            const char *_Rt = registers[Rt];
-            const char *_Rt2 = registers[Rt + 1];
-            const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-            sprintf(disassembled, "%s %s, %s, %s, %s, [%s]", encoding == 6 ? "caspa" : "caspal", _Rs, _Rs2, _Rt, _Rt2, _Rn);
+            concat(&DECODE_STR(out), "%s, %s", Rt1_s, Rt2_s);
         }
         else{
-            const char *_Rt1 = registers[Rt];
-            const char *_Rt2 = registers[Rt2];
-            const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+            ADD_REG_OPERAND(out, Rt, Rt_Sz, PREFER_ZR, _SYSREG(NONE), Rt_Rtbl);
 
-            sprintf(disassembled, "%s %s, %s, [%s]", encoding == 6 ? "ldxp" : "ldaxp", _Rt1, _Rt2, _Rn);
+            concat(&DECODE_STR(out), "%s", Rt_s);
         }
+
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_64));
+
+        concat(&DECODE_STR(out), ", [%s]", Rn_s);
     }
-    else if(encoding == 8){
-        const char *instr_tbl[] = {"stllrb", "stllrh", "stllr", "stllr"};
 
-        const char *_Rt = registers[Rt];
-        const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-        sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
-    }
-    else if(encoding == 9){
-        const char *instr_tbl[] = {"stlrb", "stlrh", "stlr", "stlr"};
-
-        const char *_Rt = registers[Rt];
-        const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-        sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
-    }
-    else if((encoding == 10 || encoding == 11 || encoding == 14 || encoding == 15) && Rt2 == 0x1f){
-        const char **registers = ARM64_32BitGeneralRegisters;
-
-        if(size == 3)
-            registers = ARM64_GeneralRegisters;
-
-        const char *_Rs = registers[Rs];
-        const char *_Rt = registers[Rt];
-        const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-        const char *instr = size == 1 ? "cash" : "cas";
-
-        if(encoding == 11)
-            instr = (size == 2 || size == 3) ? "casl" : "caslh";
-        else if(encoding == 14)
-            instr = (size == 2 || size == 3) ? "casa" : "casah";
-        else if(encoding == 15)
-            instr = (size == 2 || size == 3) ? "casal" : "casalh";
-
-        sprintf(disassembled, "%s %s, %s, [%s]", instr, _Rs, _Rt, _Rn);
-    }
-    else if(encoding == 12){
-        const char *instr_tbl[] = {"ldlarb", "ldlarh", "ldlar", "ldlar"};
-
-        const char *_Rt = registers[Rt];
-        const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-        sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
-    }
-    else if(encoding == 13){
-        const char *instr_tbl[] = {"ldarb", "ldarh", "ldar", "ldar"};
-
-        const char *_Rt = registers[Rt];
-        const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-        sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
-    }
-    */
+    SET_INSTR_ID(out, instr_id);
 
     return 0;
 }
