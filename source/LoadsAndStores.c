@@ -418,8 +418,197 @@ static int DisassembleLoadStoreMemoryTagsInstr(struct instruction *i,
     return 0;
 }
 
-/*
-char *DisassembleLoadAndStoreExclusiveInstr(struct instruction *instruction){
+static int DisassembleLoadAndStoreExclusiveInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned size = bits(i->opcode, 30, 31);
+    unsigned o2 = bits(i->opcode, 23, 23);
+    unsigned L = bits(i->opcode, 22, 22);
+    unsigned o1 = bits(i->opcode, 21, 21);
+    unsigned Rs = bits(i->opcode, 16, 20);
+    unsigned o0 = bits(i->opcode, 15, 15);
+    unsigned Rt2 = bits(i->opcode, 10, 14);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rt = bits(i->opcode, 0, 4);
+
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, o2);
+    ADD_FIELD(out, L);
+    ADD_FIELD(out, o1);
+    ADD_FIELD(out, Rs);
+    ADD_FIELD(out, o0);
+    ADD_FIELD(out, Rt2);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rt);
+
+    unsigned encoding = (o2 << 3) | (L << 2) | (o1 << 1) | o0;
+    int instr_id = NONE;
+
+    if(Rt2 == 0x1f){
+        if((size == 0 || size == 1) && (encoding == 2 || encoding == 3 ||
+                    encoding == 6 || encoding == 7)){
+            unsigned sz = size & 1;
+            const char **registers = AD_RTBL_GEN_32;
+
+            if(sz == 1)
+                registers = AD_RTBL_GEN_64;
+
+            int rsz = (registers == AD_RTBL_GEN_64 ? _64_BIT : _32_BIT);
+
+            const char *Rs_s = GET_GEN_REG(registers, Rs, PREFER_ZR);
+            const char *Rs1_s = GET_GEN_REG(registers, Rs + 1, PREFER_ZR);
+            const char *Rt_s = GET_GEN_REG(registers, Rt, PREFER_ZR);
+            const char *Rt1_s = GET_GEN_REG(registers, Rt + 1, PREFER_ZR);
+
+            /* always 64 bit */
+            const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+            ADD_REG_OPERAND(out, Rs, rsz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rs + 1, rsz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rt, rsz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Rt + 1, rsz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+
+            ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
+
+            const char *instr_s = NULL;
+
+            if(encoding == 2){
+                instr_s = "casp";
+                instr_id = AD_INSTR_CASP;
+            }
+            else if(encoding == 3){
+                instr_s = "caspl";
+                instr_id = AD_INSTR_CASPL;
+            }
+            else if(encoding == 6){
+                instr_s = "caspa";
+                instr_id = AD_INSTR_CASPA;
+            }
+            else{
+                instr_s = "caspal";
+                instr_id = AD_INSTR_CASPAL;
+            }
+
+            concat(&DECODE_STR(out), "%s %s, %s, %s, %s, [%s]", instr_s,
+                    Rs_s, Rs1_s, Rt_s, Rt1_s, Rn_s);
+        }
+        else if((size == 0 || size == 1 || size == 2 || size == 3) &&
+                (encoding == 10 || encoding == 11 || encoding == 14 || encoding == 15)){
+            const char **Rs_Rt_Rtbl = AD_RTBL_GEN_32;
+            unsigned Rs_Rt_Sz = _32_BIT;
+
+            if(size == 3){
+                Rs_Rt_Rtbl = AD_RTBL_GEN_64;
+                Rs_Rt_Sz = _64_BIT;
+            }
+
+            const char *Rs_s = GET_GEN_REG(Rs_Rt_Rtbl, Rs, PREFER_ZR);
+            const char *Rt_s = GET_GEN_REG(Rs_Rt_Rtbl, Rt, PREFER_ZR);
+            const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+            ADD_REG_OPERAND(out, Rs, Rs_Rt_Sz, NO_PREFER_ZR, _SYSREG(NONE), Rs_Rt_Rtbl);
+            ADD_REG_OPERAND(out, Rt, Rs_Rt_Sz, NO_PREFER_ZR, _SYSREG(NONE), Rs_Rt_Rtbl);
+            ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
+
+            const char *instr_s = NULL;
+
+            if(encoding == 10){
+                instr_s = "cas";
+                instr_id = AD_INSTR_CASB;
+            }
+            else if(encoding == 11){
+                instr_s = "casl";
+                instr_id = AD_INSTR_CASLB;
+            }
+            else if(encoding == 14){
+                instr_s = "casa";
+                instr_id = AD_INSTR_CASAB;
+            }
+            else{
+                instr_s = "casal";
+                instr_id = AD_INSTR_CASALB;
+            }
+
+            const char *suffix = NULL; 
+
+            if(size == 0)
+                suffix = "b";
+            else if(size == 1){
+                instr_id += 4;
+                suffix = "h";
+            }
+            else{
+                if(encoding == 10)
+                    instr_id += 10;
+                else if(encoding == 11)
+                    instr_id += 12;
+                else
+                    instr_id += 13;
+
+                suffix = "";
+            }
+
+            concat(&DECODE_STR(out), "%s%s %s, %s, [%s]", instr_s, suffix,
+                    Rs_s, Rt_s, Rn_s);
+        }
+    }
+    else if(size == 0 || size == 1){
+        /* We'll figure out if this deals with bytes or halfwords later.
+         * For now, set the instruction id to the instruction which deals with
+         * bytes, and if we find out this instruction actually deals
+         * with halfwords, we increment the instruction ID. Addtionally,
+         * we'll add the last character to the instruction string later on.
+         */
+        struct itab tab[] = {
+            { "stxr", AD_INSTR_STXRB },
+            { "stlxr", AD_INSTR_STLXRB },
+            { NULL, NONE },
+            { NULL, NONE },
+            { "ldxr", AD_INSTR_LDXRB },
+            { "ldaxr", AD_INSTR_LDAXRB },
+            { NULL, NONE },
+            { NULL, NONE },
+            { "stllr", AD_INSTR_STLLRB },
+            { "stlr", AD_INSTR_STLRB },
+            { NULL, NONE },
+            { NULL, NONE },
+            { "ldlar", AD_INSTR_LDLARB },
+            { "ldar", AD_INSTR_LDARB },
+        };
+
+        const char *instr_s = tab[encoding].instr_s;
+        instr_id = tab[encoding].instr_id;
+
+        /* insn deals with bytes */
+        if(size == 0)
+            concat(&DECODE_STR(out), "%sb", instr_s);
+        else{
+            concat(&DECODE_STR(out), "%sh", instr_s);
+
+            instr_id++;
+        }
+
+
+        /*
+        if(encoding == 0 || encoding == 1){
+            const char *Rs_s = GET_GEN_REG(AD_RTBL_GEN_32, Rs, PREFER_ZR);
+            const char *Rt_s = GET_GEN_REG(AD_RTBL_GEN_32, Rt, PREFER_ZR);
+            const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+            ADD_REG_OPERAND(out, Rs, _SZ(_32_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_32));
+            ADD_REG_OPERAND(out, Rt, _SZ(_32_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_32));
+            ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
+
+            const char *instr_s = NULL;
+
+        }
+        */
+
+    }
+
+
+    SET_INSTR_ID(out, instr_id);
+
+    /*
     char *disassembled = NULL;
 
     unsigned int Rt = getbitsinrange(instruction->opcode, 0, 5);
@@ -560,10 +749,12 @@ char *DisassembleLoadAndStoreExclusiveInstr(struct instruction *instruction){
 
         sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
     }
+    */
 
-    return disassembled;
+    return 0;
 }
 
+/*
 char *DisassembleLoadAndStoreLiteralInstr(struct instruction *instruction){
     char *disassembled = NULL;
 
@@ -1357,12 +1548,14 @@ int LoadsAndStoresDisassemble(struct instruction *i, struct ad_insn *out){
     unsigned op3 = bits(i->opcode, 16, 21);
     unsigned op4 = bits(i->opcode, 10, 11);
 
-    if((op0 & ~4) == 0 && (op2 == 0 || op2 == 1) && (op3 >> 5) == 0)
+    if((op0 & ~4) == 0 && op1 == 1 && (op2 == 0 || op2 == 1) && (op3 & ~0x1f) == 0)
         result = DisassembleLoadStoreMultStructuresInstr(i, out, op2);
-    else if((op0 & ~4) == 0 && (op2 == 2 || op2 == 3))
+    else if((op0 & ~4) == 0 && op1 == 1 && (op2 == 2 || op2 == 3))
         result = DisassembleLoadStoreSingleStructuresInstr(i, out, op2 != 2);
-    else if(op0 == 13 && (op2 >> 1) == 1 && (op3 >> 5) == 1)
+    else if(op0 == 13 && op1 == 0 && (op2 >> 1) == 1 && (op3 >> 5) == 1)
         result = DisassembleLoadStoreMemoryTagsInstr(i, out);
+    else if((op0 & ~12) == 0 && op1 == 0 && (op2 >> 1) == 0)
+        result = DisassembleLoadAndStoreExclusiveInstr(i, out);
     else{
         result = 1;
     }
