@@ -705,6 +705,76 @@ static int DisassembleLoadAndStoreExclusiveInstr(struct instruction *i,
     return 0;
 }
 
+static int DisassembleLDAPR_STLRInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned size = bits(i->opcode, 30, 31);
+    unsigned opc = bits(i->opcode, 22, 23);
+    unsigned imm9 = bits(i->opcode, 12, 20);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rt = bits(i->opcode, 0, 4);
+
+    if(size == 2 && opc == 3)
+        return 1;
+
+    if(size == 3 && (opc == 2 || opc == 3))
+        return 1;
+
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, imm9);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rt);
+
+    const char *instr_s = NULL;
+    int instr_id = NONE;
+
+    imm9 = sign_extend(imm9, 9);
+
+    const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+    if(size == 0){
+        if(opc == 0){
+            instr_s = "stlurb";
+            instr_id = AD_INSTR_STLURB;
+        }
+        else if(opc == 1){
+            instr_s = "ldapurb";
+            instr_id = AD_INSTR_LDAPURB;
+        }
+        else{
+            instr_s = "ldapursb";
+            instr_id = AD_INSTR_LDAPURSB;
+        }
+
+        const char *Rt_s = opc == 2 ?
+            GET_GEN_REG(AD_RTBL_GEN_64, Rt, PREFER_ZR) :
+            GET_GEN_REG(AD_RTBL_GEN_32, Rt, PREFER_ZR);
+
+        ADD_REG_OPERAND(out, Rt, _SZ(opc == 2 ? _64_BIT : _32_BIT),
+                PREFER_ZR, _SYSREG(NONE),
+                _RTBL(opc == 2 ? AD_RTBL_GEN_64 : AD_RTBL_GEN_32));
+
+        concat(&DECODE_STR(out), "%s %s", instr_s, Rt_s);
+    }
+    
+    ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE),
+            _RTBL(AD_RTBL_GEN_64));
+
+    concat(&DECODE_STR(out), ", [%s", Rn_s);
+
+    if(imm9 == 0)
+        concat(&DECODE_STR(out), "]");
+    else{
+        ADD_IMM_OPERAND(out, AD_INT, *(int *)&imm9);
+
+        concat(&DECODE_STR(out), ", #"S_X"]", S_A(imm9));
+    }
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
+}
+
 /*
 char *DisassembleLoadAndStoreLiteralInstr(struct instruction *instruction){
     char *disassembled = NULL;
@@ -1507,6 +1577,8 @@ int LoadsAndStoresDisassemble(struct instruction *i, struct ad_insn *out){
         result = DisassembleLoadStoreMemoryTagsInstr(i, out);
     else if((op0 & ~12) == 0 && op1 == 0 && (op2 >> 1) == 0)
         result = DisassembleLoadAndStoreExclusiveInstr(i, out);
+    else if((op0 & ~12) == 1 && op1 == 0 && (op2 >> 1) == 1 && (op3 & ~0x1f) == 0 && op4 == 0)
+        result = DisassembleLDAPR_STLRInstr(i, out);
     else{
         result = 1;
     }

@@ -27,8 +27,9 @@ driver85 : $(OBJECT_FILES) driver85.c linkedlist.c
 	$(MAKE) armadillo
 	$(CC) $(CFLAGS) -L. -larmadillo linkedlist.c driver85.c -o driver85
 
-asmtests : asmtests.c
-	$(CC) -arch arm64e -isysroot /Users/justin/theos/sdks/iPhoneOS11.2.sdk asmtests.c -o asmtests
+asmtestcases : asmtests
+	llvm-mc -triple=aarch64 -mattr=+mte,+pa,+lse,+rcpc-immo --show-encoding \
+		--print-imm-hex -assemble < asmtests | perl asmtestgen > tests.txt
 
 $(SRCDIR)/%.o : $(SRCDIR)/%.c $(SRCDIR)/%.h
 	$(CC) $(CFLAGS) -c $< -o $@

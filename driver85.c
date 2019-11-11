@@ -1630,6 +1630,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("stz2g	x2, [x4]", 0xd9e00882, 0);
     */
 
+    /*
     addinstr("stxrb w2, w4, [x3]", 0x08027C64, 0);
     addinstr("stlxrb w4, w22, [sp]", 0x0804FFF6, 0);
     addinstr("stxrh w24, w0, [x23]", 0x48187EE0, 0);
@@ -1645,7 +1646,6 @@ int main(int argc, char **argv, const char **envp){
     addinstr("ldxp w13, w2, [x3]", 0x887F086D, 0);
     addinstr("stllr w2, [x3]", 0x889f7c62, 0);
     addinstr("ldlarb w3, [x4]", 0x08df7c83, 0);
-    /*
     addinstr("caspa x6, x7, x2, x3, [x8]", 0x48667d02, 0);
     addinstr("caspal x6, x7, x2, x3, [x8]", 0x4866fd02, 0);
     addinstr("cash w5, w6, [x4]", 0x48a57c86, 0);
@@ -1658,6 +1658,14 @@ int main(int argc, char **argv, const char **envp){
     addinstr("casab	w2, w5, [x9]", 0x08e27d25, 0);
     addinstr("caslb	w1, w0, [sp]", 0x08a1ffe0, 0);
     */
+
+    addinstr("stlurb	w5, [sp]", 0x190003e5, 0);
+    addinstr("ldapursb	x20, [x2, #0xfe]", 0x198fe054, 0);
+    addinstr("ldapursb	w1, [sp, #-0x100]", 0x19d003e1, 0);
+    addinstr("stlurh	w11, [x6, #0x32]", 0x590320cb, 0);
+    addinstr("ldapursh	x4, [sp, #0x9c]", 0x5989c3e4, 0);
+    addinstr("stlur	w7, [x1]", 0x99000027, 0);
+    addinstr("ldapur	x0, [x0, #-0x21]", 0xd95df000, 0);
 
     for(struct node *current = instructions->front;
             current;
