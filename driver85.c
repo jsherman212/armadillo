@@ -305,7 +305,8 @@ static const char *AD_INSTR_TABLE[] = {
     "AD_INSTR_PACIB1716",
     "AD_INSTR_PACIBSP",
     "AD_INSTR_PACIBZ",
-    "AD_INSTR_PLD",
+    "AD_INSTR_PRFM",
+    "AD_INSTR_PRFUM",
     "AD_INSTR_PSB_CSYNC",
     "AD_INSTR_PSSBB",
     "AD_INSTR_RBIT",
@@ -1659,6 +1660,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("caslb	w1, w0, [sp]", 0x08a1ffe0, 0);
     */
 
+    /*
     addinstr("stlurb	w5, [sp]", 0x190003e5, 0);
     addinstr("ldapursb	x20, [x2, #0xfe]", 0x198fe054, 0);
     addinstr("ldapursb	w1, [sp, #-0x100]", 0x19d003e1, 0);
@@ -1666,6 +1668,160 @@ int main(int argc, char **argv, const char **envp){
     addinstr("ldapursh	x4, [sp, #0x9c]", 0x5989c3e4, 0);
     addinstr("stlur	w7, [x1]", 0x99000027, 0);
     addinstr("ldapur	x0, [x0, #-0x21]", 0xd95df000, 0);
+    */
+
+    /*
+    addinstr("ldr x4, #0x20 @ 0x100007f30", 0x58000104, 0x100007f30);
+    addinstr("ldr x16, #-0x474 @ 0x100007f34", 0x58ffdc70, 0x100007f34);
+    addinstr("ldr w2, #0x40000 @ 0x100007f38", 0x18200002, 0x100007f38);
+    addinstr("prfm	pldl1strm, #0x500", 0xd8002801, 0);
+    addinstr("ldr s1, #0x344 @ 0x100007f24", 0x1c001a21, 0x100007f24);
+    addinstr("ldr q13, #-0x400 @ 0x100007f28", 0x9cffe00d, 0x100007f28);
+    addinstr("ldr d3, #0x90 @ 0x100007f2c", 0x5c000483, 0x100007f2c);
+    addinstr("ldrsw x18, #0x78 @ 0x100007f20", 0x980003d2, 0x100007f20);
+    */
+    /*
+    addinstr("stnp x2, x1, [x24, #-304]", 0xA82D0702, 0);
+    addinstr("stnp w5, w2, [sp]", 0x28000BE5, 0);
+    addinstr("ldnp q2, q3, [x3, #992]", 0xAC5F0C62, 0);
+    addinstr("ldnp s22, s23, [x15, #-256]", 0x2C605DF6, 0);
+    addinstr("ldpsw x1, x2, [x15, #32]", 0x694409E1, 0);
+    addinstr("stp x6, x2, [x1], #32", 0xA8820826, 0);
+    addinstr("stp d7, d22, [sp, #208]!", 0x6D8D5BE7, 0);
+    addinstr("stp d7, d22, [sp, #-208]!", 0x6DB35BE7, 0);
+    addinstr("ldp x16, x4, [x4, #24]", 0xA9419090, 0);
+    addinstr("stgp	x9, x1, [sp], #-0x20", 0x68bf07e9, 0);
+    */
+
+/*
+    addinstr("sturb w3, [x5, #255]", 0x380FF0A3, 0);
+    addinstr("sturb w16, [sp]", 0x380003F0, 0);
+    addinstr("sturb w1, [x2, #-4]", 0x381FC041, 0);
+    addinstr("ldursb w6, [x10]", 0x38C00146, 0);
+    addinstr("ldursb w22, [x9, #26]", 0x38C1A136, 0);
+    addinstr("stur h4, [x5]", 0x7C0000A4, 0);
+    addinstr("stur s13, [sp]", 0xBC0003ED, 0);
+    addinstr("stur d22, [x1, #4]", 0xFC004036, 0);
+    addinstr("stur q3, [x12, #-40]", 0x3C9D8183, 0);
+    addinstr("ldursw x0, [x4]", 0xB8800080, 0);
+    addinstr("ldursh w3, [x14, #4]", 0x78C041C3, 0);
+    addinstr("stur x5, [sp]", 0xF80003E5, 0);
+    addinstr("stur w19, [x2, #10]", 0xB800A053, 0);
+    addinstr("strb w8, [x8]", 0x39000108, 0);
+    addinstr("strb w2, [x12], #4", 0x38004582, 0);
+    addinstr("strb w13, [x0, #40]!", 0x38028C0D, 0);
+    addinstr("ldrsb w1, [x5, #4]", 0x39C010A1, 0);
+    addinstr("str h6, [x0, #34]", 0x7D004406, 0);
+    addinstr("str x18, [x0, #0x340]", 0xF901A012, 0);
+    addinstr("ldur s9, [x4, #-0x40]", 0xBC5C0089, 0);
+    addinstr("ldr x24, [x5, #0x390]", 0xF941C8B8, 0);
+    addinstr("ldtrsb x0, [x0]", 0x38800800, 0);
+    addinstr("sttr x5, [x3, #0x30]", 0xF8030865, 0);
+    addinstr("ldtrb w9, [x5, #1]", 0x384018A9, 0);
+    addinstr("ldur h9, [x4, #-0x40]", 0x7C5C0089, 0);
+    addinstr("ldur b9, [x4, #-0x40]", 0x3C5C0089, 0);
+    addinstr("ldur d9, [x4, #-0x40]", 0xFC5C0089, 0);
+    addinstr("ldur q9, [x4, #-0x40]", 0x3CDC0089, 0);
+    addinstr("ldr x8, [x8, 0x120]", 0xf9409108, 0);
+    addinstr("stp x29, x30, [sp, 0x70]", 0xa9077bfd, 0);
+    addinstr("str w12, [x13, 0x1c]", 0xb9001dac, 0);
+    addinstr("stur w8, [x29, -0x64]", 0xb819c3a8, 0);
+    addinstr("str wzr, [x8, 0xc]", 0xb9000d1f, 0);
+    */
+
+    /*
+    addinstr("str	q0, [x19, #0xb0]", 0x3d802e60, 0);
+    addinstr("ldr	q0, [x20, #0xb0]", 0x3dc02e80, 0);
+    addinstr("str	q0, [x19, #0xa0]", 0x3d802a60, 0);
+    addinstr("ldr	q0, [x20, #0xa0]", 0x3dc02a80, 0);
+    addinstr("str	q0, [x19, #0x90]", 0x3d802660, 0);
+    addinstr("ldr	q0, [x20, #0x90]", 0x3dc02680, 0);
+    addinstr("str	q0, [x19, #0x80]", 0x3d802260, 0);
+    addinstr("ldp	q0, q1, [x19]", 0xad400660, 0);
+    addinstr("ldp	q4, q6, [x19, #0xc0]", 0xad461a64, 0);
+    addinstr("fmul	v2.4s, v0.4s, v4.s[0]", 0x4f849002, 0);
+    addinstr("fmul	v3.4s, v1.4s, v4.s[1]", 0x4fa49023, 0);
+    addinstr("fadd	v5.4s, v2.4s, v3.4s", 0x4e23d445, 0);
+    addinstr("ldp	q3, q2, [x19, #0x20]", 0xad410a63, 0);
+    addinstr("fmul	v7.4s, v3.4s, v4.s[2]", 0x4f849867, 0);
+    addinstr("fadd	v5.4s, v5.4s, v7.4s", 0x4e27d4a5, 0);
+    addinstr("fmul	v7.4s, v2.4s, v4.s[3]", 0x4fa49847, 0);
+    addinstr("fadd	v5.4s, v5.4s, v7.4s", 0x4e27d4a5, 0);
+    addinstr("fmul	v7.4s, v0.4s, v6.s[0]", 0x4f869007, 0);
+    addinstr("fmul	v16.4s, v1.4s, v6.s[1]", 0x4fa69030, 0);
+    addinstr("fadd	v7.4s, v7.4s, v16.4s", 0x4e30d4e7, 0);
+    addinstr("fmul	v16.4s, v3.4s, v6.s[2]", 0x4f869870, 0);
+    addinstr("fadd	v7.4s, v16.4s, v7.4s", 0x4e27d607, 0);
+    addinstr("fmul	v16.4s, v2.4s, v6.s[3]", 0x4fa69850, 0);
+    addinstr("fadd	v17.4s, v16.4s, v7.4s", 0x4e27d611, 0);
+    addinstr("ldp	q7, q16, [x19, #0xe0]", 0xad474267, 0);
+    addinstr("fmul	v18.4s, v0.4s, v7.s[0]", 0x4f879012, 0);
+    addinstr("fmul	v19.4s, v1.4s, v7.s[1]", 0x4fa79033, 0);
+    addinstr("fadd	v18.4s, v18.4s, v19.4s", 0x4e33d652, 0);
+    addinstr("fmul	v19.4s, v3.4s, v7.s[2]", 0x4f879873, 0);
+    addinstr("fadd	v18.4s, v19.4s, v18.4s", 0x4e32d672, 0);
+    addinstr("fmul	v19.4s, v2.4s, v7.s[3]", 0x4fa79853, 0);
+    addinstr("fadd	v18.4s, v19.4s, v18.4s", 0x4e32d672, 0);
+    addinstr("fmul	v19.4s, v0.4s, v16.s[0]", 0x4f909013, 0);
+    addinstr("fmul	v20.4s, v1.4s, v16.s[1]", 0x4fb09034, 0);
+    addinstr("fadd	v19.4s, v19.4s, v20.4s", 0x4e34d673, 0);
+    addinstr("fmul	v20.4s, v3.4s, v16.s[2]", 0x4f909874, 0);
+    addinstr("fadd	v19.4s, v20.4s, v19.4s", 0x4e33d693, 0);
+    addinstr("fmul	v20.4s, v2.4s, v16.s[3]", 0x4fb09854, 0);
+    addinstr("fadd	v19.4s, v20.4s, v19.4s", 0x4e33d693, 0);
+    addinstr("stp	q5, q17, [x19, #0x140]", 0xad0a4665, 0);
+    addinstr("stp	q18, q19, [x19, #0x160]", 0xad0b4e72, 0);
+    addinstr("ldp	s18, s22, [sp, #0x90]", 0x2d525bf2, 0);
+    addinstr("ldp	s19, s23, [sp, #0xa0]", 0x2d545ff3, 0);
+    addinstr("ldp	s20, s24, [sp, #0xb0]", 0x2d5663f4, 0);
+    addinstr("ldp	s21, s25, [sp, #0xc0]", 0x2d5867f5, 0);
+    addinstr("ldp	s26, s30, [sp, #0x98]", 0x2d537bfa, 0);
+    addinstr("ldp	s27, s31, [sp, #0xa8]", 0x2d557ffb, 0);
+    addinstr("ldp	s28, s8, [sp, #0xb8]", 0x2d5723fc, 0);
+    addinstr("ldp	q17, q9, [sp, #0x20]", 0xad4127f1, 0);
+    addinstr("mov	v17.s[0], v9.s[0]", 0x6e040531, 0);
+    addinstr("ldr	q9, [sp, #0x40]", 0x3dc013e9, 0);
+    addinstr("mov	v17.s[1], v9.s[0]", 0x6e0c0531, 0);
+    addinstr("ldr	q9, [sp, #0x50]", 0x3dc017e9, 0);
+    addinstr("mov	v17.s[2], v9.s[0]", 0x6e140531, 0);
+    addinstr("ldp	s29, s9, [sp, #0xc8]", 0x2d5927fd, 0);
+    addinstr("ldr	q17, [x8, #0x10]", 0x3dc00511, 0);
+    addinstr("fmul	v10.4s, v17.4s, v18.s[0]", 0x4f92922a, 0);
+    addinstr("ldr	q18, [x8]", 0x3dc00112, 0);
+    addinstr("fmul	v19.4s, v18.4s, v19.s[0]", 0x4f939253, 0);
+    addinstr("fadd	v10.4s, v10.4s, v19.4s", 0x4e33d54a, 0);
+    addinstr("ldr	q19, [x8, #0x2c0]", 0x3dc0b113, 0);
+    addinstr("fmul	v20.4s, v19.4s, v20.s[0]", 0x4f949274, 0);
+    addinstr("fadd	v20.4s, v20.4s, v10.4s", 0x4e2ad694, 0);
+    addinstr("fmul	v21.4s, v11.4s, v21.s[0]", 0x4f959175, 0);
+    addinstr("fadd	v20.4s, v21.4s, v20.4s", 0x4e34d6b4, 0);
+    addinstr("fmul	v21.4s, v17.4s, v22.s[0]", 0x4f969235, 0);
+    addinstr("fmul	v22.4s, v18.4s, v23.s[0]", 0x4f979256, 0);
+    addinstr("fadd	v21.4s, v21.4s, v22.4s", 0x4e36d6b5, 0);
+    addinstr("fmul	v22.4s, v19.4s, v24.s[0]", 0x4f989276, 0);
+    addinstr("fadd	v21.4s, v22.4s, v21.4s", 0x4e35d6d5, 0);
+    addinstr("fmul	v22.4s, v11.4s, v25.s[0]", 0x4f999176, 0);
+    addinstr("fadd	v21.4s, v22.4s, v21.4s", 0x4e35d6d5, 0);
+    addinstr("fmul	v22.4s, v17.4s, v26.s[0]", 0x4f9a9236, 0);
+    addinstr("fmul	v23.4s, v18.4s, v27.s[0]", 0x4f9b9257, 0);
+    addinstr("fadd	v22.4s, v22.4s, v23.4s", 0x4e37d6d6, 0);
+    addinstr("fmul	v23.4s, v19.4s, v28.s[0]", 0x4f9c9277, 0);
+    addinstr("fadd	v22.4s, v23.4s, v22.4s", 0x4e36d6f6, 0);
+    addinstr("fmul	v23.4s, v11.4s, v29.s[0]", 0x4f9d9177, 0);
+    addinstr("fadd	v22.4s, v23.4s, v22.4s", 0x4e36d6f6, 0);
+    addinstr("fmul	v23.4s, v17.4s, v30.s[0]", 0x4f9e9237, 0);
+    addinstr("fmul	v24.4s, v18.4s, v31.s[0]", 0x4f9f9258, 0);
+    */
+
+        addinstr("ldaddab w9, w10, [x4]", 0x38a9008a, 0);
+    addinstr("swpalh w5, w2, [sp]", 0x78e583e2, 0);
+    addinstr("ldclr w20, w21, [x6]", 0xb83410d5, 0);
+    addinstr("swpl x5, x4, [x21]", 0xf86582a4, 0);
+    addinstr("ldapr w5, [sp]", 0xb8bfc3e5, 0);
+    addinstr("ldaprb w19, [x3]", 0x38bfc073, 0);
+    addinstr("ldaprh w1, [x19]", 0x78bfc261, 0);
+    addinstr("lduminab	w3, w1, [x4]", 0x38a37081, 0);
+
 
     for(struct node *current = instructions->front;
             current;

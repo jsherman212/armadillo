@@ -17,8 +17,8 @@ struct itab {
 #define _128_BIT (128)
 #define _64_BIT (64)
 #define _32_BIT (32)
-
-// XXX continue with ..._BIT
+#define _16_BIT (16)
+#define _8_BIT (8)
 
 #define NO_PREFER_ZR (0)
 #define PREFER_ZR (1)
