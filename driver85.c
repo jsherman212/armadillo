@@ -1693,7 +1693,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("stgp	x9, x1, [sp], #-0x20", 0x68bf07e9, 0);
     */
 
-/*
+
     addinstr("sturb w3, [x5, #255]", 0x380FF0A3, 0);
     addinstr("sturb w16, [sp]", 0x380003F0, 0);
     addinstr("sturb w1, [x2, #-4]", 0x381FC041, 0);
@@ -1727,9 +1727,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("str w12, [x13, 0x1c]", 0xb9001dac, 0);
     addinstr("stur w8, [x29, -0x64]", 0xb819c3a8, 0);
     addinstr("str wzr, [x8, 0xc]", 0xb9000d1f, 0);
-    */
 
-    /*
     addinstr("str	q0, [x19, #0xb0]", 0x3d802e60, 0);
     addinstr("ldr	q0, [x20, #0xb0]", 0x3dc02e80, 0);
     addinstr("str	q0, [x19, #0xa0]", 0x3d802a60, 0);
@@ -1737,6 +1735,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("str	q0, [x19, #0x90]", 0x3d802660, 0);
     addinstr("ldr	q0, [x20, #0x90]", 0x3dc02680, 0);
     addinstr("str	q0, [x19, #0x80]", 0x3d802260, 0);
+    /*
     addinstr("ldp	q0, q1, [x19]", 0xad400660, 0);
     addinstr("ldp	q4, q6, [x19, #0xc0]", 0xad461a64, 0);
     addinstr("fmul	v2.4s, v0.4s, v4.s[0]", 0x4f849002, 0);
@@ -1754,7 +1753,9 @@ int main(int argc, char **argv, const char **envp){
     addinstr("fadd	v7.4s, v16.4s, v7.4s", 0x4e27d607, 0);
     addinstr("fmul	v16.4s, v2.4s, v6.s[3]", 0x4fa69850, 0);
     addinstr("fadd	v17.4s, v16.4s, v7.4s", 0x4e27d611, 0);
-    addinstr("ldp	q7, q16, [x19, #0xe0]", 0xad474267, 0);
+    */
+    //addinstr("ldp	q7, q16, [x19, #0xe0]", 0xad474267, 0);
+    /*
     addinstr("fmul	v18.4s, v0.4s, v7.s[0]", 0x4f879012, 0);
     addinstr("fmul	v19.4s, v1.4s, v7.s[1]", 0x4fa79033, 0);
     addinstr("fadd	v18.4s, v18.4s, v19.4s", 0x4e33d652, 0);
@@ -1779,18 +1780,20 @@ int main(int argc, char **argv, const char **envp){
     addinstr("ldp	s27, s31, [sp, #0xa8]", 0x2d557ffb, 0);
     addinstr("ldp	s28, s8, [sp, #0xb8]", 0x2d5723fc, 0);
     addinstr("ldp	q17, q9, [sp, #0x20]", 0xad4127f1, 0);
-    addinstr("mov	v17.s[0], v9.s[0]", 0x6e040531, 0);
+    */
+    //addinstr("mov	v17.s[0], v9.s[0]", 0x6e040531, 0);
     addinstr("ldr	q9, [sp, #0x40]", 0x3dc013e9, 0);
-    addinstr("mov	v17.s[1], v9.s[0]", 0x6e0c0531, 0);
+   // addinstr("mov	v17.s[1], v9.s[0]", 0x6e0c0531, 0);
     addinstr("ldr	q9, [sp, #0x50]", 0x3dc017e9, 0);
-    addinstr("mov	v17.s[2], v9.s[0]", 0x6e140531, 0);
-    addinstr("ldp	s29, s9, [sp, #0xc8]", 0x2d5927fd, 0);
+   // addinstr("mov	v17.s[2], v9.s[0]", 0x6e140531, 0);
+   // addinstr("ldp	s29, s9, [sp, #0xc8]", 0x2d5927fd, 0);
     addinstr("ldr	q17, [x8, #0x10]", 0x3dc00511, 0);
-    addinstr("fmul	v10.4s, v17.4s, v18.s[0]", 0x4f92922a, 0);
+    //addinstr("fmul	v10.4s, v17.4s, v18.s[0]", 0x4f92922a, 0);
     addinstr("ldr	q18, [x8]", 0x3dc00112, 0);
-    addinstr("fmul	v19.4s, v18.4s, v19.s[0]", 0x4f939253, 0);
-    addinstr("fadd	v10.4s, v10.4s, v19.4s", 0x4e33d54a, 0);
+    //addinstr("fmul	v19.4s, v18.4s, v19.s[0]", 0x4f939253, 0);
+    //addinstr("fadd	v10.4s, v10.4s, v19.4s", 0x4e33d54a, 0);
     addinstr("ldr	q19, [x8, #0x2c0]", 0x3dc0b113, 0);
+    /*
     addinstr("fmul	v20.4s, v19.4s, v20.s[0]", 0x4f949274, 0);
     addinstr("fadd	v20.4s, v20.4s, v10.4s", 0x4e2ad694, 0);
     addinstr("fmul	v21.4s, v11.4s, v21.s[0]", 0x4f959175, 0);
@@ -1823,6 +1826,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("ldaprh w1, [x19]", 0x78bfc261, 0);
     addinstr("lduminab	w3, w1, [x4]", 0x38a37081, 0);
     */
+        /*
         addinstr("strb w4, [x4, w5, sxtw]", 0x3825C884, 0);
     addinstr("strb w1, [x4, x9, lsl #0]", 0x38297881, 0);
     addinstr("strb w1, [x4, x9]", 0x38296881, 0);
@@ -1838,6 +1842,20 @@ int main(int argc, char **argv, const char **envp){
     addinstr("str q3, [x6, x4, sxtx #4]", 0x3CA4F8C3, 0);
     addinstr("str b8, [x15, x1, lsl #0]", 0x3C2179E8, 0);
     addinstr("str b13, [x0, x20]", 0x3C34680D, 0);
+    addinstr("str	q14, [x0, w1, sxtw #4]", 0x3ca1d80e, 0);
+    addinstr("prfm	pldl1keep, [x4, w1, uxtw #3]", 0xf8a15880, 0);
+    addinstr("prfm	pldl1keep, [x4, x1]", 0xf8a16880, 0);
+    addinstr("prfm	pldl1keep, [x4, x1, lsl #3]", 0xf8a17880, 0);
+    addinstr("prfm	pldl1keep, [x4, x1, sxtx]", 0xf8a1e880, 0);
+    */
+
+
+        /*
+        addinstr("ldraa x9, [x2, #0x308]", 0xf8261449, 0);
+    addinstr("ldraa x21, [sp, #-0x8]!", 0xf87ffff5, 0);
+    addinstr("ldrab x1, [x5, #0xa0]", 0xf8a144a1, 0);
+    addinstr("ldrab x14, [x19, #0x10]!", 0xf8a02e6e, 0);
+    */
 
 
     for(struct node *current = instructions->front;
