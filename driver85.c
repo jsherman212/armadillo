@@ -1813,6 +1813,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("fmul	v24.4s, v18.4s, v31.s[0]", 0x4f9f9258, 0);
     */
 
+        /*
         addinstr("ldaddab w9, w10, [x4]", 0x38a9008a, 0);
     addinstr("swpalh w5, w2, [sp]", 0x78e583e2, 0);
     addinstr("ldclr w20, w21, [x6]", 0xb83410d5, 0);
@@ -1821,6 +1822,22 @@ int main(int argc, char **argv, const char **envp){
     addinstr("ldaprb w19, [x3]", 0x38bfc073, 0);
     addinstr("ldaprh w1, [x19]", 0x78bfc261, 0);
     addinstr("lduminab	w3, w1, [x4]", 0x38a37081, 0);
+    */
+        addinstr("strb w4, [x4, w5, sxtw]", 0x3825C884, 0);
+    addinstr("strb w1, [x4, x9, lsl #0]", 0x38297881, 0);
+    addinstr("strb w1, [x4, x9]", 0x38296881, 0);
+    addinstr("ldr b8, [sp, x4, sxtx]", 0x3C64EBE8, 0);
+    addinstr("str h12, [x18, x3, lsl #1]", 0x7C237A4C, 0);
+    addinstr("ldr s24, [sp, w14, sxtw]", 0xBC6ECBF8, 0);
+    addinstr("ldr d16, [x9, w1, uxtw]", 0xFC614930, 0);
+    addinstr("str x15, [x3, x18, lsl #3]", 0xF832786F, 0);
+    addinstr("ldr w3, [x14, x8]", 0xB86869C3, 0);
+    addinstr("ldr x1, [x14, x8, sxtx]", 0xF868E9C1, 0);
+    addinstr("ldrsw x0, [sp, x3, sxtx #2]", 0xB8A3FBE0, 0);
+    addinstr("ldrb w4, [x6, x20, lsl #0]", 0x387478C4, 0);
+    addinstr("str q3, [x6, x4, sxtx #4]", 0x3CA4F8C3, 0);
+    addinstr("str b8, [x15, x1, lsl #0]", 0x3C2179E8, 0);
+    addinstr("str b13, [x0, x20]", 0x3C34680D, 0);
 
 
     for(struct node *current = instructions->front;

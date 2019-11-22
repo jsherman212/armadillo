@@ -2369,12 +2369,183 @@ static int DisassembleAtomicMemoryInstr(struct instruction *i,
         }
     }
 
-    ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), PREFER_ZR, _SYSREG(NONE), registers);
+    ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), registers);
 
     concat(&DECODE_STR(out), "[%s]", Rn_s);
 
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
+}
+
+static int DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned size = bits(i->opcode, 30, 31);
+    unsigned V = bits(i->opcode, 26, 26);
+    unsigned opc = bits(i->opcode, 22, 23);
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned option = bits(i->opcode, 13, 15);
+    unsigned S = bits(i->opcode, 12, 12);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rt = bits(i->opcode, 0, 4);
+
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, V);
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, Rm);
+    ADD_FIELD(out, option);
+    ADD_FIELD(out, S);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rt);
+
+    int instr_id = NONE;
+
+    const char **registers = AD_RTBL_GEN_32;
+    size_t sz = _32_BIT;
+    
+    int fp = 0;
+
+    if(V == 0 && (opc == 2 || size == 3)){
+        registers = AD_RTBL_GEN_64;
+        sz = _64_BIT;
+    }
+    else if(V == 1){
+        fp = 1;
+
+        if(size == 0 && opc != 2){
+            registers = AD_RTBL_FP_8;
+            sz = _8_BIT;
+        }
+        else if(size == 0 && (opc == 2 || opc == 3)){
+            registers = AD_RTBL_FP_128;
+            sz = _128_BIT;
+        }
+        else if(size == 1){
+            registers = AD_RTBL_FP_16;
+            sz = _16_BIT;
+        }
+        else if(size == 2){
+            registers = AD_RTBL_FP_32;
+            sz = _32_BIT;
+        }
+        else if(size == 3){
+            registers = AD_RTBL_FP_64;
+            sz = _64_BIT;
+        }
+    }
+
+    int shift = 0;
+
+    // XXX revise
+    if(fp){
+        if(S == 1)
+            shift = ((opc & 1) << 3) | size;
+    }
+    else{
+        if(S == 1)
+            shift = 1;
+
+    }
+
+    const char *Rt_s = NULL;
+    const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+    const char *Rm_s = NULL;
+
+    if(fp)
+        Rt_s = GET_FP_REG(registers, Rt);
+    else
+        Rt_s = GET_GEN_REG(registers, Rt, NO_PREFER_ZR);
+
+    int Rm_sz = _64_BIT;
+
+    if(option & 1)
+        Rm_s = GET_GEN_REG(AD_RTBL_GEN_64, Rm, PREFER_ZR);
+    else{
+        Rm_s = GET_GEN_REG(AD_RTBL_GEN_32, Rm, PREFER_ZR);
+        Rm_sz = _32_BIT;
+    }
+
+    unsigned instr_idx = (size << 3) | (V << 2) |  opc;
+    struct itab instr = pre_post_unsigned_register_idx_instr_tbl[instr_idx];
+
+    instr_id = instr.instr_id;
 
     SET_INSTR_ID(out, instr_id);
+
+    // XXX handle PRFM separately later
+
+    ADD_REG_OPERAND(out, Rt, sz, NO_PREFER_ZR, _SYSREG(NONE), registers);
+    ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), AD_RTBL_GEN_64);
+    ADD_REG_OPERAND(out, Rm, Rm_sz, PREFER_ZR, _SYSREG(NONE), Rm_sz == _32_BIT ?
+            AD_RTBL_GEN_32 : AD_RTBL_GEN_64);
+
+    concat(&DECODE_STR(out), "%s %s, [%s, %s", instr.instr_s, Rt_s, Rn_s, Rm_s);
+
+    int extended = option != 3;
+    
+    const char *extend = decode_reg_extend(option);
+
+    if(V == 0){
+        int amount = 0;
+
+        if(instr_id == AD_INSTR_STRB || instr_id == AD_INSTR_LDRB ||
+                instr_id == AD_INSTR_LDRSB){
+            if(S == 0){
+                if(extended)
+                    concat(&DECODE_STR(out), ", %s", extend);
+
+                concat(&DECODE_STR(out), "]");
+            }
+            else{
+                ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&S);
+
+                if(extended)
+                    concat(&DECODE_STR(out), ", %s #%d", extend, S);
+                else
+                    concat(&DECODE_STR(out), ", lsl #0");
+
+                concat(&DECODE_STR(out), "]");
+            }
+
+            return 0;
+        }
+        else if(instr_id == AD_INSTR_STR || instr_id == AD_INSTR_LDR){
+            if(sz == _64_BIT)
+                amount = S == 0 ? 0 : 3;
+            else
+                amount = S == 0 ? 0 : 2;
+        }
+        else if(instr_id == AD_INSTR_LDRSW){
+            amount = S == 0 ? 0 : 2;
+        }
+
+        if(extended){
+            concat(&DECODE_STR(out), ", %s", extend);
+
+            if(amount != 0){
+                ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&amount);
+
+                concat(&DECODE_STR(out), " #%d", amount);
+            }
+
+            concat(&DECODE_STR(out), "]");
+        }
+        else{
+            if(amount != 0){
+                ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&amount);
+
+                concat(&DECODE_STR(out), ", lsl #%d", amount);
+            }
+
+            concat(&DECODE_STR(out), "]");
+
+        }
+
+    }
+    else{
+
+    }
+
 
     return 0;
 }
@@ -2614,6 +2785,8 @@ int LoadsAndStoresDisassemble(struct instruction *i, struct ad_insn *out){
         else{
             if(op4 == 0)
                 result = DisassembleAtomicMemoryInstr(i, out);
+            else if(op4 == 2)
+                result = DisassembleLoadAndStoreRegisterOffsetInstr(i, out);
         }
     }
     else{

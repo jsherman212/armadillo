@@ -23,7 +23,7 @@ struct itab {
 #define NO_PREFER_ZR (0)
 #define PREFER_ZR (1)
 
-// XXX macros for magic numbers for clarity
+/* macros for magic numbers for clarity */
 #define _SZ(x) (x)
 #define _ZR(x) (x)
 #define _SYSREG(x) (x)
