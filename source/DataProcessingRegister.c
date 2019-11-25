@@ -258,22 +258,116 @@ static int DisassembleDataProcessingOneSourceInstr(struct instruction *i,
     return 0;
 }
 
-/*
-const char *decode_shift(unsigned int op){
+static const char *decode_shift(unsigned op){
     switch(op){
-        case 0:
-            return "lsl";
-        case 1:
-            return "lsr";
-        case 2:
-            return "asr";
-        case 3:
-            return "ror";
-        default:
-            return NULL;
+        case 0: return "lsl";
+        case 1: return "lsr";
+        case 2: return "asr";
+        case 3: return "ror";
+        default: return NULL;
     };
 }
 
+static int DisassembleLogicalShiftedRegisterInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned sf = bits(i->opcode, 31, 31);
+    unsigned opc = bits(i->opcode, 29, 30);
+    unsigned shift = bits(i->opcode, 22, 23);
+    unsigned N = bits(i->opcode, 21, 21);
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned imm6 = bits(i->opcode, 10, 15);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
+
+    if(sf == 0 && (imm6 >> 5) == 1)
+        return 1;
+
+    ADD_FIELD(out, sf);
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, shift);
+    ADD_FIELD(out, N);
+    ADD_FIELD(out, Rm);
+    ADD_FIELD(out, imm6);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
+
+    const char **registers = sf == 0 ? AD_RTBL_GEN_32 : AD_RTBL_GEN_64;
+    int sz = sf == 0 ? _32_BIT : _64_BIT;
+
+    struct itab tab[] = {
+        { "and", AD_INSTR_AND }, { "bic", AD_INSTR_BIC }, { "orr", AD_INSTR_ORR },
+        { "orn", AD_INSTR_ORN }, { "eor", AD_INSTR_EOR }, { "eon", AD_INSTR_EON },
+        { "ands", AD_INSTR_ANDS }, { "bics", AD_INSTR_BICS }
+    };
+
+    unsigned idx = (opc << 1) | N;
+
+    if(OOB(idx, tab))
+        return 1;
+
+    const char *instr_s = tab[idx].instr_s;
+    int instr_id = tab[idx].instr_id;
+
+    const char *Rd_s = GET_GEN_REG(registers, Rd, PREFER_ZR);
+    const char *Rn_s = GET_GEN_REG(registers, Rn, PREFER_ZR);
+    const char *Rm_s = GET_GEN_REG(registers, Rm, PREFER_ZR);
+
+    if(instr_id == AD_INSTR_ORR && shift == 0 && imm6 == 0 && Rn == 0x1f){
+        instr_s = "mov";
+        instr_id = AD_INSTR_MOV;
+
+        ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rm, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+
+        concat(&DECODE_STR(out), "%s %s, %s", instr_s, Rd_s, Rm_s);
+    }
+    else if(instr_id == AD_INSTR_ORN && Rn == 0x1f){
+        instr_s = "mvn";
+        instr_id = AD_INSTR_MVN;
+
+        ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rm, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+
+        concat(&DECODE_STR(out), "%s %s, %s", instr_s, Rd_s, Rm_s);
+    }
+    else if(instr_id == AD_INSTR_ANDS && Rd == 0x1f){
+        instr_s = "tst";
+        instr_id = AD_INSTR_TST;
+
+        ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rm, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+
+        concat(&DECODE_STR(out), "%s %s, %s", instr_s, Rn_s, Rm_s);
+    }
+    else{
+        ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rm, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+
+        concat(&DECODE_STR(out), "%s %s, %s, %s", instr_s, Rd_s, Rn_s, Rm_s);
+    }
+
+    SET_INSTR_ID(out, instr_id);
+
+    unsigned amount = imm6;
+
+    /* no need to include <shift>, #<amount> */
+    if(instr_id == AD_INSTR_MOV || amount == 0)
+        return 0;
+
+    const char *shift_type = decode_shift(shift);
+
+    if(!shift_type)
+        return 1;
+
+    ADD_SHIFT_OPERAND(out, shift, amount);
+
+    concat(&DECODE_STR(out), ", %s #"S_X"", shift_type, S_A(amount));
+
+    return 0;
+}
+
+/*
 char *DisassembleLogicalShiftedRegisterInstr(struct instruction *instruction){
     char *disassembled = NULL;
 
@@ -780,6 +874,8 @@ int DataProcessingRegisterDisassemble(struct instruction *i,
         result = DisassembleDataProcessingTwoSourceInstr(i, out);
     else if(op0 == 1 && op1 == 1 && op2 == 6)
         result = DisassembleDataProcessingOneSourceInstr(i, out);
+    else if(op1 == 0 && (op2 & ~7) == 0)
+        result = DisassembleLogicalShiftedRegisterInstr(i, out);
 
     return result;
     /*

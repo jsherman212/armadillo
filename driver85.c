@@ -1875,6 +1875,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("crc32h	w4, w21, wzr", 0x1adf46a4, 0);
     */
 
+    /*
     addinstr("rbit w4, w2", 0x5AC00044, 0);
     addinstr("cls w13, w1", 0x5AC0142D, 0);
     addinstr("rev32 x4, x3", 0xDAC00864, 0);
@@ -1889,6 +1890,20 @@ int main(int argc, char **argv, const char **envp){
     addinstr("pacdzb x4", 0xdac12fe4, 0);
     addinstr("xpaci x9", 0xdac143e9, 0);
     addinstr("autdza x22", 0xdac13bf6, 0);
+    */
+    /*
+    addinstr("and w2, w3, w1", 0x0A010062, 0);
+    addinstr("bic x3, x13, x1, lsr #5", 0x8A6115A3, 0);
+    addinstr("orr x3, x2, x1, ror #4", 0xAAC11043, 0);
+    addinstr("orr x15, xzr, x3", 0xAA0303EF, 0);
+    addinstr("orn w13, wzr, w4", 0x2A2403ED, 0);
+    addinstr("eor x4, x2, x9", 0xCA090044, 0);
+    addinstr("eon w4, w5, w6, asr #2", 0x4AA608A4, 0);
+    addinstr("ands x4, x1, x2", 0xEA020024, 0);
+    addinstr("ands wzr, w13, w21", 0x6A1501BF, 0);
+    addinstr("bics x15, x13, x9", 0xEA2901AF, 0);
+    addinstr("orn x2, xzr, x14, asr #43", 0xAAAEAFE2, 0);
+    */
 
     for(struct node *current = instructions->front;
             current;
