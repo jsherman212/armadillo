@@ -1936,10 +1936,52 @@ int main(int argc, char **argv, const char **envp){
     addinstr("sub x4, sp, x3", 0xCB2363E4, 0);
     addinstr("cmn	sp, w3, uxtw #4", 0xab2353ff, 0);
     */
+    /*
     addinstr("sbcs x4, xzr, x5", 0xFA0503E4, 0);
     addinstr("adc w3, w2, w1", 0x1A010043, 0);
     addinstr("sbcs x4, x14, x3", 0xFA0301C4, 0);
     addinstr("ngc	w2, w9", 0x5a0903e2, 0);
+    */
+
+    //addinstr("rmif	x4, #0x20, #0x4", 0xba100484, 0);
+
+    /*
+
+    addinstr("setf16	w9", 0x3a00492d, 0);
+    addinstr("setf8	w2", 0x3a00084d, 0);
+    */
+
+    /*
+    addinstr("ccmn x4, x2, #4, ne", 0xBA421084, 0);
+    addinstr("ccmp w1, w2, #13, pl", 0x7A42502D, 0);
+    addinstr("ccmn x12, #3, #4, eq", 0xBA430984, 0);
+    addinstr("ccmp w1, #15, #0, cc", 0x7A4F3820, 0);
+    */
+    /*
+    addinstr("csel w3, w5, w8, ne", 0x1A8810A3, 0);
+    addinstr("csinc x4, x2, x5, pl", 0x9A855444, 0);
+    addinstr("csinc x20, x4, x4, eq", 0x9A840494, 0);
+    addinstr("csinc w4, wzr, wzr, cc", 0x1A9F37E4, 0);
+    addinstr("csinv x4, x2, x1, ge", 0xDA81A044, 0);
+    addinstr("csinv w14, w12, w12, hi", 0x5A8C818E, 0);
+    addinstr("csinv w0, wzr, wzr, ls", 0x5A9F93E0, 0);
+    addinstr("csneg x14, x15, x16, vs", 0xDA9065EE, 0);
+    addinstr("csneg x3, x20, x20, ne", 0xDA941683, 0);
+    */
+    addinstr("madd w3, w2, w1, w0", 0x1B010043, 0);
+    addinstr("madd x4, x3, x2, xzr", 0x9B027C64, 0);
+    addinstr("msub x7, x2, x12, x5", 0x9B0C9447, 0);
+    addinstr("msub w3, w4, w1, wzr", 0x1B01FC83, 0);
+    addinstr("smaddl x4, w3, w1, x7", 0x9B211C64, 0);
+    addinstr("smaddl x14, w5, w12, xzr", 0x9B2C7CAE, 0);
+    addinstr("smsubl x4, w15, w17, x2", 0x9B3189E4, 0);
+    addinstr("smsubl x4, w15, w17, xzr", 0x9B31FDE4, 0);
+    addinstr("smulh x4, x3, x1", 0x9B417C64, 0);
+    addinstr("umaddl x14, w5, w12, x2", 0x9BAC08AE, 0);
+    addinstr("umaddl x14, w5, w12, xzr", 0x9BAC7CAE, 0);
+    addinstr("umsubl x14, w5, w12, x6", 0x9BAC98AE, 0);
+    addinstr("umsubl x14, w5, w12, xzr", 0x9BACFCAE, 0);
+    addinstr("umulh x4, x3, x2", 0x9BC27C64, 0);
 
     for(struct node *current = instructions->front;
             current;

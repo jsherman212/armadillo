@@ -12,7 +12,7 @@ int IsZero(unsigned long x);
 int IsOnes(unsigned long x, int n);
 int BFXPreferred(unsigned int sf, unsigned int uns, unsigned int imms, unsigned int immr);
 char *decode_reg_extend(unsigned int op);
-char *decode_cond(unsigned int cond);
+const char *decode_cond(unsigned int cond);
 const char *get_arrangement(unsigned int size, unsigned int Q);
 
 #endif

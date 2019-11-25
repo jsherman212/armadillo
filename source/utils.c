@@ -157,23 +157,26 @@ char *decode_reg_extend(unsigned int op){
     };
 }
 
-static const char *cond_table[] = { 
-	"eq,ne", "cs,cc", "mi,pl", "vs,vc",
-	"hi,ls", "ge,lt", "gt,le", "al"
-};
-
-char *decode_cond(unsigned int cond){
-    unsigned int shifted = cond >> 1;
-    char *decoded = malloc(8);
-
-    /* three because snprintf writes the NULL byte */
-    snprintf(decoded, 3, "%s", cond_table[shifted]);
-
-    /* the condition after the comma is used when this condition is met */
-    if((cond & 1) == 1 && cond != 0xf)
-        sprintf(decoded, "%s", cond_table[shifted] + 3);
-
-    return decoded;
+const char *decode_cond(unsigned int cond){
+    switch(cond){
+        case 0: return "eq";
+        case 1: return "ne";
+        case 2: return "cs";
+        case 3: return "cc";
+        case 4: return "mi";
+        case 5: return "pl";
+        case 6: return "vs";
+        case 7: return "vc";
+        case 8: return "hi";
+        case 9: return "ls";
+        case 10: return "ge";
+        case 11: return "lt";
+        case 12: return "gt";
+        case 13: return "le";
+        case 14: return "al";
+        case 15: return "nv";
+        default: return NULL;
+    };
 }
 
 const char *get_arrangement(unsigned int size, unsigned int Q){
