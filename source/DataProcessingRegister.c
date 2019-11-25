@@ -148,121 +148,117 @@ static int DisassembleDataProcessingTwoSourceInstr(struct instruction *i,
     return 0;
 }
 
-/*
-char *DisassembleDataProcessingTwoSourceInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleDataProcessingOneSourceInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned sf = bits(i->opcode, 31, 31);
+    unsigned S = bits(i->opcode, 29, 29);
+    unsigned opcode2 = bits(i->opcode, 16, 20);
+    unsigned opcode = bits(i->opcode, 10, 15);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int opcode = getbitsinrange(instruction->opcode, 10, 6);
-    unsigned int Rm = getbitsinrange(instruction->opcode, 16, 5);
-    unsigned int S = getbitsinrange(instruction->opcode, 29, 1);
-    unsigned int sf = getbitsinrange(instruction->opcode, 31, 1);
+    ADD_FIELD(out, sf);
+    ADD_FIELD(out, S);
+    ADD_FIELD(out, opcode2);
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
 
-    const char **registers = ARM64_32BitGeneralRegisters;
-
-    if(sf == 1)
-        registers = ARM64_GeneralRegisters;
-
-    // must be 64 bit in order to use PACGA
-    if(opcode == 0xc && sf != 1)
-        return strdup(".undefined");
-
-    const char *instr_tbl[] = {NULL, NULL, "udiv", "sdiv", NULL, NULL, NULL, NULL, "lslv", "lsrv", "asrv", "rorv", 
-        "pacga", NULL, NULL, NULL, "crc32b", "crc32h", "crc32w", "crc32x", "crc32cb",
-        "crc32ch", "crc32cw", "crc32cx"};
-
-    if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-        return strdup(".undefined");
-    const char *instr = instr_tbl[opcode];
-
-    if(!instr)
-        return strdup(".undefined");
-
-    const char *_Rd = registers[Rd];
-    const char *_Rn = registers[Rn];
-    const char *_Rm = NULL;
-
-    if(strcmp(instr, "pacga") == 0)
-        _Rm = Rm == 31 ? "sp" : ARM64_GeneralRegisters[Rm];
-    else
-        _Rm = registers[Rm];
-
-    disassembled = malloc(128);
-
-    sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
-
-    return disassembled;
-}
-
-char *DisassembleDataProcessingOneSourceInstr(struct instruction *instruction){
-    char *disassembled = NULL;
-
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int opcode = getbitsinrange(instruction->opcode, 10, 6);
-    unsigned int opcode2 = getbitsinrange(instruction->opcode, 16, 5);
-    unsigned int S = getbitsinrange(instruction->opcode, 29, 1);
-    unsigned int sf = getbitsinrange(instruction->opcode, 31, 1);
-
-    const char **registers = ARM64_32BitGeneralRegisters;
-
-    if(sf == 1)
-        registers = ARM64_GeneralRegisters;
-
-    const char *_Rd = registers[Rd];
-    const char *_Rn = NULL;
-
-    if(opcode2 == 1 && opcode < 8)
-        _Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-    else
-        _Rn = registers[Rn];
+    int instr_id = NONE;
 
     if(opcode2 == 0){
-        const char *instr_tbl[] = {"rbit", "rev16", "rev", NULL, "clz", "cls"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        const char *instr = instr_tbl[opcode];
+        if(sf == 0 && S == 0 && opcode2 == 0 && opcode == 3)
+            return 1;
 
-        if(opcode == 2 && sf == 1)
-            instr = "rev32";
-        else if(opcode == 3 && sf == 1)
-            instr = "rev";
+        struct itab tab[] = {
+            { "rbit", AD_INSTR_RBIT }, { "rev16", AD_INSTR_REV16 },
+            { "rev", AD_INSTR_REV }, { "rev32", AD_INSTR_REV32 },
+            { "clz", AD_INSTR_CLZ }, { "cls", AD_INSTR_CLS },
+        };
 
-        if(!instr)
-            return strdup(".undefined");
+        if(OOB(opcode, tab))
+            return 1;
 
-        disassembled = malloc(128);
-        sprintf(disassembled, "%s %s, %s", instr, _Rd, _Rn);
+        const char *instr_s = tab[opcode].instr_s;
+        instr_id = tab[opcode].instr_id;
+
+        if(sf == 1){
+            if(opcode == 2){
+                instr_s = "rev32";
+                instr_id = AD_INSTR_REV32;
+            }
+            else if(opcode == 3){
+                instr_s = "rev";
+                instr_id = AD_INSTR_REV;
+            }
+        }
+
+        const char **registers = sf == 1 ? AD_RTBL_GEN_64 : AD_RTBL_GEN_32;
+        int sz = sf == 1 ? _64_BIT : _32_BIT;
+
+        ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+
+        const char *Rd_s = GET_GEN_REG(registers, Rd, PREFER_ZR);
+        const char *Rn_s = GET_GEN_REG(registers, Rn, PREFER_ZR);
+
+        concat(&DECODE_STR(out), "%s %s, %s", instr_s, Rd_s, Rn_s);
     }
     else if(opcode2 == 1 && opcode < 8){
-        const char *instr_tbl[] = {"pacia", "pacib", "pacda", "pacdb", "autia", "autib", "autda", "autdb"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        const char *instr = instr_tbl[opcode];
+        struct itab tab[] = {
+            { "pacia", AD_INSTR_PACIA }, { "pacib", AD_INSTR_PACIB },
+            { "pacda", AD_INSTR_PACDA }, { "pacdb", AD_INSTR_PACDB },
+            { "autia", AD_INSTR_AUTIA }, { "autib", AD_INSTR_AUTIB },
+            { "autda", AD_INSTR_AUTDA }, { "autdb", AD_INSTR_AUTDB }
+        };
 
-        disassembled = malloc(128);
-        sprintf(disassembled, "%s %s, %s", instr, _Rd, _Rn);
+        if(OOB(opcode, tab))
+            return 1;
+
+        const char *instr_s = tab[opcode].instr_s;
+        instr_id = tab[opcode].instr_id;
+
+        ADD_REG_OPERAND(out, Rd, _SZ(_64_BIT), PREFER_ZR, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_64));
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_64));
+
+        const char *Rd_s = GET_GEN_REG(AD_RTBL_GEN_64, Rd, PREFER_ZR);
+        const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+        concat(&DECODE_STR(out), "%s %s, %s", instr_s, Rd_s, Rn_s);
     }
     else if(opcode2 == 1 && opcode >= 8 && Rn == 0x1f){
-        // sub 8 to prevent an annoying row of NULL
+        struct itab tab[] = {
+            { "paciza", AD_INSTR_PACIZA }, { "pacizb", AD_INSTR_PACIZB },
+            { "pacdza", AD_INSTR_PACDZA }, { "pacdzb", AD_INSTR_PACDZB },
+            { "autiza", AD_INSTR_AUTIZA }, { "autizb", AD_INSTR_AUTIZB },
+            { "autdza", AD_INSTR_AUTDZA }, { "autdzb", AD_INSTR_AUTDZB },
+            { "xpaci", AD_INSTR_XPACI }, { "xpacd", AD_INSTR_XPACD }
+        };
+
         opcode -= 8;
 
-        const char *instr_tbl[] = {"paciza", "pacizb", "pacdza", "pacdzb", "autiza", "autizb", "autdza", "autdzb", "xpaci", "xpacd"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        const char *instr = instr_tbl[opcode];
+        if(OOB(opcode, tab))
+            return 1;
 
-        disassembled = malloc(128);
-        sprintf(disassembled, "%s %s", instr, _Rd);
+        const char *instr_s = tab[opcode].instr_s;
+        instr_id = tab[opcode].instr_id;
+
+        ADD_REG_OPERAND(out, Rd, _SZ(_64_BIT), PREFER_ZR, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_64));
+
+        const char *Rd_s = GET_GEN_REG(AD_RTBL_GEN_64, Rd, PREFER_ZR);
+
+        concat(&DECODE_STR(out), "%s %s", instr_s, Rd_s);
     }
 
-    if(!disassembled)
-        return strdup(".unknown");
+    SET_INSTR_ID(out, instr_id);
 
-    return disassembled;
+    return 0;
 }
 
+/*
 const char *decode_shift(unsigned int op){
     switch(op){
         case 0:
@@ -782,6 +778,8 @@ int DataProcessingRegisterDisassemble(struct instruction *i,
 
     if(op0 == 0 && op1 == 1 && op2 == 6)
         result = DisassembleDataProcessingTwoSourceInstr(i, out);
+    else if(op0 == 1 && op1 == 1 && op2 == 6)
+        result = DisassembleDataProcessingOneSourceInstr(i, out);
 
     return result;
     /*
