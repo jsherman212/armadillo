@@ -1,29 +1,58 @@
-#include "DataProcessingFloatingPoint.h"
+#include <stdio.h>
+#include <stdlib.h>
 
-char *DisassembleCryptographicAESInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+#include "adefs.h"
+#include "bits.h"
+#include "common.h"
+#include "instruction.h"
+#include "utils.h"
+#include "strext.h"
 
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);	
-    unsigned int opcode = getbitsinrange(instruction->opcode, 12, 5);
+static int DisassembleCryptographicAESInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned size = bits(i->opcode, 22, 23);
+    unsigned opcode = bits(i->opcode, 12, 16);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
-    const char *_Rd = ARM64_VectorRegisters[Rd];
-    const char *_Rn = ARM64_VectorRegisters[Rn];
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
 
-    const char *instr_tbl[] = {NULL, NULL, NULL, NULL, "aese", "aesd", "aesmc", "aesimc"};
+    if(size != 0)
+        return 1;
 
-    if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-        return strdup(".undefined");
+    struct itab tab[] = {
+        { "aese", AD_INSTR_AESE }, { "aesd", AD_INSTR_AESD },
+        { "aesmc", AD_INSTR_AESMC }, { "aesimc", AD_INSTR_AESIMC }
+    };
 
-    const char *instr = instr_tbl[opcode];
+    opcode -= 4;
 
-    disassembled = malloc(128);
+    if(OOB(opcode, tab))
+        return 1;
 
-    sprintf(disassembled, "%s %s.16b, %s.16b", instr, _Rd, _Rn);
+    const char *instr_s = tab[opcode].instr_s;
+    int instr_id = tab[opcode].instr_id;
 
-    return disassembled;
+    const char **registers = AD_RTBL_FP_V_128;
+    int sz = _128_BIT;
+
+    ADD_REG_OPERAND(out, Rd, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+    ADD_REG_OPERAND(out, Rn, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+
+    const char *Rd_s = GET_FP_REG(registers, Rd);
+    const char *Rn_s = GET_FP_REG(registers, Rn);
+
+    concat(&DECODE_STR(out), "%s %s.16b, %s.16b", instr_s, Rd_s, Rn_s);
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
+/*
 char *DisassembleCryptographicThreeRegisterSHAInstr(struct instruction *instruction){
     char *disassembled = NULL;
 
@@ -3137,8 +3166,22 @@ char *DisassembleFloatingPointDataProcessingThreeSourceInstr(struct instruction 
 
     return disassembled;
 }
+*/
 
-char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
+int DataProcessingFloatingPointDisassemble(struct instruction *i,
+        struct ad_insn *out){
+    int result = 0;
+
+    unsigned op0 = bits(i->opcode, 28, 31);
+    unsigned op1 = bits(i->opcode, 23, 24);
+    unsigned op2 = bits(i->opcode, 19, 22);
+    unsigned op3 = bits(i->opcode, 10, 18);
+
+    if(op0 == 4 && (op1 & ~1) == 0 && (op2 & ~8) == 5 && (op3 & ~0x7c) == 2)
+        result = DisassembleCryptographicAESInstr(i, out);
+
+    return result;
+    /*
     char *disassembled = NULL;
 
     unsigned int op3 = getbitsinrange(instruction->opcode, 10, 9);
@@ -3223,4 +3266,5 @@ char *DataProcessingFloatingPointDisassemble(struct instruction *instruction){
         return strdup(".undefined");
 
     return disassembled;
+    */
 }

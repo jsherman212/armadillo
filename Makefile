@@ -8,6 +8,7 @@ SOURCE_FILES = $(SRCDIR)/armadillo.c \
 			   $(SRCDIR)/BranchExcSys.c \
 			   $(SRCDIR)/LoadsAndStores.c \
 			   $(SRCDIR)/DataProcessingRegister.c \
+			   $(SRCDIR)/DataProcessingFloatingPoint.c \
 			   $(SRCDIR)/instruction.c \
 			   $(SRCDIR)/strext.c \
 			   $(SRCDIR)/utils.c
@@ -18,6 +19,7 @@ OBJECT_FILES = $(SRCDIR)/armadillo.o \
 			   $(SRCDIR)/BranchExcSys.o \
 			   $(SRCDIR)/LoadsAndStores.o \
 			   $(SRCDIR)/DataProcessingRegister.o \
+			   $(SRCDIR)/DataProcessingFloatingPoint.o \
 			   $(SRCDIR)/instruction.o \
 			   $(SRCDIR)/strext.o \
 			   $(SRCDIR)/utils.o

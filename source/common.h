@@ -6,7 +6,7 @@ struct itab {
     int instr_id;
 };
 
-#define OOB(x, a) ((x) >= (sizeof(a) / sizeof(*a)))
+#define OOB(x, a) (((size_t)x) >= (sizeof(a) / sizeof(*a)))
 
 /* macros to enable cleaner "signed" hex in format strings */
 #define S_X "%s%#x"

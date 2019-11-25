@@ -1968,6 +1968,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("csneg x14, x15, x16, vs", 0xDA9065EE, 0);
     addinstr("csneg x3, x20, x20, ne", 0xDA941683, 0);
     */
+    /*
     addinstr("madd w3, w2, w1, w0", 0x1B010043, 0);
     addinstr("madd x4, x3, x2, xzr", 0x9B027C64, 0);
     addinstr("msub x7, x2, x12, x5", 0x9B0C9447, 0);
@@ -1982,6 +1983,12 @@ int main(int argc, char **argv, const char **envp){
     addinstr("umsubl x14, w5, w12, x6", 0x9BAC98AE, 0);
     addinstr("umsubl x14, w5, w12, xzr", 0x9BACFCAE, 0);
     addinstr("umulh x4, x3, x2", 0x9BC27C64, 0);
+    */
+
+    addinstr("aese v4.16b, v3.16b", 0x4e284864, 0);
+    addinstr("aesd v6.16b, v4.16b", 0x4e285886, 0);
+    addinstr("aesmc v20.16b, v11.16b", 0x4e286974, 0);
+    addinstr("aesimc v7.16b, v16.16b", 0x4e287a07, 0);
 
     for(struct node *current = instructions->front;
             current;

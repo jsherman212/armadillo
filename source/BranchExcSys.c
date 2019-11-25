@@ -24,13 +24,11 @@ static int DisassembleConditionalImmediateBranchInstr(struct instruction *i,
     ADD_FIELD(out, cond);
 
     unsigned long imm = sign_extend(imm19 << 2, 64) + i->PC;
-    char *dc = decode_cond(cond);
+    const char *dc = decode_cond(cond);
 
     ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&imm);
 
     concat(&DECODE_STR(out), "b.%s #%#lx", dc, imm);
-
-    free(dc);
 
     SET_INSTR_ID(out, AD_INSTR_B);
     SET_CC(out, cond);

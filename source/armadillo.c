@@ -5,6 +5,7 @@
 
 #include "adefs.h"
 #include "bits.h"
+#include "common.h"
 #include "instruction.h"
 #include "strext.h"
 
@@ -46,6 +47,10 @@ static int _ArmadilloDisassembleNew(struct instruction *i,
     else if((op0 & ~8) == 5){
         out->group = AD_G_DataProcessingRegister;
         return DataProcessingRegisterDisassemble(i, out);
+    }
+    else if((op0 & ~8) == 7){
+        out->group = AD_G_DataProcessingFloatingPoint;
+        return DataProcessingFloatingPointDisassemble(i, out);
     }
     else{
         concat(&DECODE_STR(out), ".long #%#x (else)", i->opcode);
