@@ -367,81 +367,223 @@ static int DisassembleLogicalShiftedRegisterInstr(struct instruction *i,
     return 0;
 }
 
-/*
-char *DisassembleLogicalShiftedRegisterInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int get_extended_Rm(unsigned option, char **regstr, unsigned Rm,
+        unsigned *sz, const char ***registers){
+    int _64_bit = (option & ~4) == 3;
 
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int imm6 = getbitsinrange(instruction->opcode, 10, 6);
-    unsigned int Rm = getbitsinrange(instruction->opcode, 16, 5);
-    unsigned int N = getbitsinrange(instruction->opcode, 21, 1);
-    unsigned int shift = getbitsinrange(instruction->opcode, 22, 2);
-    unsigned int opc = getbitsinrange(instruction->opcode, 29, 2);
-    unsigned int sf = getbitsinrange(instruction->opcode, 31, 1);
+    if(_64_bit)
+        concat(regstr, "x");
+    else
+        concat(regstr, "w");
 
-    if(sf == 0 && (imm6 >> 5) == 1)
-        return strdup(".undefined");
+    if(Rm == 0x1f)
+        concat(regstr, "zr");
+    else
+        concat(regstr, "%d", Rm);
 
-    const char **registers = ARM64_32BitGeneralRegisters;	
+    *sz = _64_bit ? _64_BIT : _32_BIT;
+    *registers = _64_bit ? AD_RTBL_GEN_64 : AD_RTBL_GEN_32;
 
-    if(sf == 1)
-        registers = ARM64_GeneralRegisters;
-
-    unsigned int encoding = (sf << 3) | (opc << 1) | N;
-
-    const char *instr_tbl[] = {"and", "bic", "orr", "orn", "eor", "eon", "ands", "bics"};
-
-    const char *instr = NULL;
-
-    if(sf == 0){
-        if(!check_bounds(encoding, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-
-        instr = instr_tbl[encoding];
-    }
-    else{
-        if(!check_bounds(encoding - 8, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[encoding - 8];
-    }
-
-    const char *_Rd = registers[Rd];
-    const char *_Rn = registers[Rn];
-    const char *_Rm = registers[Rm];
-
-    const char *_shift = decode_shift(shift);
-
-    disassembled = malloc(128);
-
-    if(strcmp(instr, "orr") == 0 && shift == 0 && imm6 == 0 && Rn == 0x1f){
-        sprintf(disassembled, "mov %s, %s", _Rd, _Rm);
-    }
-    else if(strcmp(instr, "orn") == 0 && Rn == 0x1f){
-        sprintf(disassembled, "mvn %s, %s", _Rd, _Rm);
-
-        if(shift != 0)
-            sprintf(disassembled, "%s, %s #%d", disassembled, _shift, imm6);
-    }
-    else if(strcmp(instr, "ands") == 0 && Rd == 0x1f){
-        sprintf(disassembled, "tst %s, %s", _Rn, _Rm);
-
-        if(shift != 0)
-            sprintf(disassembled, "%s, %s #%d", disassembled, _shift, imm6);
-    }
-    else{
-        sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
-
-        if(shift != 0)
-            sprintf(disassembled, "%s, %s #%d", disassembled, _shift, imm6);
-    }
-
-    if(!disassembled)
-        return strdup(".unknown");
-
-    return disassembled;
+    return _64_bit;
 }
 
+static char *get_extended_extend_string(unsigned option, unsigned sf,
+        unsigned Rd, unsigned Rn, unsigned imm3){
+    char *extend_string = NULL;
+    const char *extend = decode_reg_extend(option);
+
+    int is_lsl = 0;
+
+    if(Rd == 0x1f || Rn == 0x1f){
+        if((sf == 0 && option == 2) || (sf == 1 && option == 3)){
+            if(imm3 == 0)
+                extend = "";
+            else{
+                extend = "lsl";
+                is_lsl = 1;
+            }
+        }
+    }
+
+    unsigned amount = imm3;
+
+    if(*extend)
+        concat(&extend_string, "%s", extend);
+
+    if(is_lsl || (!is_lsl && amount != 0))
+        concat(&extend_string, " #"S_X"", S_A(amount));
+
+    return extend_string;
+}
+
+static int DisassembleAddSubtractShiftedOrExtendedInstr(struct instruction *i,
+        struct ad_insn *out, int kind){
+    unsigned sf = bits(i->opcode, 31, 31);
+    unsigned op = bits(i->opcode, 30, 30);
+    unsigned S = bits(i->opcode, 29, 29);
+    unsigned shift = bits(i->opcode, 22, 23);
+    unsigned opt = shift;
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned option = bits(i->opcode, 13, 15);
+    unsigned imm3 = bits(i->opcode, 10, 12);
+    unsigned imm6 = (option << 3) | imm3;
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
+
+    ADD_FIELD(out, sf);
+    ADD_FIELD(out, op);
+    ADD_FIELD(out, S);
+
+    if(kind == SHIFTED)
+        ADD_FIELD(out, shift);
+    else
+        ADD_FIELD(out, opt);
+
+    ADD_FIELD(out, Rm);
+
+    if(kind == SHIFTED)
+        ADD_FIELD(out, imm6);
+    else{
+        ADD_FIELD(out, option);
+        ADD_FIELD(out, imm3);
+    }
+
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
+
+    struct itab tab[] = {
+        { "add", AD_INSTR_ADD }, { "adds", AD_INSTR_ADDS },
+        { "sub", AD_INSTR_SUB }, { "subs", AD_INSTR_SUBS }
+    };
+
+    unsigned idx = (op << 1) | S;
+
+    if(OOB(idx, tab))
+        return 1;
+
+    const char *instr_s = tab[idx].instr_s;
+    int instr_id = tab[idx].instr_id;
+
+    int prefer_zr_Rd_Rn = kind == SHIFTED;
+
+    const char **registers = sf == 1 ? AD_RTBL_GEN_64 : AD_RTBL_GEN_32;
+    int sz = sf == 1 ? _64_BIT : _32_BIT;
+
+    /* Both shifted and extended have aliases for ADDS and SUBS,
+     * but only shifted has aliases for SUB.
+     */
+    if((instr_id == AD_INSTR_ADDS || instr_id == AD_INSTR_SUBS) && Rd == 0x1f){
+        if(instr_id == AD_INSTR_ADDS){
+            instr_s = "cmn";
+            instr_id = AD_INSTR_CMN;
+        }
+        else if(instr_id == AD_INSTR_SUBS){
+            instr_s = "cmp";
+            instr_id = AD_INSTR_CMP;
+        }
+
+        ADD_REG_OPERAND(out, Rn, sz, prefer_zr_Rd_Rn, _SYSREG(NONE),
+                _RTBL(registers));
+        const char *Rn_s = GET_GEN_REG(registers, Rn, prefer_zr_Rd_Rn);
+
+        char *Rm_s = NULL;
+
+        if(kind == SHIFTED || (kind == EXTENDED && sf == 0)){
+            ADD_REG_OPERAND(out, Rm, sz, PREFER_ZR, _SYSREG(NONE),
+                    _RTBL(registers));
+            Rm_s = (char *)GET_GEN_REG(registers, Rm, PREFER_ZR);
+        }
+        else{
+            unsigned sz = 0;
+            const char **registers = NULL;
+            int _64_bit = get_extended_Rm(option, &Rm_s, Rm, &sz, &registers);
+
+            ADD_REG_OPERAND(out, Rm, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        }
+
+        concat(&DECODE_STR(out), "%s %s, %s", instr_s, Rn_s, Rm_s);
+
+        if(kind == EXTENDED && sf == 1)
+            free(Rm_s);
+    }
+    else if((instr_id == AD_INSTR_SUB || instr_id == AD_INSTR_SUBS) &&
+            Rn == 0x1f && kind == SHIFTED){
+        if(instr_id == AD_INSTR_SUB){
+            instr_s = "neg";
+            instr_id = AD_INSTR_NEG;
+        }
+        else if(instr_id == AD_INSTR_SUBS){
+            instr_s = "negs";
+            instr_id = AD_INSTR_NEGS;
+        }
+
+        ADD_REG_OPERAND(out, Rd, sz, prefer_zr_Rd_Rn, _SYSREG(NONE),
+                _RTBL(registers));
+        ADD_REG_OPERAND(out, Rm, sz, PREFER_ZR, _SYSREG(NONE),
+                _RTBL(registers));
+
+        const char *Rd_s = GET_GEN_REG(registers, Rd, prefer_zr_Rd_Rn);
+        const char *Rm_s = GET_GEN_REG(registers, Rm, PREFER_ZR);
+
+        concat(&DECODE_STR(out), "%s %s, %s", instr_s, Rd_s, Rm_s);
+    }
+    else{
+        ADD_REG_OPERAND(out, Rd, sz, prefer_zr_Rd_Rn, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rn, sz, prefer_zr_Rd_Rn, _SYSREG(NONE), _RTBL(registers));
+
+        const char *Rd_s = GET_GEN_REG(registers, Rd, prefer_zr_Rd_Rn);
+        const char *Rn_s = GET_GEN_REG(registers, Rn, prefer_zr_Rd_Rn);
+
+        char *Rm_s = NULL;
+
+        if(kind == SHIFTED || (kind == EXTENDED && sf == 0)){
+            ADD_REG_OPERAND(out, Rm, sz, PREFER_ZR, _SYSREG(NONE),
+                    _RTBL(registers));
+            Rm_s = (char *)GET_GEN_REG(registers, Rm, PREFER_ZR);
+        }
+        else{
+            unsigned sz = 0;
+            const char **registers = NULL;
+            int _64_bit = get_extended_Rm(option, &Rm_s, Rm, &sz, &registers);
+
+            ADD_REG_OPERAND(out, Rm, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        }
+
+        concat(&DECODE_STR(out), "%s %s, %s, %s", instr_s, Rd_s, Rn_s, Rm_s);
+
+        if(kind == EXTENDED && sf == 1)
+            free(Rm_s);
+    }
+
+    if(kind == SHIFTED){
+        if(shift == 3)
+            return 1;
+
+        const char *shift_type = decode_shift(shift);
+
+        unsigned amount = imm6;
+
+        if(amount != 0){
+            ADD_SHIFT_OPERAND(out, shift, amount);
+
+            concat(&DECODE_STR(out), ", %s #"S_X"", shift_type, S_A(amount));
+        }
+    }
+    else{
+        char *extend_string = get_extended_extend_string(option, sf, Rd, Rn, imm3);
+
+        if(extend_string)
+            concat(&DECODE_STR(out), ", %s", extend_string);
+
+        free(extend_string);
+    }
+
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
+}
+/*
 char *DisassembleAddSubtractShiftedOrExtendedInstr(struct instruction *instruction, int kind){
     char *disassembled = NULL;
 
@@ -876,6 +1018,8 @@ int DataProcessingRegisterDisassemble(struct instruction *i,
         result = DisassembleDataProcessingOneSourceInstr(i, out);
     else if(op1 == 0 && (op2 & ~7) == 0)
         result = DisassembleLogicalShiftedRegisterInstr(i, out);
+    else if(op1 == 0 && ((op2 & ~6) == 8 || (op2 & ~6) == 9))
+        result = DisassembleAddSubtractShiftedOrExtendedInstr(i, out, op2 & 1);
 
     return result;
     /*

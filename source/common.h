@@ -60,7 +60,7 @@ struct itab {
         i->operands[i->num_operands - 1].op_reg.rtbl = rtbl_; \
     } while (0)
 
-#define ADD_SHIFT_OPERAND(i, type_, shift_) \
+#define ADD_SHIFT_OPERAND(i, type_, amt_) \
     do { \
         if(!i->operands) \
             i->operands = malloc(sizeof(struct ad_operand) * ++i->num_operands); \
@@ -71,7 +71,7 @@ struct itab {
         } \
         i->operands[i->num_operands - 1].type = AD_OP_SHIFT; \
         i->operands[i->num_operands - 1].op_shift.type = type_; \
-        i->operands[i->num_operands - 1].op_shift.amt = shift_; \
+        i->operands[i->num_operands - 1].op_shift.amt = amt_; \
     } while (0)
 
 #define ADD_IMM_OPERAND(i, type_, bits_) \
