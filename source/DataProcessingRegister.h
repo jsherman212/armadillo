@@ -1,16 +1,6 @@
 #ifndef _DATAPROCESSINGREGISTER_H_
 #define _DATAPROCESSINGREGISTER_H_
 
-#include "common.h"
-#include "instruction.h"
-#include "utils.h"
-
-#define SHIFTED 0
-#define EXTENDED 1
-
-#define REGISTER 0
-#define IMMEDIATE 1
-
-char *DataProcessingRegisterDisassemble(struct instruction *instruction);
+int DataProcessingRegisterDisassemble(struct instruction *, struct ad_insn *);
 
 #endif

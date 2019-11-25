@@ -1693,7 +1693,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("stgp	x9, x1, [sp], #-0x20", 0x68bf07e9, 0);
     */
 
-
+    /*
     addinstr("sturb w3, [x5, #255]", 0x380FF0A3, 0);
     addinstr("sturb w16, [sp]", 0x380003F0, 0);
     addinstr("sturb w1, [x2, #-4]", 0x381FC041, 0);
@@ -1735,6 +1735,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("str	q0, [x19, #0x90]", 0x3d802660, 0);
     addinstr("ldr	q0, [x20, #0x90]", 0x3dc02680, 0);
     addinstr("str	q0, [x19, #0x80]", 0x3d802260, 0);
+    */
     /*
     addinstr("ldp	q0, q1, [x19]", 0xad400660, 0);
     addinstr("ldp	q4, q6, [x19, #0xc0]", 0xad461a64, 0);
@@ -1781,6 +1782,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("ldp	s28, s8, [sp, #0xb8]", 0x2d5723fc, 0);
     addinstr("ldp	q17, q9, [sp, #0x20]", 0xad4127f1, 0);
     */
+    /*
     //addinstr("mov	v17.s[0], v9.s[0]", 0x6e040531, 0);
     addinstr("ldr	q9, [sp, #0x40]", 0x3dc013e9, 0);
    // addinstr("mov	v17.s[1], v9.s[0]", 0x6e0c0531, 0);
@@ -1793,6 +1795,7 @@ int main(int argc, char **argv, const char **envp){
     //addinstr("fmul	v19.4s, v18.4s, v19.s[0]", 0x4f939253, 0);
     //addinstr("fadd	v10.4s, v10.4s, v19.4s", 0x4e33d54a, 0);
     addinstr("ldr	q19, [x8, #0x2c0]", 0x3dc0b113, 0);
+    */
     /*
     addinstr("fmul	v20.4s, v19.4s, v20.s[0]", 0x4f949274, 0);
     addinstr("fadd	v20.4s, v20.4s, v10.4s", 0x4e2ad694, 0);
@@ -1857,6 +1860,18 @@ int main(int argc, char **argv, const char **envp){
     addinstr("ldrab x14, [x19, #0x10]!", 0xf8a02e6e, 0);
     */
 
+    addinstr("pacga x4, x2, x20", 0x9ad43044, 0);
+    addinstr("crc32cw w4, w2, w4", 0x1AC45844, 0);
+    addinstr("pacga x13, x22, sp", 0x9adf32cd, 0);
+    addinstr("rorv x3, x1, x20", 0x9AD42C23, 0);
+    addinstr("sdiv w1, w2, w3", 0x1AC30C41, 0);
+    addinstr("subp	x4, sp, x1", 0x9ac103e4, 0);
+    addinstr("irg	sp, sp", 0x9adf13ff, 0);
+    addinstr("irg	sp, x5, x2", 0x9ac210bf, 0);
+    addinstr("subps	x5, x1, sp", 0xbadf0025, 0);
+    addinstr("subps	xzr, sp, x9", 0xbac903ff, 0);
+    addinstr("crc32cx	w4, w1, x8", 0x9ac85c24, 0);
+    addinstr("crc32h	w4, w21, wzr", 0x1adf46a4, 0);
 
     for(struct node *current = instructions->front;
             current;

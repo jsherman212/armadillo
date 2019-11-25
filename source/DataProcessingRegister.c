@@ -1,5 +1,154 @@
-#include "DataProcessingRegister.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
+#include "adefs.h"
+#include "bits.h"
+#include "common.h"
+#include "instruction.h"
+#include "utils.h"
+#include "strext.h"
+
+#define SHIFTED 0
+#define EXTENDED 1
+
+#define REGISTER 0
+#define IMMEDIATE 1
+
+static int DisassembleDataProcessingTwoSourceInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned sf = bits(i->opcode, 31, 31);
+    unsigned S = bits(i->opcode, 29, 29);
+    unsigned Rm = bits(i->opcode, 16, 20); 
+    unsigned opcode = bits(i->opcode, 10, 15);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
+
+    ADD_FIELD(out, sf);
+    ADD_FIELD(out, S);
+    ADD_FIELD(out, Rm);
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
+
+    struct itab itab[] = {
+        { "subp", AD_INSTR_SUBP }, { NULL, NONE }, { "udiv", AD_INSTR_UDIV },
+        { "sdiv", AD_INSTR_SDIV }, { "irg", AD_INSTR_IRG }, { "gmi", AD_INSTR_GMI },
+        { NULL, NONE }, { NULL, NONE }, { "lslv", AD_INSTR_LSLV },
+        { "lsrv", AD_INSTR_LSRV }, { "asrv", AD_INSTR_ASRV },
+        { "rorv", AD_INSTR_RORV }, { "pacga", AD_INSTR_PACGA },
+        { NULL, NONE }, { NULL, NONE }, { NULL, NONE }, { "crc32b", AD_INSTR_CRC32B },
+        { "crc32h", AD_INSTR_CRC32H }, { "crc32w", AD_INSTR_CRC32W },
+        { "crc32x", AD_INSTR_CRC32X }, { "crc32cb", AD_INSTR_CRC32CB },
+        { "crc32ch", AD_INSTR_CRC32CH }, { "crc32cw", AD_INSTR_CRC32CW },
+        { "crc32cx", AD_INSTR_CRC32CX }
+    };
+
+    if(OOB(opcode, itab))
+        return 1;
+
+    const char *instr_s = itab[opcode].instr_s;
+
+    if(!instr_s)
+        return 1;
+
+    int instr_id = itab[opcode].instr_id;
+
+    if(S == 1 && sf == 1 && opcode == 0){
+        instr_s = "subps";
+        instr_id = AD_INSTR_SUBPS;
+
+        /* subps --> cmpp */
+        if(Rd == 0x1f){
+            instr_s = "cmpp";
+            instr_id = AD_INSTR_CMPP;
+        }
+    }
+
+    SET_INSTR_ID(out, instr_id);
+
+    concat(&DECODE_STR(out), "%s ", instr_s);
+
+    if(strstr(instr_s, "crc")){
+        ADD_REG_OPERAND(out, Rd, _SZ(_32_BIT), PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_32));
+        ADD_REG_OPERAND(out, Rn, _SZ(_32_BIT), PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_32));
+
+        const char *Rd_s = GET_GEN_REG(AD_RTBL_GEN_32, Rd, PREFER_ZR);
+        const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_32, Rn, PREFER_ZR);
+
+        concat(&DECODE_STR(out), "%s, %s", Rd_s, Rn_s);
+
+        const char *Rm_s = NULL;
+
+        if(sf == 1){
+            ADD_REG_OPERAND(out, Rm, _SZ(_64_BIT), PREFER_ZR, _SYSREG(NONE),
+                    _RTBL(AD_RTBL_GEN_64));
+            Rm_s = GET_GEN_REG(AD_RTBL_GEN_64, Rm, PREFER_ZR);
+        }
+        else{
+            ADD_REG_OPERAND(out, Rm, _SZ(_32_BIT), PREFER_ZR, _SYSREG(NONE),
+                    _RTBL(AD_RTBL_GEN_32));
+            Rm_s = GET_GEN_REG(AD_RTBL_GEN_32, Rm, PREFER_ZR);
+        }
+
+        concat(&DECODE_STR(out), ", %s", Rm_s);
+    }
+    else if(instr_id == AD_INSTR_UDIV || instr_id == AD_INSTR_SDIV ||
+            instr_id == AD_INSTR_LSLV || instr_id == AD_INSTR_LSRV ||
+            instr_id == AD_INSTR_ASRV || instr_id == AD_INSTR_RORV){
+        const char **registers = AD_RTBL_GEN_32;
+        int sz = _32_BIT;
+
+        if(sf == 1){
+            registers = AD_RTBL_GEN_64;
+            sz = _64_BIT;
+        }
+
+        ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rm, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+
+        const char *Rd_s = GET_GEN_REG(registers, Rd, PREFER_ZR);
+        const char *Rn_s = GET_GEN_REG(registers, Rn, PREFER_ZR);
+        const char *Rm_s = GET_GEN_REG(registers, Rm, PREFER_ZR);
+
+        concat(&DECODE_STR(out), "%s, %s, %s", Rd_s, Rn_s, Rm_s);
+    }
+    else{
+        if(instr_id != AD_INSTR_CMPP){
+            int prefer_zr = instr_id != AD_INSTR_IRG;
+
+            ADD_REG_OPERAND(out, Rd, _SZ(_64_BIT), prefer_zr, _SYSREG(NONE),
+                    _RTBL(AD_RTBL_GEN_64));
+            const char *Rd_s = GET_GEN_REG(AD_RTBL_GEN_64, Rd, prefer_zr);
+
+            concat(&DECODE_STR(out), "%s, ", Rd_s);
+        }
+
+        int prefer_zr = instr_id == AD_INSTR_PACGA;
+
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), prefer_zr, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_64));
+        const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, prefer_zr);
+
+        concat(&DECODE_STR(out), "%s", Rn_s);
+
+        if(instr_id == AD_INSTR_IRG && Rm == 0x1f)
+            return 0;
+
+        prefer_zr = (instr_id == AD_INSTR_IRG || instr_id == AD_INSTR_GMI);
+
+        ADD_REG_OPERAND(out, Rm, _SZ(_64_BIT), prefer_zr, _SYSREG(NONE),
+                _RTBL(AD_RTBL_GEN_64));
+        const char *Rm_s = GET_GEN_REG(AD_RTBL_GEN_64, Rm, prefer_zr);
+
+        concat(&DECODE_STR(out), ", %s", Rm_s);
+    }
+
+    return 0;
+}
+
+/*
 char *DisassembleDataProcessingTwoSourceInstr(struct instruction *instruction){
     char *disassembled = NULL;
 
@@ -620,8 +769,22 @@ char *DisassembleDataProcessingThreeSourceInstr(struct instruction *instruction)
 
     return disassembled;
 }
+*/
 
-char *DataProcessingRegisterDisassemble(struct instruction *instruction){
+int DataProcessingRegisterDisassemble(struct instruction *i,
+        struct ad_insn *out){
+    int result = 0;
+    
+    unsigned op0 = bits(i->opcode, 30, 30);
+    unsigned op1 = bits(i->opcode, 28, 28);
+    unsigned op2 = bits(i->opcode, 21, 24);
+    unsigned op3 = bits(i->opcode, 10, 15);
+
+    if(op0 == 0 && op1 == 1 && op2 == 6)
+        result = DisassembleDataProcessingTwoSourceInstr(i, out);
+
+    return result;
+    /*
     char *disassembled = NULL;
 
     unsigned int op3 = getbitsinrange(instruction->opcode, 10, 6);
@@ -653,4 +816,5 @@ char *DataProcessingRegisterDisassemble(struct instruction *instruction){
         return strdup(".undefined");
 
     return disassembled;
+    */
 }

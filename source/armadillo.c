@@ -13,6 +13,7 @@
 #include "DataProcessingFloatingPoint.h"
 #include "DataProcessingRegister.h"
 #include "LoadsAndStores.h"
+
 unsigned long getbitsinrange(unsigned int number, int start, int amount){
     unsigned int mask = ((1 << amount) - 1) << start;
     return (number & mask) >> start;
@@ -38,9 +39,13 @@ static int _ArmadilloDisassembleNew(struct instruction *i,
         out->group = AD_G_BranchExcSys;
         return BranchExcSysDisassemble(i, out);
     }
-    else if((op0 & ~0xa) == 4){
+    else if((op0 & ~10) == 4){
         out->group = AD_G_LoadsAndStores;
         return LoadsAndStoresDisassemble(i, out);
+    }
+    else if((op0 & ~8) == 5){
+        out->group = AD_G_DataProcessingRegister;
+        return DataProcessingRegisterDisassemble(i, out);
     }
     else{
         concat(&DECODE_STR(out), ".long #%#x (else)", i->opcode);
