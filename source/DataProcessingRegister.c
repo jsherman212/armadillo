@@ -578,210 +578,76 @@ static int DisassembleAddSubtractShiftedOrExtendedInstr(struct instruction *i,
         free(extend_string);
     }
 
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
+}
+
+static int DisassembleAddSubtractCarryInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned sf = bits(i->opcode, 31, 31);
+    unsigned op = bits(i->opcode, 30, 30);
+    unsigned S = bits(i->opcode, 29, 29);
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
+
+    ADD_FIELD(out, sf);
+    ADD_FIELD(out, op);
+    ADD_FIELD(out, S);
+    ADD_FIELD(out, Rm);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
+
+    const char **registers = sf == 1 ? AD_RTBL_GEN_64 : AD_RTBL_GEN_32;
+    int sz = sf == 1 ? _64_BIT : _32_BIT;
+
+    struct itab tab[] = {
+        { "adc", AD_INSTR_ADC }, { "adcs", AD_INSTR_ADCS },
+        { "sbc", AD_INSTR_SBC }, { "sbcs", AD_INSTR_SBCS }
+    };
+
+    unsigned idx = (op << 1) | sf;
+
+    if(OOB(idx, tab))
+        return 1;
+    
+    const char *instr_s = tab[idx].instr_s;
+    int instr_id = tab[idx].instr_id;
+
+    if(instr_id == AD_INSTR_SBC && Rn == 0x1f){
+        instr_s = "ngc";
+        instr_id = AD_INSTR_NGC;
+    }
+    else if(instr_id == AD_INSTR_SBCS && Rn == 0x1f){
+        instr_s = "ngcs";
+        instr_id = AD_INSTR_NGCS;
+    }
+
+    ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+
+    if(instr_id != AD_INSTR_NGC && instr_id != AD_INSTR_NGCS)
+        ADD_REG_OPERAND(out, Rn, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+
+    ADD_REG_OPERAND(out, Rm, sz, PREFER_ZR, _SYSREG(NONE), _RTBL(registers));
+
+    const char *Rd_s = GET_GEN_REG(registers, Rd, PREFER_ZR);
+    const char *Rn_s = GET_GEN_REG(registers, Rn, PREFER_ZR);
+    const char *Rm_s = GET_GEN_REG(registers, Rm, PREFER_ZR);
+
+    concat(&DECODE_STR(out), "%s %s, ", instr_s, Rd_s);
+
+    if(instr_id != AD_INSTR_NGC && instr_id != AD_INSTR_NGCS)
+        concat(&DECODE_STR(out), "%s, ", Rn_s);
+
+    concat(&DECODE_STR(out), "%s", Rm_s);
 
     SET_INSTR_ID(out, instr_id);
 
     return 0;
 }
+
 /*
-char *DisassembleAddSubtractShiftedOrExtendedInstr(struct instruction *instruction, int kind){
-    char *disassembled = NULL;
-
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int imm3 = getbitsinrange(instruction->opcode, 10, 3);
-    unsigned int option = getbitsinrange(instruction->opcode, 13, 3);
-    unsigned int imm6 = (option << 3) | imm3;
-    unsigned int Rm = getbitsinrange(instruction->opcode, 16, 5);
-    unsigned int shift = getbitsinrange(instruction->opcode, 22, 2);
-    unsigned int opt = shift;
-    unsigned int S = getbitsinrange(instruction->opcode, 29, 1);
-    unsigned int op = getbitsinrange(instruction->opcode, 30, 1);
-    unsigned int sf = getbitsinrange(instruction->opcode, 31, 1);
-
-    if(kind == SHIFTED && shift == 3)
-        return strdup(".undefined");
-
-    unsigned int encoding = (sf << 2) | (op << 1) | S;
-
-    const char *instr_tbl[] = {"add", "adds", "sub", "subs"};
-
-
-    const char *instr = NULL;
-
-    if(sf == 0){
-        if(!check_bounds(encoding, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[encoding];
-    }
-    else{
-        if(!check_bounds(encoding - 4, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[encoding - 4];
-    }
-
-    const char **registers = ARM64_32BitGeneralRegisters;
-
-    if(sf == 1)
-        registers = ARM64_GeneralRegisters;
-
-    const char *_Rd = registers[Rd];
-    const char *_Rn = registers[Rn];
-    const char *_Rm = registers[Rm];
-
-    const char *_shift = decode_shift(shift);
-
-    if(kind == EXTENDED){
-        if(strcmp(instr, "add") == 0 || strcmp(instr, "sub") == 0){
-            if(sf == 0){
-                _Rd = Rd == 31 ? "wsp" : registers[Rd];
-                _Rn = Rn == 31 ? "wsp" : registers[Rn];
-            }
-            else{
-                _Rd = Rd == 31 ? "sp" : registers[Rd];
-                _Rn = Rn == 31 ? "sp" : registers[Rn];
-            }
-        }
-        else if(strcmp(instr, "adds") == 0 || strcmp(instr, "subs") == 0){
-            if(sf == 0)
-                _Rn = Rn == 31 ? "wsp" : registers[Rn];
-            else
-                _Rn = Rn == 31 ? "sp" : registers[Rn];
-        }
-    }
-
-    disassembled = malloc(128);
-
-    if(kind == SHIFTED){
-        if(strcmp(instr, "adds") == 0 && Rd == 0x1f)
-            sprintf(disassembled, "cmn %s, %s", _Rn, _Rm);
-        else if(strcmp(instr, "sub") == 0 && Rn == 0x1f)
-            sprintf(disassembled, "neg %s, %s", _Rd, _Rm);
-        else if(strcmp(instr, "subs") == 0 && (Rd == 0x1f || Rn == 0x1f)){
-            if(Rd == 0x1f)
-                sprintf(disassembled, "cmp %s, %s", _Rn, _Rm);
-
-            else if(Rn == 0x1f)
-                sprintf(disassembled, "negs %s, %s", _Rd, _Rm);
-        }
-        else
-            sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
-
-        if(imm6 != 0)
-            sprintf(disassembled, "%s, %s #%d", disassembled, _shift, imm6);
-    }
-
-    if(kind == EXTENDED){
-        char R = 'w';
-
-        if(option == 3 || option == 7)
-            R = 'x';
-
-        char *extend = decode_reg_extend(option);
-
-        if(strcmp(instr, "add") == 0 || strcmp(instr, "sub") == 0){
-            if(Rd == 0x1f || Rn == 0x1f){
-                if(sf == 0 && option == 2)
-                    extend = "lsl";
-
-                if(sf == 1 && option == 3)
-                    extend = "lsl";
-            }
-
-            sprintf(disassembled, "%s %s, %s, %c%d", instr, _Rd, _Rn, R, Rm);
-
-            if(imm3 != 0)
-                sprintf(disassembled, "%s, %s #%d", disassembled, extend, imm3);
-        }
-        else{
-            if(Rn == 0x1f){
-                if(sf == 0 && option == 2)
-                    extend = "lsl";
-
-                if(sf == 1 && option == 3)
-                    extend = "lsl";
-            }
-
-            // check for aliases	
-            if(strcmp(instr, "adds") == 0 && Rd == 0x1f){
-                sprintf(disassembled, "cmn %s, %s, %s", _Rn, _Rm, extend);
-
-                if(imm3 != 0)
-                    sprintf(disassembled, "%s #%d", disassembled, imm3);
-            }
-            else if(strcmp(instr, "subs") && Rd == 0x1f){
-                sprintf(disassembled, "cmp %s, %s, %s", _Rn, _Rm, extend);
-
-                if(imm3 != 0)
-                    sprintf(disassembled, "%s #%d", disassembled, imm3);
-            }
-            else{
-                sprintf(disassembled, "%s %s, %s, %c%d", instr, _Rd, _Rn, R, Rm);
-
-                if(imm3 != 0)
-                    sprintf(disassembled, "%s, %s #%d", disassembled, extend, imm3);
-
-                if(imm3 == 0 && Rn == 0x1f){
-                    if(R == 'w')
-                        strcat(disassembled, ", uxtw");
-                }
-            }
-        }
-    }
-
-    return disassembled;
-}
-
-char *DisassembleAddSubtractCarryInstr(struct instruction *instruction){
-    char *disassembled = NULL;
-
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int Rm = getbitsinrange(instruction->opcode, 16, 5);
-    unsigned int S = getbitsinrange(instruction->opcode, 29, 1);
-    unsigned int op = getbitsinrange(instruction->opcode, 30, 1);
-    unsigned int sf = getbitsinrange(instruction->opcode, 31, 1);
-
-    const char **registers = ARM64_32BitGeneralRegisters;
-
-    if(sf == 1)
-        registers = ARM64_GeneralRegisters;
-
-    unsigned int encoding = (sf << 2) | (op << 1) | S;
-
-    const char *instr_tbl[] = {"adc", "adcs", "sdc", "sdcs"};	
-    const char *instr = NULL;
-
-    if(sf == 0){
-        if(!check_bounds(encoding, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[encoding];
-    }
-    else{
-        if(!check_bounds(encoding - 4, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[encoding - 4];
-    }
-
-    const char *_Rd = registers[Rd];
-    const char *_Rn = registers[Rn];
-    const char *_Rm = registers[Rm];
-
-    disassembled = malloc(128);
-
-    if(strcmp(instr, "sdc") == 0 && Rn == 0x1f)
-        sprintf(disassembled, "ngc %s, %s", _Rd, _Rm);
-    else if(strcmp(instr, "sdcs") == 0 && Rn == 0x1f)
-        sprintf(disassembled, "ngcs %s, %s", _Rd, _Rm);
-    else
-        sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
-
-    if(!disassembled)
-        return strdup(".unknown");
-
-    return disassembled;
-}
-
 char *DisassembleRotateRightIntoFlagsInstr(struct instruction *instruction){
     char *disassembled = NULL;
 
@@ -1020,6 +886,8 @@ int DataProcessingRegisterDisassemble(struct instruction *i,
         result = DisassembleLogicalShiftedRegisterInstr(i, out);
     else if(op1 == 0 && ((op2 & ~6) == 8 || (op2 & ~6) == 9))
         result = DisassembleAddSubtractShiftedOrExtendedInstr(i, out, op2 & 1);
+    else if(op1 == 1 && op2 == 0 && op3 == 0)
+        result = DisassembleAddSubtractCarryInstr(i, out);
 
     return result;
     /*

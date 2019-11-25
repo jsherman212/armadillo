@@ -1905,6 +1905,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("orn x2, xzr, x14, asr #43", 0xAAAEAFE2, 0);
     */
 
+    /*
     addinstr("add x4, x2, x1", 0x8B010044, 0);
     addinstr("add x15, x3, x2, lsr #21", 0x8B42546F, 0);
     addinstr("adds w4, w5, w6", 0x2B0600A4, 0);
@@ -1934,7 +1935,11 @@ int main(int argc, char **argv, const char **envp){
     addinstr("subs xzr, x3, x12, lsl #3", 0xEB0C0C7F, 0);
     addinstr("sub x4, sp, x3", 0xCB2363E4, 0);
     addinstr("cmn	sp, w3, uxtw #4", 0xab2353ff, 0);
-
+    */
+    addinstr("sbcs x4, xzr, x5", 0xFA0503E4, 0);
+    addinstr("adc w3, w2, w1", 0x1A010043, 0);
+    addinstr("sbcs x4, x14, x3", 0xFA0301C4, 0);
+    addinstr("ngc	w2, w9", 0x5a0903e2, 0);
 
     for(struct node *current = instructions->front;
             current;
