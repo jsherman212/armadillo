@@ -1985,15 +1985,67 @@ int main(int argc, char **argv, const char **envp){
     addinstr("umulh x4, x3, x2", 0x9BC27C64, 0);
     */
 
+    /*
     addinstr("aese v4.16b, v3.16b", 0x4e284864, 0);
     addinstr("aesd v6.16b, v4.16b", 0x4e285886, 0);
     addinstr("aesmc v20.16b, v11.16b", 0x4e286974, 0);
     addinstr("aesimc v7.16b, v16.16b", 0x4e287a07, 0);
+    */
+    /*
+    addinstr("sha1c q3, s4, v12.4s", 0x5e0c0083, 0);
+    addinstr("sha256su1 v3.4s, v5.4s, v9.4s", 0x5e0960a3, 0);
+    addinstr("sha256h q2, q3, v5.4s", 0x5e054062, 0);
+    */
+    /*
+    addinstr("sha1h s4, s5", 0x5e2808a4, 0);
+    addinstr("sha1su1 v6.4s, v1.4s", 0x5e281826, 0);
+    addinstr("sha256su0 v19.4s, v8.4s", 0x5e282913, 0);
+    */
+    /*
+    addinstr("mov	b3, v3.b[14]", 0x5e1d0463, 0);
+    addinstr("mov	b3, v3.b[0]", 0x5e010463, 0);
+    addinstr("mov	b3, v3.b[7]", 0x5e0f0463, 0);
+    addinstr("mov	b3, v3.b[11]", 0x5e170463, 0);
+    addinstr("mov	s3, v3.s[2]", 0x5e140463, 0);
+    addinstr("mov	s3, v3.s[3]", 0x5e1c0463, 0);
+    addinstr("mov	s3, v3.s[0]", 0x5e040463, 0);
+    addinstr("mov	d2, v20.d[1]", 0x5e180682, 0);
+    addinstr("mov	d2, v20.d[0]", 0x5e080682, 0);
+    addinstr("mov	h22, v12.h[1]", 0x5e060596, 0);
+    addinstr("mov	h22, v12.h[0]", 0x5e020596, 0);
+    */
+
+    /* XXX vector variant of DUP */
+    //addinstr("dup	v3.16b, v3.b[0]", 0x4e010463, 0);
+
+    /*
+    addinstr("fmulx h4, h5, h6", 0x5e461ca4, 0);
+    addinstr("fcmeq h2, h3, h1", 0x5e412462, 0);
+    addinstr("frecps h20, h19, h2", 0x5e423e74, 0);
+    addinstr("frsqrts h3, h4, h5", 0x5ec53c83, 0);
+    addinstr("fcmge h3, h2, h1", 0x7e412443, 0);
+    addinstr("facge h5, h3, h7", 0x7e472c65, 0);
+    addinstr("facgt h3, h4, h5", 0x7ec52c83, 0);
+    addinstr("fabd	h3, h2, h0", 0x7ec01443, 0);
+    */
+
+    addinstr("fcvtns h4, h6", 0x5e79a8c4, 0);
+    addinstr("fcmge h4, h3, 0.0", 0x7ef8c864, 0);
+    addinstr("ucvtf h10, h11", 0x7e79d96a, 0);
+    addinstr("frsqrte h11, h12", 0x7ef9d98b, 0);
+    addinstr("fcmgt h4, h3, 0.0", 0x5ef8c864, 0);
+    addinstr("fcvtns	h4, h6", 0x5e79a8c4, 0);
+    addinstr("frecpx	h1, h0", 0x5ef9f801, 0);
+    addinstr("fcvtzu	h19, h18", 0x7ef9ba53, 0);
+    addinstr("fcvtps	h8, h4", 0x5ef9a888, 0);
+    addinstr("fcmle	h9, h1, #0.0", 0x7ef8d829, 0);
+    addinstr("fcvtzs	h10, h11", 0x5ef9b96a, 0);
+
 
     for(struct node *current = instructions->front;
             current;
             current = current->next){
-        struct testinstr *ti = (struct testinstr *)current->data;
+        struct testinstr *ti = current->data;
 
         printf("Disassembling %s (aka 0x%08x)...\n\n", ti->instr, ti->opcode);
 
