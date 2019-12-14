@@ -536,11 +536,110 @@ static int DisassembleAdvancedSIMDThreeSameInstr(struct instruction *i,
         }
     }
     else if(extra){
+        if(scalar){
+            if(U != 1)
+                return 1;
 
+            if(size == 0 || size == 3)
+                return 1;
 
+            instr_s = opcode == 0 ? "sqrdmlah" : "sqrdmlsh";
+            instr_id = opcode == 0 ? AD_INSTR_SQRDMLAH : AD_INSTR_SQRDMLSH;
+
+            const char **rtbl = AD_RTBL_FP_16;
+            unsigned sz = _16_BIT;
+
+            if(size == 2){
+                rtbl = AD_RTBL_FP_32;
+                sz = _32_BIT;
+            }
+
+            const char *Rd_s = GET_FP_REG(rtbl, Rd);
+            const char *Rn_s = GET_FP_REG(rtbl, Rn);
+            const char *Rm_s = GET_FP_REG(rtbl, Rm);
+
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+            ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+            concat(&DECODE_STR(out), "%s %s, %s, %s", instr_s, Rd_s, Rn_s, Rm_s);
+        }
+        else{
+            const char **rtbl = AD_RTBL_FP_V_128;
+            unsigned sz = _128_BIT;
+
+            const char *Rd_s = GET_FP_REG(rtbl, Rd);
+            const char *Rn_s = GET_FP_REG(rtbl, Rn);
+            const char *Rm_s = GET_FP_REG(rtbl, Rm);
+
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+            ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+            if(opcode == 2){
+                instr_s = U == 0 ? "sdot" : "udot";
+                instr_id = U == 0 ? AD_INSTR_SDOT : AD_INSTR_UDOT;
+
+                const char *Ta = Q == 0 ? "2s" : "4s";
+                const char *Tb = Q == 0 ? "8b" : "16b";
+
+                concat(&DECODE_STR(out), "%s %s.%s, %s.%s, %s.%s", instr_s,
+                        Rd_s, Ta, Rn_s, Tb, Rm_s, Tb);
+            }
+            else{
+                if(opcode < 2){
+                    instr_s = opcode == 0 ? "sqrdmlah" : "sqrdmlsh";
+                    instr_id = opcode == 0 ? AD_INSTR_SQRDMLAH : AD_INSTR_SQRDMLSH;
+                }
+                else{
+                    if((opcode & ~3) == 8){
+                        instr_s = "fcmla";
+                        instr_id = AD_INSTR_FCMLA;
+                    }
+                    else if((opcode & ~2) == 12){
+                        instr_s = "fcadd";
+                        instr_id = AD_INSTR_FCADD;
+                    }
+                    else{
+                        return 1;
+                    }
+                }
+
+                const char *arrangement = NULL;
+
+                if(size == 1)
+                    arrangement = Q == 0 ? "4h" : "8h";
+                else if(size == 2)
+                    arrangement = Q == 0 ? "2s" : "4s";
+                else if((instr_id == AD_INSTR_FCMLA || instr_id == AD_INSTR_FCADD) &&
+                        size == 3 && Q == 1){
+                    arrangement = "2d";
+                }
+
+                if(!arrangement)
+                    return 1;
+
+                concat(&DECODE_STR(out), "%s %s.%s, %s.%s, %s.%s", instr_s,
+                        Rd_s, arrangement, Rn_s, arrangement, Rm_s, arrangement);
+
+                if(instr_id == AD_INSTR_FCMLA || instr_id == AD_INSTR_FCADD){
+                    unsigned rotate = 0;
+
+                    if(instr_id == AD_INSTR_FCMLA)
+                        rotate = rot * 90;
+                    else
+                        rotate = rot == 0 ? 90 : 270;
+
+                    concat(&DECODE_STR(out), ", #%d", rotate);
+
+                    if(rotate > 0)
+                        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&rotate);
+                }
+            }
+        }
     }
     else{
-
+        // XXX continue...
     }
 
     SET_INSTR_ID(out, instr_id);
