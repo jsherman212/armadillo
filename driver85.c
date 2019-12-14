@@ -2029,6 +2029,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("fabd	h3, h2, h0", 0x7ec01443, 0);
     */
 
+    /*
     addinstr("fcvtns h4, h6", 0x5e79a8c4, 0);
     addinstr("fcmge h4, h3, 0.0", 0x7ef8c864, 0);
     addinstr("ucvtf h10, h11", 0x7e79d96a, 0);
@@ -2040,6 +2041,57 @@ int main(int argc, char **argv, const char **envp){
     addinstr("fcvtps	h8, h4", 0x5ef9a888, 0);
     addinstr("fcmle	h9, h1, #0.0", 0x7ef8d829, 0);
     addinstr("fcvtzs	h10, h11", 0x5ef9b96a, 0);
+    */
+    /*
+    addinstr("sqrdmlah s4, s3, s2", 0x7e828464, 0);
+    addinstr("sqrdmlsh	h4, h10, h10", 0x7e4a8d44, 0);
+    */
+
+    /* XXX start tests for DisassembleAdvancedSIMDThreeSameInstr */
+    addinstr("fmulx h4, h5, h6", 0x5e461ca4, 0);
+    addinstr("fcmeq h2, h3, h1", 0x5e412462, 0);
+    addinstr("frecps h20, h19, h2", 0x5e423e74, 0);
+    addinstr("frsqrts h3, h4, h5", 0x5ec53c83, 0);
+    addinstr("fcmge h3, h2, h1", 0x7e412443, 0);
+    addinstr("facge h5, h3, h7", 0x7e472c65, 0);
+    addinstr("facgt h3, h4, h5", 0x7ec52c83, 0);
+    addinstr("fcmgt	v2.4h, v10.4h, v1.4h", 0x2ec12542, 0);
+    addinstr("fmaxnm v5.4h, v6.4h, v7.4h", 0x0e4704c5, 0);
+    addinstr("fabd v20.8h, v4.8h, v6.8h", 0x6ec61494, 0);
+    addinstr("sqrdmlah s4, s3, s2", 0x7e828464, 0);
+    addinstr("fcmla v5.4h, v6.4h, v7.4h, #270", 0x2e47dcc5, 0);
+    addinstr("fcmla v5.4h, v6.4h, v7.4h, #0", 0x2e47c4c5, 0);
+    addinstr("fcmla v5.4h, v6.4h, v7.4h, #90", 0x2e47ccc5, 0);
+    addinstr("fcmla v5.4h, v6.4h, v7.4h, #180", 0x2e47d4c5, 0);
+    /*
+    addinstr("sqadd s4, s3, s2", 0x5EA20C64, 0);
+    addinstr("sshl v4.8b, v5.8b, v6.8b", 0x0E2644A4, 0);
+    addinstr("cmtst d2, d0, d1", 0x5ee18c02, 0);
+    addinstr("fcmeq s3, s4, s2", 0x5e22e483, 0);
+    addinstr("smax v5.8b, v4.8b, v3.8b", 0x0e236485, 0);
+    addinstr("bic v4.8b, v5.8b, v9.8b", 0x0e691ca4, 0);
+    addinstr("eor v10.16b, v15.16b, v17.16b", 0x6e311dea, 0);
+    addinstr("ushl v19.8h, v7.8h, v4.8h", 0x6e6444f3, 0);
+    addinstr("addp v10.4s, v15.4s, v16.4s", 0x4eb0bdea, 0);
+    addinstr("sqadd v0.16b, v1.16b, v2.16b", 0x4e220c20, 0);
+    addinstr("fminnmp v0.2s, v1.2s, v2.2s", 0x2ea2c420, 0);
+    addinstr("cmge v6.8b, v7.8b, v8.8b", 0x0e283ce6, 0);
+    addinstr("uqshl v0.8h, v0.8h, v0.8h", 0x6e604c00, 0);
+    */
+    /* XXX end tests for DisassembleAdvancedSIMDThreeSameInstr */
+
+    // XXX tests for Advanced SIMD scalar two-register miscellaneous
+    /*
+       addinstr("sqadd s4, s3, s2", 0x5EA20C64, 0);
+       addinstr("suqadd	s8, s1", 0x5ea03828, 0);
+       addinstr("suqadd	b1, b0", 0x5e203801, 0);
+       addinstr("cmlt	d10, d11, #0", 0x5ee0a96a, 0);
+       addinstr("sqxtn	b20, h4", 0x5e214894, 0);
+       addinstr("frecpx	d8, d9", 0x5ee1f928, 0);
+       addinstr("frsqrte	s10, s22", 0x7ea1daca, 0);
+       addinstr("neg	d20, d25", 0x7ee0bb34, 0);
+       addinstr("scvtf	d2, d3", 0x5e61d862, 0);
+       */
 
 
     for(struct node *current = instructions->front;

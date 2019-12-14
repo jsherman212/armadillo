@@ -249,65 +249,7 @@ static int DisassembleAdvancedSIMDScalarCopyInstr(struct instruction *i,
     return 0;
 }
 
-static int DisassembleAdvancedSIMDScalarThreeSameFP16Instr(struct instruction *i,
-        struct ad_insn *out){
-    unsigned U = bits(i->opcode, 29, 29);
-    unsigned a = bits(i->opcode, 23, 23);
-    unsigned Rm = bits(i->opcode, 16, 20);
-    unsigned opcode = bits(i->opcode, 11, 13);
-    unsigned Rn = bits(i->opcode, 5, 9);
-    unsigned Rd = bits(i->opcode, 0, 4);
-
-    ADD_FIELD(out, U);
-    ADD_FIELD(out, a);
-    ADD_FIELD(out, Rm);
-    ADD_FIELD(out, opcode);
-    ADD_FIELD(out, Rn);
-    ADD_FIELD(out, Rd);
-
-    struct itab tab[] = {
-        { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
-        { "fmulx", AD_INSTR_FMULX }, { "fcmeq", AD_INSTR_FCMEQ },
-        { NULL, NONE }, { NULL, NONE }, { "frecps", AD_INSTR_FRECPS },
-        { NULL, NONE }, { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
-        { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
-        { "frsqrts", AD_INSTR_FRSQRTS }, { NULL, NONE }, { NULL, NONE },
-        { NULL, NONE }, { NULL, NONE }, { "fcmge", AD_INSTR_FCMGE }, { "facge", AD_INSTR_FACGE },
-        { NULL, NONE }, { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
-        { "fabd", AD_INSTR_FABD }, { NULL, NONE }, { "fcmgt", AD_INSTR_FCMGT },
-        { "facgt", AD_INSTR_FACGT }
-    };
-
-    unsigned idx = (U << 4) | (a << 3) | opcode;
-
-    if(OOB(idx, tab))
-        return 1;
-
-    const char *instr_s = tab[idx].instr_s;
-
-    if(!instr_s)
-        return 1;
-
-    int instr_id = tab[idx].instr_id;
-
-    const char **rtbl = AD_RTBL_FP_16;
-
-    const char *Rd_s = GET_FP_REG(rtbl, Rd);
-    const char *Rn_s = GET_FP_REG(rtbl, Rn);
-    const char *Rm_s = GET_FP_REG(rtbl, Rm);
-
-    ADD_REG_OPERAND(out, Rd, _SZ(_16_BIT), NO_PREFER_ZR, _SYSREG(NONE), rtbl);
-    ADD_REG_OPERAND(out, Rn, _SZ(_16_BIT), NO_PREFER_ZR, _SYSREG(NONE), rtbl);
-    ADD_REG_OPERAND(out, Rm, _SZ(_16_BIT), NO_PREFER_ZR, _SYSREG(NONE), rtbl);
-
-    concat(&DECODE_STR(out), "%s %s, %s, %s", instr_s, Rd_s, Rn_s, Rm_s);
-
-    SET_INSTR_ID(out, instr_id);
-
-    return 0;
-}
-
-static int DisassembleAdvancedSIMDScalarTwoRegisterMiscFP16(struct instruction *i,
+static int DisassembleAdvancedSIMDScalarTwoRegisterMiscFP16Instr(struct instruction *i,
         struct ad_insn *out){
     unsigned U = bits(i->opcode, 29, 29);
     unsigned a = bits(i->opcode, 23, 23);
@@ -411,7 +353,7 @@ static int DisassembleAdvancedSIMDScalarTwoRegisterMiscFP16(struct instruction *
 
     concat(&DECODE_STR(out), "%s %s, %s", instr_s, Rd_s, Rn_s);
 
-    /* add #0.0 to the instrs doing conditional compares */
+    /* add #0.0 to the instrs doing compares */
     if(instr_id == AD_INSTR_FCMGT || instr_id == AD_INSTR_FCMEQ ||
             instr_id == AD_INSTR_FCMLT || instr_id == AD_INSTR_FCMGE ||
             instr_id == AD_INSTR_FCMLE){
@@ -438,7 +380,175 @@ const char *get_arrangement2(int fp16, unsigned int sz, unsigned int Q){
             return Q == 0 ? ".unk" : "2d";
     }
 }
+*/
 
+
+/* This function takes care of:
+ *      - Advanced SIMD scalar three same FP16
+ *      - Advanced SIMD scalar three same extra
+ *      - Advanced SIMD scalar three same
+ *      - Advanced SIMD three same (FP16)
+ *      - Advanced SIMD three same extra
+ *      - Advanced SIMD three same
+ */
+static int DisassembleAdvancedSIMDThreeSameInstr(struct instruction *i,
+        struct ad_insn *out, int scalar, int fp16, int extra){
+    //printf("%s: scalar: %d fp16: %d extra: %d\n", __func__, scalar, fp16, extra);
+
+    unsigned Q = bits(i->opcode, 30, 30);
+    unsigned U = bits(i->opcode, 29, 29);
+    unsigned a = bits(i->opcode, 23, 23);
+    unsigned size = bits(i->opcode, 22, 23);
+    unsigned Rm = bits(i->opcode, 16, 20);
+    
+    unsigned opcode = 0;
+
+    if(fp16)
+        opcode = bits(i->opcode, 11, 13);
+    else if(extra)
+        opcode = bits(i->opcode, 11, 14);
+    else
+        opcode = bits(i->opcode, 11, 15);
+
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
+
+    if(!scalar)
+        ADD_FIELD(out, Q);
+
+    ADD_FIELD(out, U);
+
+    if(fp16)
+        ADD_FIELD(out, a);
+    else
+        ADD_FIELD(out, size);
+
+    ADD_FIELD(out, Rm);
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
+
+    /* not a part of all instrs, don't include in field array */
+    unsigned rot = bits(i->opcode, 11, 12);
+
+    const char *instr_s = NULL;
+    int instr_id = NONE;
+
+    if(fp16){
+        const char **rtbl = AD_RTBL_FP_V_128;
+        unsigned sz = _128_BIT;
+
+        if(scalar){
+            rtbl = AD_RTBL_FP_16;
+            sz = _16_BIT;
+        }
+
+        const char *Rd_s = GET_FP_REG(rtbl, Rd);
+        const char *Rn_s = GET_FP_REG(rtbl, Rn);
+        const char *Rm_s = GET_FP_REG(rtbl, Rm);
+
+        ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+        ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+        ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+        unsigned idx = (U << 4) | (a << 3) | opcode;
+
+        if(scalar){
+            struct itab tab[] = {
+                /* three blanks, idxes [0-2] */
+                { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
+                { "fmulx", AD_INSTR_FMULX }, { "fcmeq", AD_INSTR_FCMEQ },
+                /* two blanks, idxes [5-6] */
+                { NULL, NONE }, { NULL, NONE },
+                { "frecps", AD_INSTR_FRECPS },
+                /* seven blanks, idxes [8-14] */
+                { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
+                { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
+                { NULL, NONE },
+                { "frsqrts", AD_INSTR_FRSQRTS },
+                /* four blanks, idxes [16-19] */
+                { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
+                { NULL, NONE },
+                { "fcmge", AD_INSTR_FCMGE }, { "facge", AD_INSTR_FACGE },
+                /* four blanks, idxes [22-25] */
+                { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
+                { NULL, NONE },
+                { "fabd", AD_INSTR_FABD },
+                /* one blank, idx 27 */
+                { NULL, NONE },
+                { "fcmgt", AD_INSTR_FCMGT }, { "facgt", AD_INSTR_FACGT }
+            };
+
+            if(OOB(idx, tab))
+                return 1;
+
+            instr_s = tab[idx].instr_s;
+
+            if(!instr_s)
+                return 1;
+
+            instr_id = tab[idx].instr_id;
+
+            concat(&DECODE_STR(out), "%s %s, %s, %s", instr_s, Rd_s, Rn_s, Rm_s);
+        }
+        else{
+            struct itab tab[] = {
+                { "fmaxnm", AD_INSTR_FMAXNM }, { "fmla", AD_INSTR_FMLA },
+                { "fadd", AD_INSTR_FADD }, { "fmulx", AD_INSTR_FMULX },
+                { "fcmeq", AD_INSTR_FCMEQ },
+                /* one blank, idx 5 */
+                { NULL, NONE },
+                { "fmax", AD_INSTR_FMAX }, { "frecps", AD_INSTR_FRECPS },
+                { "fminnm", AD_INSTR_FMINNM }, { "fmls", AD_INSTR_FMLS },
+                { "fsub", AD_INSTR_FSUB },
+                /* three blanks, idxes [11-13] */
+                { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
+                { "fmin", AD_INSTR_FMIN }, { "frsqrts", AD_INSTR_FRSQRTS },
+                { "fmaxnmp", AD_INSTR_FMAXNMP },
+                /* one blank, idx 17 */
+                { NULL, NONE },
+                { "faddp", AD_INSTR_FADDP }, { "fmul", AD_INSTR_FMUL },
+                { "fcmge", AD_INSTR_FCMGE }, { "facge", AD_INSTR_FACGE },
+                { "fmaxp", AD_INSTR_FMAXP }, { "fdiv", AD_INSTR_FDIV },
+                { "fminnmp", AD_INSTR_FMINNMP },
+                /* one blank, idx 25 */
+                { NULL, NONE },
+                { "fabd", AD_INSTR_FABD },
+                /* one blank, idx 27 */
+                { NULL, NONE },
+                { "fcmgt", AD_INSTR_FCMGT }, { "fminp", AD_INSTR_FMINP }
+            };
+
+            if(OOB(idx, tab))
+                return 1;
+
+            instr_s = tab[idx].instr_s;
+
+            if(!instr_s)
+                return 1;
+
+            instr_id = tab[idx].instr_id;
+
+            const char *arrangement = Q == 0 ? "4h" : "8h";
+
+            concat(&DECODE_STR(out), "%s %s.%s, %s.%s, %s.%s", instr_s, Rd_s,
+                    arrangement, Rn_s, arrangement, Rm_s, arrangement);
+        }
+    }
+    else if(extra){
+
+
+    }
+    else{
+
+    }
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
+}
+
+/*
 char *DisassembleAdvancedSIMDThreeSameInstr(struct instruction *instruction, int scalar, int fp16, int extra){
     char *disassembled = NULL;
 
@@ -3431,10 +3541,29 @@ int DataProcessingFloatingPointDisassemble(struct instruction *i,
         result = DisassembleCryptographicTwoRegisterSHAInstr(i, out);
     else if((op0 & ~2) == 5 && op1 == 0 && (op2 & ~3) == 0 && (op3 & ~0x1de) == 1)
         result = DisassembleAdvancedSIMDScalarCopyInstr(i, out);
+    // XXX in between: else if ... DisassembleAdvancedSIMDCopyInstr
+    else if(((op0 & ~2) == 5 || (op0 & ~6) == 0) &&
+            (op1 & ~1) == 0 &&
+            ((op2 & ~3) == 8 || (op2 & ~11) == 4 || (op2 & ~11) == 0) &&
+            ((op3 & ~0x1ce) == 1 || (op3 & ~0x1de) == 0x21 || (op3 & ~0x1fe) == 1)){
+        int scalar = (op0 & 1);
+        int fp16 = (op2 >> 2) == 2 && (op3 & ~0x1ce) == 1;
+        int extra = (op2 & ~11) == 0 && (op3 & ~0x1de) == 0x21;
+
+        result = DisassembleAdvancedSIMDThreeSameInstr(i, out, scalar, fp16, extra);
+    }
+    else if((op0 & ~2) == 5 && (op1 & ~1) == 0 && op2 == 0xf && (op3 & ~0x7c) == 2)
+        result = DisassembleAdvancedSIMDScalarTwoRegisterMiscFP16Instr(i, out);
+    /*
     else if((op0 & ~2) == 5 && (op1 & ~1) == 0 && (op2 & ~3) == 8 && (op3 & ~0x1ce) == 1)
         result = DisassembleAdvancedSIMDScalarThreeSameFP16Instr(i, out);
     else if((op0 & ~2) == 5 && (op1 & ~1) == 0 && op2 == 0xf && (op3 & ~0x7c) == 2)
-        result = DisassembleAdvancedSIMDScalarTwoRegisterMiscFP16(i, out);
+        result = DisassembleAdvancedSIMDScalarTwoRegisterMiscFP16Instr(i, out);
+    else if((op0 & ~2) == 5 && (op1 & ~1) == 0 && (op2 & ~11) == 0 && (op3 & ~0x1de) == 0x21)
+        result = DisassembleAdvancedSIMDScalarThreeSameExtraInstr(i, out);
+    else if((op0 & ~2) == 5 && (op1 & ~1) == 0 && (op2 & ~8) == 4 && (op3 & ~0x7c) == 2)
+        result = DisassembleAdvancedSIMDScalarTwoRegisterMiscInstr(i, out);
+        */
     else
         result = 1;
 
