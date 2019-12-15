@@ -2060,6 +2060,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("fmaxnm v5.4h, v6.4h, v7.4h", 0x0e4704c5, 0);
     addinstr("fabd v20.8h, v4.8h, v6.8h", 0x6ec61494, 0);
     */
+    /*
     addinstr("sqrdmlah s4, s3, s2", 0x7e828464, 0);
     addinstr("sqrdmlsh	h4, h10, h10", 0x7e4a8d44, 0);
     addinstr("fcmla	v5.4h, v6.4h, v7.4h, #270", 0x2e47dcc5, 0);
@@ -2069,8 +2070,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("sdot	v20.4s, v5.16b, v9.16b", 0x4e8994b4, 0);
     addinstr("udot	v20.4s, v5.16b, v9.16b", 0x6e8994b4, 0);
     addinstr("fcadd	v5.2d, v6.2d, v7.2d, #90", 0x6ec7e4c5, 0);
-
-    /*
+    */
     addinstr("sqadd s4, s3, s2", 0x5EA20C64, 0);
     addinstr("sshl v4.8b, v5.8b, v6.8b", 0x0E2644A4, 0);
     addinstr("cmtst d2, d0, d1", 0x5ee18c02, 0);
@@ -2084,7 +2084,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("fminnmp v0.2s, v1.2s, v2.2s", 0x2ea2c420, 0);
     addinstr("cmge v6.8b, v7.8b, v8.8b", 0x0e283ce6, 0);
     addinstr("uqshl v0.8h, v0.8h, v0.8h", 0x6e604c00, 0);
-    */
+
     /* XXX end tests for DisassembleAdvancedSIMDThreeSameInstr */
 
     // XXX tests for Advanced SIMD scalar two-register miscellaneous

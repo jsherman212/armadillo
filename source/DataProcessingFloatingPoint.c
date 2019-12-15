@@ -639,7 +639,92 @@ static int DisassembleAdvancedSIMDThreeSameInstr(struct instruction *i,
         }
     }
     else{
-        // XXX continue...
+        const char **rtbls[] = {
+            AD_RTBL_FP_8, AD_RTBL_FP_16, AD_RTBL_FP_32, AD_RTBL_FP_64
+        };
+        
+        unsigned sizes[] = {
+            _8_BIT, _16_BIT, _32_BIT, _64_BIT
+        };
+
+
+        //printf("%s: \033[44mHERE\033[0m\n", __func__);
+        
+        if(opcode == 0){
+            if(scalar)
+                return 1;
+
+            instr_s = "shadd";
+            instr_id = AD_INSTR_SHADD;
+
+            const char *T = NULL;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+
+            if(!T)
+                return 1;
+
+            const char **rtbl = AD_RTBL_FP_V_128;
+            unsigned sz = _128_BIT;
+
+            const char *Rd_s = GET_FP_REG(rtbl, Rd);
+            const char *Rn_s = GET_FP_REG(rtbl, Rn);
+            const char *Rm_s = GET_FP_REG(rtbl, Rm);
+
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+            ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+            
+            concat(&DECODE_STR(out), "%s %s.%s, %s.%s, %s.%s", instr_s, Rd_s,
+                    T, Rn_s, T, Rm_s, T);
+        }
+        else if(opcode == 1){
+            instr_s = "sqadd";
+            instr_id = AD_INSTR_SQADD;
+
+            const char *T = NULL;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+            else if(size == 3 && Q == 1)
+                T = "2d";
+
+            if(!T)
+                return 1;
+            
+            const char **rtbl = NULL;
+
+            if(scalar)
+                rtbl = rtbls[size];
+            else
+                rtbl = AD_RTBL_FP_V_128;
+            
+            unsigned sz = _128_BIT;
+
+            const char *Rd_s = GET_FP_REG(rtbl, Rd);
+            const char *Rn_s = GET_FP_REG(rtbl, Rn);
+            const char *Rm_s = GET_FP_REG(rtbl, Rm);
+
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+            ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+            concat(&DECODE_STR(out), "%s %s", instr_s, Rd_s);
+
+            if(scalar)
+                concat(&DECODE_STR(out), ", %s, %s", Rn_s, Rm_s);
+            else
+                concat(&DECODE_STR(out), ".%s, %s.%s, %s.%s", T, Rn_s, T, Rm_s, T);
+        }
     }
 
     SET_INSTR_ID(out, instr_id);
