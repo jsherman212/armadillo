@@ -393,8 +393,6 @@ const char *get_arrangement2(int fp16, unsigned int sz, unsigned int Q){
  */
 static int DisassembleAdvancedSIMDThreeSameInstr(struct instruction *i,
         struct ad_insn *out, int scalar, int fp16, int extra){
-    //printf("%s: scalar: %d fp16: %d extra: %d\n", __func__, scalar, fp16, extra);
-
     unsigned Q = bits(i->opcode, 30, 30);
     unsigned U = bits(i->opcode, 29, 29);
     unsigned a = bits(i->opcode, 23, 23);
@@ -647,8 +645,10 @@ static int DisassembleAdvancedSIMDThreeSameInstr(struct instruction *i,
             _8_BIT, _16_BIT, _32_BIT, _64_BIT
         };
 
+        const char **rtbl = NULL;
+        const char *T = NULL;
 
-        //printf("%s: \033[44mHERE\033[0m\n", __func__);
+        unsigned sz = 0;
         
         if(opcode == 0){
             if(scalar)
@@ -656,8 +656,6 @@ static int DisassembleAdvancedSIMDThreeSameInstr(struct instruction *i,
 
             instr_s = "shadd";
             instr_id = AD_INSTR_SHADD;
-
-            const char *T = NULL;
 
             if(size == 0)
                 T = Q == 0 ? "8b" : "16b";
@@ -669,25 +667,540 @@ static int DisassembleAdvancedSIMDThreeSameInstr(struct instruction *i,
             if(!T)
                 return 1;
 
-            const char **rtbl = AD_RTBL_FP_V_128;
-            unsigned sz = _128_BIT;
-
-            const char *Rd_s = GET_FP_REG(rtbl, Rd);
-            const char *Rn_s = GET_FP_REG(rtbl, Rn);
-            const char *Rm_s = GET_FP_REG(rtbl, Rm);
-
-            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
-            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
-            ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
-            
-            concat(&DECODE_STR(out), "%s %s.%s, %s.%s, %s.%s", instr_s, Rd_s,
-                    T, Rn_s, T, Rm_s, T);
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
         }
         else if(opcode == 1){
-            instr_s = "sqadd";
-            instr_id = AD_INSTR_SQADD;
+            instr_s = U == 0 ? "sqadd" : "uqadd";
+            instr_id = U == 0 ? AD_INSTR_SQADD : AD_INSTR_UQADD;
 
-            const char *T = NULL;
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+            else if(size == 3 && Q == 1)
+                T = "2d";
+
+            if(!scalar && !T)
+                return 1;
+            
+            if(scalar){
+                rtbl = rtbls[size];
+                sz = sizes[size];
+            }
+            else{
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+        }
+        else if(opcode == 2){
+            if(scalar)
+                return 1;
+
+            instr_s = U == 0 ? "srhadd" : "urhadd";
+            instr_id = U == 0 ? AD_INSTR_SRHADD : AD_INSTR_URHADD;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else if(opcode == 3){
+            if(scalar)
+                return 1;
+
+            struct itab u0[] = {
+                { "and", AD_INSTR_AND }, { "bic", AD_INSTR_BIC },
+                { "orr", AD_INSTR_ORR }, { "orn", AD_INSTR_ORN }
+            };
+
+            struct itab u1[] = {
+                { "eor", AD_INSTR_EOR }, { "bsl", AD_INSTR_BSL },
+                { "bit", AD_INSTR_BIT }, { "bif", AD_INSTR_BIF }
+            };
+
+            /* both table sizes are the same, don't need to check u1 */
+            if(OOB(size, u0))
+                return 1;
+
+            instr_s = U == 0 ? u0[size].instr_s : u1[size].instr_s;
+            instr_id = U == 0 ? u0[size].instr_id : u1[size].instr_id;
+
+            T = Q == 0 ? "8b" : "16b";
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else if(opcode == 4){
+            if(scalar)
+                return 1;
+
+            instr_s = U == 0 ? "shsub" : "uhsub";
+            instr_id = U == 0 ? AD_INSTR_SHSUB : AD_INSTR_UHSUB;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else if(opcode == 5){
+            instr_s = U == 0 ? "sqsub" : "uqsub";
+            instr_id = U == 0 ? AD_INSTR_SQSUB : AD_INSTR_UQSUB;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+            else if(size == 3 && Q == 1)
+                T = "2d";
+
+            if(!scalar && !T)
+                return 1;
+
+            if(scalar){
+                rtbl = rtbls[size];
+                sz = sizes[size];
+            }
+            else{
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+        }
+        else if(opcode == 6){
+            if(scalar && size != 3)
+                return 1;
+
+            instr_s = U == 0 ? "cmgt" : "cmhi";
+            instr_id = U == 0 ? AD_INSTR_CMGT : AD_INSTR_CMHI;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+            else if(size == 3 && Q == 1)
+                T = "2d";
+
+            if(!scalar && !T)
+                return 1;
+
+            if(scalar){
+                rtbl = rtbls[size];
+                sz = sizes[size];
+            }
+            else{
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+        }
+        else if(opcode == 7){
+            if(scalar && size != 3)
+                return 1;
+
+            instr_s = U == 0 ? "cmge" : "cmhs";
+            instr_id = U == 0 ? AD_INSTR_CMGE : AD_INSTR_CMHS;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+            else if(size == 3 && Q == 1)
+                T = "2d";
+
+            if(!scalar && !T)
+                return 1;
+
+            if(scalar){
+                rtbl = rtbls[size];
+                sz = sizes[size];
+            }
+            else{
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+        }
+        else if(opcode == 8){
+            if(scalar && size != 3)
+                return 1;
+
+            instr_s = U == 0 ? "sshl" : "ushl";
+            instr_id = U == 0 ? AD_INSTR_SSHL : AD_INSTR_USHL;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+            else if(size == 3 && Q == 1)
+                T = "2d";
+
+            if(!scalar && !T)
+                return 1;
+
+            if(scalar){
+                rtbl = rtbls[size];
+                sz = sizes[size];
+            }
+            else{
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+        }
+        else if(opcode == 9){
+            instr_s = U == 0 ? "sqshl" : "uqshl";
+            instr_id = U == 0 ? AD_INSTR_SQSHL : AD_INSTR_UQSHL;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+            else if(size == 3 && Q == 1)
+                T = "2d";
+
+            if(!scalar && !T)
+                return 1;
+
+            if(scalar){
+                rtbl = rtbls[size];
+                sz = sizes[size];
+            }
+            else{
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+        }
+        else if(opcode == 0xa){
+            if(scalar && size != 3)
+                return 1;
+
+            instr_s = U == 0 ? "srshl" : "urshl";
+            instr_id = U == 0 ? AD_INSTR_SRSHL : AD_INSTR_URSHL;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+            else if(size == 3 && Q == 1)
+                T = "2d";
+
+            if(!scalar && !T)
+                return 1;
+
+            if(scalar){
+                rtbl = rtbls[size];
+                sz = sizes[size];
+            }
+            else{
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+        }
+        else if(opcode == 0xb){
+            instr_s = U == 0 ? "sqrshl" : "uqrshl";
+            instr_id = U == 0 ? AD_INSTR_SQRSHL : AD_INSTR_UQRSHL;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+            else if(size == 3 && Q == 1)
+                T = "2d";
+
+            if(!scalar && !T)
+                return 1;
+
+            if(scalar){
+                rtbl = rtbls[size];
+                sz = sizes[size];
+            }
+            else{
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+        }
+        else if(opcode == 0xc){
+            if(scalar)
+                return 1;
+
+            instr_s = U == 0 ? "smax" : "umax";
+            instr_id = U == 0 ? AD_INSTR_SMAX : AD_INSTR_UMAX;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else if(opcode == 0xd){
+            if(scalar)
+                return 1;
+
+            instr_s = U == 0 ? "smin" : "umin";
+            instr_id = U == 0 ? AD_INSTR_SMIN : AD_INSTR_UMIN;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else if(opcode == 0xe){
+            if(scalar)
+                return 1;
+
+            instr_s = U == 0 ? "sabd" : "uabd";
+            instr_id = U == 0 ? AD_INSTR_SABD : AD_INSTR_UABD;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else if(opcode == 0xf){
+            if(scalar)
+                return 1;
+
+            instr_s = U == 0 ? "saba" : "uaba";
+            instr_id = U == 0 ? AD_INSTR_SABA : AD_INSTR_UABA;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else if(opcode == 0x10){
+            if(scalar && size != 3)
+                return 1;
+
+            instr_s = U == 0 ? "add" : "sub";
+            instr_id = U == 0 ? AD_INSTR_ADD : AD_INSTR_SUB;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+            else if(size == 3 && Q == 1)
+                T = "2d";
+
+            if(!scalar && !T)
+                return 1;
+
+            if(scalar){
+                rtbl = rtbls[size];
+                sz = sizes[size];
+            }
+            else{
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+        }
+        else if(opcode == 0x11){
+            if(scalar && size != 3)
+                return 1;
+
+            instr_s = U == 0 ? "cmtst" : "cmeq";
+            instr_id = U == 0 ? AD_INSTR_CMTST : AD_INSTR_CMEQ;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+            else if(size == 3 && Q == 1)
+                T = "2d";
+
+            if(!scalar && !T)
+                return 1;
+
+            if(scalar){
+                rtbl = rtbls[size];
+                sz = sizes[size];
+            }
+            else{
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+        }
+        else if(opcode == 0x12){
+            if(scalar)
+                return 1;
+
+            instr_s = U == 0 ? "mla" : "mls";
+            instr_id = U == 0 ? AD_INSTR_MLA : AD_INSTR_MLS;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else if(opcode == 0x13){
+            if(scalar)
+                return 1;
+
+            instr_s = U == 0 ? "mul" : "pmul";
+            instr_id = U == 0 ? AD_INSTR_MUL : AD_INSTR_PMUL;
+
+            if(instr_id == AD_INSTR_PMUL)
+                T = Q == 0 ? "8b" : "16b";
+            else{
+                if(size == 0)
+                    T = Q == 0 ? "8b" : "16b";
+                else if(size == 1)
+                    T = Q == 0 ? "4h" : "8h";
+                else if(size == 2)
+                    T = Q == 0 ? "2s" : "4s";
+            }
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else if(opcode == 0x14){
+            if(scalar)
+                return 1;
+
+            instr_s = U == 0 ? "smaxp" : "umaxp";
+            instr_id = U == 0 ? AD_INSTR_SMAXP : AD_INSTR_UMAXP;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else if(opcode == 0x15){
+            if(scalar)
+                return 1;
+
+            instr_s = U == 0 ? "sminp" : "uminp";
+            instr_id = U == 0 ? AD_INSTR_SMINP : AD_INSTR_UMINP;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else if(opcode == 0x16){
+            if(scalar && (size == 0 || size == 3))
+                return 1;
+
+            instr_s = U == 0 ? "sqdmulh" : "sqrdmulh";
+            instr_id = U == 0 ? AD_INSTR_SQDMULH : AD_INSTR_SQRDMULH;
+
+            if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+
+            if(!scalar && !T)
+                return 1;
+
+            if(scalar){
+                rtbl = rtbls[size];
+                sz = sizes[size];
+            }
+            else{
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+        }
+        else if(opcode == 0x17){
+            if(scalar)
+                return 1;
+
+            if(U == 1)
+                return 1;
+
+            instr_s = "addp";
+            instr_id = AD_INSTR_ADDP;
 
             if(size == 0)
                 T = Q == 0 ? "8b" : "16b";
@@ -700,31 +1213,333 @@ static int DisassembleAdvancedSIMDThreeSameInstr(struct instruction *i,
 
             if(!T)
                 return 1;
-            
-            const char **rtbl = NULL;
 
-            if(scalar)
-                rtbl = rtbls[size];
-            else
-                rtbl = AD_RTBL_FP_V_128;
-            
-            unsigned sz = _128_BIT;
-
-            const char *Rd_s = GET_FP_REG(rtbl, Rd);
-            const char *Rn_s = GET_FP_REG(rtbl, Rn);
-            const char *Rm_s = GET_FP_REG(rtbl, Rm);
-
-            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
-            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
-            ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
-
-            concat(&DECODE_STR(out), "%s %s", instr_s, Rd_s);
-
-            if(scalar)
-                concat(&DECODE_STR(out), ", %s, %s", Rn_s, Rm_s);
-            else
-                concat(&DECODE_STR(out), ".%s, %s.%s, %s.%s", T, Rn_s, T, Rm_s, T);
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
         }
+        else if(opcode == 0x18){
+            if(scalar)
+                return 1;
+
+            unsigned s = size >> 1;
+
+            if(U == 0){
+                instr_s = s == 0 ? "fmaxnm" : "fminnm";
+                instr_id = s == 0 ? AD_INSTR_FMAXNM : AD_INSTR_FMINNM;
+            }
+            else{
+                instr_s = s == 0 ? "fmaxnmp" : "fminnmp";
+                instr_id = s == 0 ? AD_INSTR_FMAXNMP : AD_INSTR_FMINNMP;
+            }
+
+            unsigned _sz = (size & 1);
+
+            if(_sz == 0)
+                T = Q == 0 ? "2s" : "4s";
+            else if(_sz == 1 && Q == 1)
+                T = "2d";
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else if(opcode == 0x19){
+            if(scalar)
+                return 1;
+
+            unsigned s = size >> 1;
+
+            if(U == 0){
+                instr_s = s == 0 ? "fmla" : "fmls";
+                instr_id = s == 0 ? AD_INSTR_FMLA : AD_INSTR_FMLS;
+            }
+            else{
+                if(size == 1 || size == 3)
+                    return 1;
+
+                instr_s = size == 0 ? "fmlal2" : "fmlsl2";
+                instr_id = size == 0 ? AD_INSTR_FMLAL2 : AD_INSTR_FMLSL2;
+
+                const char *Ta = Q == 0 ? "2s" : "4s";
+                const char *Tb = Q == 0 ? "2h" : "4h";
+
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+
+                const char *Rd_s = GET_FP_REG(rtbl, Rd);
+                const char *Rn_s = GET_FP_REG(rtbl, Rn);
+                const char *Rm_s = GET_FP_REG(rtbl, Rm);
+
+                ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+                ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+                ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+                concat(&DECODE_STR(out), "%s %s.%s, %s.%s, %s.%s", instr_s, Rd_s,
+                        Ta, Rn_s, Tb, Rm_s, Tb);
+
+                SET_INSTR_ID(out, instr_id);
+
+                return 0;
+            }
+
+            unsigned _sz = (size & 1);
+
+            if(_sz == 0)
+                T = Q == 0 ? "2s" : "4s";
+            else if(_sz == 1 && Q == 1)
+                T = "2d";
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else if(opcode == 0x1a){
+            unsigned s = size >> 1;
+            unsigned _sz = (size & 1);
+
+            if(scalar){
+                if(U != 1 && s != 1)
+                    return 1;
+
+                instr_s = "fabd";
+                instr_id = AD_INSTR_FABD;
+
+                rtbl = rtbls[2 + _sz];
+                sz = sizes[2 + _sz];
+            }
+            else{
+                if(U == 0){
+                    instr_s = s == 0 ? "fadd" : "fsub";
+                    instr_id = s == 0 ? AD_INSTR_FADD : AD_INSTR_FSUB;
+                }
+                else{
+                    instr_s = s == 0 ? "faddp" : "fabd";
+                    instr_id = s == 0 ? AD_INSTR_FADDP : AD_INSTR_FABD;
+                }
+
+                if(_sz == 0)
+                    T = Q == 0 ? "2s" : "4s";
+                else if(_sz == 1 && Q == 1)
+                    T = "2d";
+
+                if(!T)
+                    return 1;
+
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+        }
+        else if(opcode == 0x1b){
+            unsigned s = size >> 1;
+            unsigned _sz = (size & 1);
+
+            if(scalar){
+                if(s == 1)
+                    return 1;
+
+                if(U == 1 && s == 0)
+                    return 1;
+
+                instr_s = "fmulx";
+                instr_id = AD_INSTR_FMULX;
+
+                rtbl = rtbls[2 + _sz];
+                sz = sizes[2 + _sz];
+            }
+            else{
+                if(s == 1)
+                    return 1;
+
+                instr_s = U == 0 ? "fmulx" : "fmul";
+                instr_id = U == 0 ? AD_INSTR_FMULX : AD_INSTR_FMUL;
+
+                if(_sz == 0)
+                    T = Q == 0 ? "2s" : "4s";
+                else if(_sz == 1 && Q == 1)
+                    T = "2d";
+
+                if(!T)
+                    return 1;
+
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+        }
+        else if(opcode == 0x1c){
+            unsigned s = size >> 1;
+            unsigned _sz = (size & 1);
+
+            if(U == 0 && s == 1)
+                return 1;
+
+            if(U == 0){
+                instr_s = "fcmeq";
+                instr_id = AD_INSTR_FCMEQ;
+            }
+            else{
+                instr_s = s == 0 ? "fcmge" : "fcmgt";
+                instr_id = s == 0 ? AD_INSTR_FCMGE : AD_INSTR_FCMGT;
+            }
+
+            if(scalar){
+                rtbl = rtbls[2 + _sz];
+                sz = sizes[2 + _sz];
+            }
+            else{
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+
+            if(_sz == 0)
+                T = Q == 0 ? "2s" : "4s";
+            else if(_sz == 1 && Q == 1)
+                T = "2d";
+
+            if(!scalar && !T)
+                return 1;
+        }
+        else if(opcode == 0x1d){
+            unsigned s = size >> 1;
+            unsigned _sz = (size & 1);
+
+            if(scalar && U == 0)
+                return 1;
+
+            if(U == 1){
+                instr_s = s == 0 ? "facge" : "facgt";
+                instr_id = s == 0 ? AD_INSTR_FACGE : AD_INSTR_FACGT;
+            }
+            else{
+                if(size == 1 || size == 3)
+                    return 1;
+
+                instr_s = size == 0 ? "fmlal" : "fmlsl";
+                instr_id = size == 0 ? AD_INSTR_FMLAL : AD_INSTR_FMLSL;
+
+                const char *Ta = Q == 0 ? "2s" : "4s";
+                const char *Tb = Q == 0 ? "2h" : "4h";
+
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+
+                const char *Rd_s = GET_FP_REG(rtbl, Rd);
+                const char *Rn_s = GET_FP_REG(rtbl, Rn);
+                const char *Rm_s = GET_FP_REG(rtbl, Rm);
+
+                ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+                ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+                ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+                concat(&DECODE_STR(out), "%s %s.%s, %s.%s, %s.%s", instr_s, Rd_s,
+                        Ta, Rn_s, Tb, Rm_s, Tb);
+
+                SET_INSTR_ID(out, instr_id);
+
+                return 0;
+            }
+            
+            if(scalar){
+                rtbl = rtbls[2 + _sz];
+                sz = sizes[2 + _sz];
+            }
+            else{
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+
+            if(_sz == 0)
+                T = Q == 0 ? "2s" : "4s";
+            else if(_sz == 1 && Q == 1)
+                T = "2d";
+
+            if(!scalar && !T)
+                return 1;
+        }
+        else if(opcode == 0x1e){
+            if(scalar)
+                return 1;
+
+            unsigned s = size >> 1;
+            unsigned _sz = (size & 1);
+
+            if(U == 0){
+                instr_s = s == 0 ? "fmax" : "fmin";
+                instr_id = s == 0 ? AD_INSTR_FMAX : AD_INSTR_FMIN;
+            }
+            else{
+                instr_s = s == 0 ? "fmaxp" : "fminp";
+                instr_id = s == 0 ? AD_INSTR_FMAXP : AD_INSTR_FMINP;
+            }
+
+            if(_sz == 0)
+                T = Q == 0 ? "2s" : "4s";
+            else if(_sz == 1 && Q == 1)
+                T = "2d";
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else if(opcode == 0x1f){
+            unsigned s = size >> 1;
+            unsigned _sz = (size & 1);
+
+            if(scalar && U != 0)
+                return 1;
+
+            if(U == 0){
+                instr_s = s == 0 ? "frecps" : "frsqrts";
+                instr_id = s == 0 ? AD_INSTR_FRECPS : AD_INSTR_FRSQRTS;
+            }
+            else{
+                if(s == 1)
+                    return 1;
+
+                instr_s = "fdiv";
+                instr_id = AD_INSTR_FDIV;
+            }
+
+            if(scalar){
+                rtbl = rtbls[2 + _sz];
+                sz = sizes[2 + _sz];
+            }
+            else{
+                rtbl = AD_RTBL_FP_V_128;
+                sz = _128_BIT;
+            }
+
+            if(_sz == 0)
+                T = Q == 0 ? "2s" : "4s";
+            else if(_sz == 1 && Q == 1)
+                T = "2d";
+
+            if(!T)
+                return 1;
+        }
+
+        if(!rtbl)
+            return 1;
+
+        const char *Rd_s = GET_FP_REG(rtbl, Rd);
+        const char *Rn_s = GET_FP_REG(rtbl, Rn);
+        const char *Rm_s = GET_FP_REG(rtbl, Rm);
+
+        ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+        ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+        ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+        concat(&DECODE_STR(out), "%s %s", instr_s, Rd_s);
+
+        if(scalar)
+            concat(&DECODE_STR(out), ", %s, %s", Rn_s, Rm_s);
+        else
+            concat(&DECODE_STR(out), ".%s, %s.%s, %s.%s", T, Rn_s, T, Rm_s, T);
     }
 
     SET_INSTR_ID(out, instr_id);

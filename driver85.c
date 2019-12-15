@@ -2084,6 +2084,21 @@ int main(int argc, char **argv, const char **envp){
     addinstr("fminnmp v0.2s, v1.2s, v2.2s", 0x2ea2c420, 0);
     addinstr("cmge v6.8b, v7.8b, v8.8b", 0x0e283ce6, 0);
     addinstr("uqshl v0.8h, v0.8h, v0.8h", 0x6e604c00, 0);
+    addinstr("fmaxnm	v0.2d, v1.2d, v2.2d", 0x4e62c420, 0);
+    addinstr("fmlsl2	v8.2s, v9.2h, v1.2h", 0x2ea1cd28, 0);
+    addinstr("fabd v20.8h, v4.8h, v6.8h", 0x6ec61494, 0);
+    addinstr("fabd	s0, s1, s3", 0x7ea3d420, 0);
+    addinstr("fabd	d0, d1, d3", 0x7ee3d420, 0);
+    addinstr("fmul	v0.2s, v1.2s, v2.2s", 0x2e22dc20, 0);
+    addinstr("fmulx	s20, s11, s22", 0x5e36dd74, 0);
+    addinstr("fcmgt	v1.4s, v2.4s, v3.4s", 0x6ea3e441, 0);
+    addinstr("fmla	v1.4s, v2.4s, v3.4s", 0x4e23cc41, 0);
+    addinstr("fmlsl	v8.4s, v9.4h, v1.4h", 0x4ea1ed28, 0);
+    addinstr("facge	s0, s5, s6", 0x7e26eca0, 0);
+    addinstr("facge	v0.4s, v9.4s, v5.4s", 0x6e25ed20, 0);
+    addinstr("fmaxp	v9.2s, v10.2s, v11.2s", 0x2e2bf549, 0);
+    addinstr("frsqrts	s0, s3, s4", 0x5ea4fc60, 0);
+    addinstr("fdiv	v0.2d, v0.2d, v1.2d", 0x6e61fc00, 0);
 
     /* XXX end tests for DisassembleAdvancedSIMDThreeSameInstr */
 
