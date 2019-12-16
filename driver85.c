@@ -2171,13 +2171,27 @@ int main(int argc, char **argv, const char **envp){
     addinstr("scvtf	d2, d3", 0x5e61d862, 0);
     */
 
+    /*
     addinstr("addp d3, v8.2d", 0x5ef1b903, 0);
     addinstr("fmaxp h2, v9.2h", 0x5e30f922, 0);
     addinstr("fminp h18, v20.2h", 0x5eb0fa92, 0);
     addinstr("fmaxnmp s0, v2.2s", 0x7e30c840, 0);
     addinstr("fminnmp d5, v4.2d", 0x7ef0c885, 0);
     addinstr("faddp	h20, v4.2h", 0x5e30d894, 0);
+    */
 
+
+
+    addinstr("sqdmlal s1, h2, h4", 0x5e649041, 0);
+    addinstr("pmull2 v6.1q, v7.2d, v4.2d", 0x4ee4e0e6, 0);
+    addinstr("umlsl v0.4s, v1.4h, v2.4h", 0x2e62a020, 0);
+    addinstr("sqdmull s4, h6, h8", 0x5e68d0c4, 0);
+    addinstr("rsubhn v20.8b, v14.8h, v7.8h", 0x2e2761d4, 0);
+    addinstr("umull2	v6.2d, v20.4s, v6.4s", 0x6ea6c286, 0);
+    addinstr("sqdmlsl2	v6.4s, v5.8h, v21.8h", 0x4e75b0a6, 0);
+
+
+    
     for(struct node *current = instructions->front;
             current;
             current = current->next){

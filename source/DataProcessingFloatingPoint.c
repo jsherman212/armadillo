@@ -496,8 +496,7 @@ static int DisassembleAdvancedSIMDThreeSameInstr(struct instruction *i,
 
                     concat(&DECODE_STR(out), ", #%d", rotate);
 
-                    if(rotate > 0)
-                        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&rotate);
+                    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&rotate);
                 }
             }
         }
@@ -2329,67 +2328,211 @@ static int DisassembleAdvancedSIMDScalarPairwiseInstr(struct instruction *i,
     return 0;
 }
 
-/*
-char *DisassembleAdvancedSIMDThreeDifferentInstr(struct instruction *instruction, int scalar){
-    char *disassembled = NULL;
+static int DisassembleAdvancedSIMDThreeDifferentInstr(struct instruction *i,
+        struct ad_insn *out, int scalar){
+    unsigned Q = bits(i->opcode, 30, 30);
+    unsigned U = bits(i->opcode, 29, 29);
+    unsigned size = bits(i->opcode, 22, 23);
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned opcode = bits(i->opcode, 12, 15);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int opcode = getbitsinrange(instruction->opcode, 12, 4);
-    unsigned int Rm = getbitsinrange(instruction->opcode, 16, 5);
-    unsigned int size = getbitsinrange(instruction->opcode, 22, 2);
-    unsigned int U = getbitsinrange(instruction->opcode, 29, 1);
-    unsigned int Q = getbitsinrange(instruction->opcode, 30, 1);
+    if(!scalar)
+        ADD_FIELD(out, Q);
 
-    const char *instr = NULL;
-    char Va = '\0', Vb = '\0';
-    const char *Ta = NULL, *Tb = NULL;
+    ADD_FIELD(out, U);
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, Rm);
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
 
-    char Va_s[] = {'\0', 's', 'd'};
-    char Vb_s[] = {'\0', 'h', 's'};
+    const char *instr_s = NULL;
+    int instr_id = NONE;
 
-    const char *Ta_s[] = {"8h", "4s", "2d"};
+    const char **Rd_Rtbl = NULL;
+    const char **Rn_Rm_Rtbl = NULL;
 
-    const char *instr_tbl_u0[] = {"saddl", "saddw", "ssubl", "ssubw", "addhn", "sabal", 
-        "subhn", "sabdl", "smlal", "sqdmlal", "smlsl", "sqdmlsl", 
-        "smull", "sqdmull", "pmull"};
-    const char *instr_tbl_u1[] = {"uaddl", "uaddw", "usubl", "usubw", "raddhn", "uabal",
-        "rsubhn", "uabdl", "umlal", NULL, "umlsl", NULL, 
-        "umull", NULL, NULL};
+    unsigned Rd_sz = 0;
+    unsigned Rn_Rm_sz = 0;
 
-    if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u0)))
-        return strdup(".undefined");
-
-    if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u1)))
-        return strdup(".undefined");
-
-    instr = U == 0 ? instr_tbl_u0[opcode] : instr_tbl_u1[opcode];
-
-    if(!instr)
-        return strdup(".undefined");
-
-    if(strstr(instr, "pmull"))
-        Ta = size == 0 ? "8h" : "1q";
-    else
-        Ta = Ta_s[size];
-
-    Tb = get_arrangement(size, Q);
+    const char *first_T = NULL;
+    const char *second_T = NULL;
+    const char *third_T = NULL;
 
     if(scalar){
-        Va = Va_s[size];
-        Vb = Vb_s[size];
+        if(U == 1)
+            return 1;
+
+        if(size == 0 || size == 3)
+            return 1;
+
+        unsigned tempop = opcode - 9;
+
+        struct itab tab[] = {
+            { "sqdmlal", AD_INSTR_SQDMLAL },
+            /* one blank, idx 1 */
+            { NULL, NONE },
+            { "sqdmlsl", AD_INSTR_SQDMLSL },
+            /* one blank, idx 3 */
+            { NULL, NONE },
+            { "sqdmull", AD_INSTR_SQDMULL }
+        };
+
+        if(OOB(tempop, tab))
+            return 1;
+
+        instr_s = tab[tempop].instr_s;
+
+        if(!instr_s)
+            return 1;
+
+        instr_id = tab[tempop].instr_id;
+
+        Rd_Rtbl = size == 1 ? AD_RTBL_FP_32 : AD_RTBL_FP_64;
+        Rn_Rm_Rtbl = size == 1 ? AD_RTBL_FP_16 : AD_RTBL_FP_32;
+
+        Rd_sz = size == 1 ? _32_BIT : _64_BIT;
+        Rn_Rm_sz = size == 1 ? _16_BIT : _32_BIT;
+    }
+    else{
+        struct itab u0_tab[] = {
+            { Q == 0 ? "saddl" : "saddl2", Q == 0 ? AD_INSTR_SADDL : AD_INSTR_SADDL2 },
+            { Q == 0 ? "saddw" : "saddw2", Q == 0 ? AD_INSTR_SADDW : AD_INSTR_SADDW2 },
+            { Q == 0 ? "ssubl" : "ssubl2", Q == 0 ? AD_INSTR_SSUBL : AD_INSTR_SSUBL2 },
+            { Q == 0 ? "ssubw" : "ssubw2", Q == 0 ? AD_INSTR_SSUBW : AD_INSTR_SSUBW2 },
+            { Q == 0 ? "addhn" : "addhn2", Q == 0 ? AD_INSTR_ADDHN : AD_INSTR_ADDHN2 },
+            { Q == 0 ? "sabal" : "sabal2", Q == 0 ? AD_INSTR_SABAL : AD_INSTR_SABAL2 },
+            { Q == 0 ? "subhn" : "subhn2", Q == 0 ? AD_INSTR_SUBHN : AD_INSTR_SUBHN2 },
+            { Q == 0 ? "sabdl" : "sabdl2", Q == 0 ? AD_INSTR_SABDL : AD_INSTR_SABDL2 },
+            { Q == 0 ? "smlal" : "smlal2", Q == 0 ? AD_INSTR_SMLAL : AD_INSTR_SMLAL2 },
+            { Q == 0 ? "sqdmlal" : "sqdmlal2", Q == 0 ? AD_INSTR_SQDMLAL : AD_INSTR_SQDMLAL2 },
+            { Q == 0 ? "smlsl" : "smlsl2", Q == 0 ? AD_INSTR_SMLSL : AD_INSTR_SMLSL2 },
+            { Q == 0 ? "sqdmlsl" : "sqdmlsl2", Q == 0 ? AD_INSTR_SQDMLSL : AD_INSTR_SQDMLSL2 },
+            { Q == 0 ? "smull" : "smull2", Q == 0 ? AD_INSTR_SMULL : AD_INSTR_SMULL2 },
+            { Q == 0 ? "sqdmull" : "sqdmull2", Q == 0 ? AD_INSTR_SQDMULL : AD_INSTR_SQDMULL2 },
+            { Q == 0 ? "pmull" : "pmull2", Q == 0 ? AD_INSTR_PMULL : AD_INSTR_PMULL2 },
+        };
+
+        struct itab u1_tab[] = {
+            { Q == 0 ? "uaddl" : "uaddl2", Q == 0 ? AD_INSTR_UADDL : AD_INSTR_UADDL2 },
+            { Q == 0 ? "uaddw" : "uaddw2", Q == 0 ? AD_INSTR_UADDW : AD_INSTR_UADDW2 },
+            { Q == 0 ? "usubl" : "usubl2", Q == 0 ? AD_INSTR_USUBL : AD_INSTR_USUBL2 },
+            { Q == 0 ? "usubw" : "usubw2", Q == 0 ? AD_INSTR_USUBW : AD_INSTR_USUBW2 },
+            { Q == 0 ? "raddhn" : "raddhn2", Q == 0 ? AD_INSTR_RADDHN : AD_INSTR_RADDHN2 },
+            { Q == 0 ? "uabal" : "uabal2", Q == 0 ? AD_INSTR_UABAL : AD_INSTR_UABAL2 },
+            { Q == 0 ? "rsubhn" : "rsubhn2", Q == 0 ? AD_INSTR_RSUBHN : AD_INSTR_RSUBHN2 },
+            { Q == 0 ? "uabdl" : "uabdl2", Q == 0 ? AD_INSTR_UABDL : AD_INSTR_UABDL2 },
+            { Q == 0 ? "umlal" : "umlal2", Q == 0 ? AD_INSTR_UMLAL : AD_INSTR_UMLAL2 },
+            /* one blank, idx 9 */
+            { NULL, NONE },
+            { Q == 0 ? "umlsl" : "umlsl2", Q == 0 ? AD_INSTR_UMLSL : AD_INSTR_UMLSL2 },
+            /* one blank, idx 11 */
+            { NULL, NONE },
+            { Q == 0 ? "umull" : "umull2", Q == 0 ? AD_INSTR_UMULL : AD_INSTR_UMULL2 },
+        };
+
+        if(U == 0 && OOB(opcode, u0_tab))
+            return 1;
+
+        if(U == 1 && OOB(opcode, u1_tab))
+            return 1;
+
+        struct itab *tab = U == 0 ? u0_tab : u1_tab;
+
+        instr_s = tab[opcode].instr_s;
+
+        if(!instr_s)
+            return 1;
+
+        instr_id = tab[opcode].instr_id;
+
+        if(instr_id == AD_INSTR_SQDMLAL || instr_id == AD_INSTR_SQDMLSL ||
+                instr_id == AD_INSTR_SQDMULL || instr_id == AD_INSTR_SQDMLAL2 ||
+                instr_id == AD_INSTR_SQDMLSL2 || instr_id == AD_INSTR_SQDMULL2){
+            if(size == 0 || size == 3)
+                return 1;
+        }
+
+        if(instr_id == AD_INSTR_PMULL || instr_id == AD_INSTR_PMULL2){
+            if(size == 1 || size == 2)
+                return 1;
+        }
+
+        if(instr_id != AD_INSTR_PMULL && instr_id != AD_INSTR_PMULL2 && size == 3)
+            return 1;
+
+        const char *Ta = NULL;
+        const char *Tb = NULL;
+
+        if(size == 0){
+            Ta = "8h";
+            Tb = Q == 0 ? "8b" : "16b";
+        }
+        else if(size == 1){
+            Ta = "4s";
+            Tb = Q == 0 ? "4h" : "8h";
+        }
+        else if(size == 2){
+            Ta = "2d";
+            Tb = Q == 0 ? "2s" : "4s";
+        }
+        else if(size == 3){
+            Ta = "1q";
+            Tb = Q == 0 ? "1d" : "2d";
+        }
+
+        if(!Ta || !Tb)
+            return 1;
+
+        if(opcode == 0 || opcode == 2 || opcode == 4 || opcode == 5 || opcode >= 7){
+            first_T = Ta;
+            second_T = third_T = Tb;
+        }
+        else if(opcode == 1 || opcode == 3){
+            first_T = second_T = Ta;
+            third_T = Tb;
+        }
+        else if(opcode == 6){
+            first_T = Tb;
+            second_T = third_T = Ta;
+        }
+
+        if(!first_T || !second_T || !third_T)
+            return 1;
+
+        Rd_Rtbl = AD_RTBL_FP_V_128;
+        Rn_Rm_Rtbl = AD_RTBL_FP_V_128;
+        
+        Rd_sz = _128_BIT;
+        Rn_Rm_sz = _128_BIT;
     }
 
-    disassembled = malloc(128);
+    if(!Rd_Rtbl || !Rn_Rm_Rtbl)
+        return 1;
+
+    const char *Rd_s = GET_FP_REG(Rd_Rtbl, Rd);
+    const char *Rn_s = GET_FP_REG(Rn_Rm_Rtbl, Rn);
+    const char *Rm_s = GET_FP_REG(Rn_Rm_Rtbl, Rm);
+
+    ADD_REG_OPERAND(out, Rd, Rd_sz, NO_PREFER_ZR, _SYSREG(NONE), Rd_Rtbl);
+    ADD_REG_OPERAND(out, Rn, Rn_Rm_sz, NO_PREFER_ZR, _SYSREG(NONE), Rn_Rm_Rtbl);
+    ADD_REG_OPERAND(out, Rm, Rn_Rm_sz, NO_PREFER_ZR, _SYSREG(NONE), Rn_Rm_Rtbl);
 
     if(scalar)
-        sprintf(disassembled, "%s %c%d, %c%d, %c%d", instr, Va, Rd, Vb, Rn, Vb, Rm);
-    else
-        sprintf(disassembled, "%s%s %s.%s, %s.%s, %s.%s", instr, Q == 1 ? "2" : "", ARM64_VectorRegisters[Rd], Ta, ARM64_VectorRegisters[Rn], Tb, ARM64_VectorRegisters[Rm], Tb);
+        concat(&DECODE_STR(out), "%s %s, %s, %s", instr_s, Rd_s, Rn_s, Rm_s);
+    else{
+        concat(&DECODE_STR(out), "%s %s.%s, %s.%s, %s.%s", instr_s, Rd_s,
+                first_T, Rn_s, second_T, Rm_s, third_T);
+    }
 
-    return disassembled;
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
+/*
 int VFPExpandImm(int imm8){
     int E = 8, N = 32;
 
@@ -4145,6 +4288,14 @@ int DataProcessingFloatingPointDisassemble(struct instruction *i,
     }
     else if((op0 & ~2) == 5 && (op1 & ~1) == 0 && (op2 & ~8) == 6 && (op3 & ~0x7c) == 2)
         result = DisassembleAdvancedSIMDScalarPairwiseInstr(i, out);
+    else if(((op0 & ~2) == 5 || (op0 & ~6) == 0) &&
+            (op1 & ~1) == 0 &&
+            (op2 & ~11) == 4 &&
+            (op3 & ~0x1fc) == 0){
+        int scalar = (op0 & 1);
+
+        result = DisassembleAdvancedSIMDThreeDifferentInstr(i, out, scalar);
+    }
     else
         result = 1;
 

@@ -32,7 +32,7 @@ driver85 : $(OBJECT_FILES) driver85.c linkedlist.c
 	$(CC) $(CFLAGS) -L. -larmadillo linkedlist.c driver85.c -o driver85
 
 asmtestcases : asmtests
-	llvm-mc -triple=aarch64 -mattr=+mte,+pa,+lse,+rcpc-immo,+crc,+fmi,+fullfp16,+rdm,+dotprod,+complxnum,+fp16fml \
+	llvm-mc -triple=aarch64 -mattr=+mte,+pa,+lse,+rcpc-immo,+crc,+fmi,+fullfp16,+rdm,+dotprod,+complxnum,+fp16fml,+aes \
 		--show-encoding --print-imm-hex -assemble < asmtests | perl asmtestgen > tests.txt
 
 $(SRCDIR)/%.o : $(SRCDIR)/%.c $(SRCDIR)/%.h
