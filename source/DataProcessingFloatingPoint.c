@@ -2233,6 +2233,102 @@ static int DisassembleAdvancedSIMDTwoRegisterMiscellaneousInstr(struct instructi
     return 0;
 }
 
+static int DisassembleAdvancedSIMDScalarPairwiseInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned U = bits(i->opcode, 29, 29);
+    unsigned size = bits(i->opcode, 22, 23);
+    unsigned opcode = bits(i->opcode, 12, 16);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
+
+    ADD_FIELD(out, U);
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
+
+    const char **Rd_rtbl = NULL;
+    const char *T = NULL;
+
+    unsigned Rd_sz = 0;
+
+    const char *instr_s = NULL;
+    int instr_id = NONE;
+
+    if(opcode == 0x1b){
+        if(U == 1 && size != 3)
+            return 1;
+
+        instr_s = "addp";
+        instr_id = AD_INSTR_ADDP;
+
+        Rd_rtbl = AD_RTBL_FP_64;
+        Rd_sz = _64_BIT;
+
+        T = "2d";
+    }
+    else{
+        unsigned s = size >> 1;
+        unsigned _sz = (size & 1);
+
+        if(opcode == 13 && s == 1)
+            return 1;
+
+        int fp16 = (U == 0);
+
+        unsigned tempop = opcode - 12;
+
+        struct itab tab[] = {
+            { s == 0 ? "fmaxnmp" : "fminnmp", s == 0 ? AD_INSTR_FMAXNMP : AD_INSTR_FMINNMP },
+            { s == 0 ? "faddp" : NULL, s == 0 ? AD_INSTR_FADDP : NONE },
+            /* one blank, idx 2 */
+            { NULL, NONE },
+            { s == 0 ? "fmaxp" : "fminp", s == 0 ? AD_INSTR_FMAXP : AD_INSTR_FMINP }
+        };
+
+        if(OOB(tempop, tab))
+            return 1;
+
+        instr_s = tab[tempop].instr_s;
+
+        if(!instr_s)
+            return 1;
+
+        instr_id = tab[tempop].instr_id;
+
+        if(fp16 && _sz == 1)
+            return 1;
+
+        if(fp16){
+            Rd_rtbl = AD_RTBL_FP_16;
+            Rd_sz = _16_BIT;
+
+            T = "2h";
+        }
+        else{
+            Rd_rtbl = _sz == 0 ? AD_RTBL_FP_32 : AD_RTBL_FP_64;
+            Rd_sz = _sz == 0 ? _32_BIT : _64_BIT;
+
+            T = _sz == 0 ? "2s" : "2d";
+        }
+    }
+
+    if(!Rd_rtbl)
+        return 1;
+
+    const char *Rd_s = GET_FP_REG(Rd_rtbl, Rd);
+    const char *Rn_s = GET_FP_REG(AD_RTBL_FP_V_128, Rn);
+
+    ADD_REG_OPERAND(out, Rd, Rd_sz, NO_PREFER_ZR, _SYSREG(NONE), Rd_rtbl);
+    ADD_REG_OPERAND(out, Rn, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_FP_V_128));
+
+    concat(&DECODE_STR(out), "%s %s, %s.%s", instr_s, Rd_s, Rn_s, T);
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
+}
+
 /*
 char *DisassembleAdvancedSIMDThreeDifferentInstr(struct instruction *instruction, int scalar){
     char *disassembled = NULL;
@@ -2841,85 +2937,6 @@ char *DisassembleAdvancedSIMDIndexedElementInstr(struct instruction *instruction
 
     if(!disassembled)
         return strdup(".unknown");
-
-    return disassembled;
-}
-
-char *DisassembleAdvancedSIMDScalarPairwiseInstr(struct instruction *instruction){
-    char *disassembled = NULL;
-
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int opcode = getbitsinrange(instruction->opcode, 12, 5);
-    unsigned int size = getbitsinrange(instruction->opcode, 22, 2);
-    unsigned int sz = (size & 1);
-    unsigned int U = getbitsinrange(instruction->opcode, 29, 1);
-
-    const char *instr = NULL, *T = NULL;
-    char V = '\0';
-
-    if(opcode == 0x1b){
-        if(U == 1)
-            return strdup(".undefined");
-
-        instr = "addp";
-
-        if(size != 3)
-            return strdup(".undefined");
-
-        V = 'd';
-        T = "2d";
-    }
-    else{
-        // subtract 12 so we don't have to deal with rows of annoying NULL
-        opcode -= 12;
-
-        if(U == 0){
-            if(size == 0){
-                const char *tbl[] = {"fmaxnmp", "faddp", NULL, "fmaxp"};
-                if(!check_bounds(opcode, ARRAY_SIZE(tbl)))
-                    return strdup(".undefined");
-
-                instr = tbl[opcode];
-            }
-            else if(size == 2){
-                const char *tbl[] = {"fminnmp", NULL, NULL, "fminp"};
-                if(!check_bounds(opcode, ARRAY_SIZE(tbl)))
-                    return strdup(".undefined");
-
-                instr = tbl[opcode];
-            }
-            else
-                return strdup(".undefined");
-
-            V = 'h';
-            T = "2h";
-        }
-        else{
-            if((size >> 1) == 0){
-                const char *tbl[] = {"fmaxnmp", "faddp", NULL, "fmaxp"};
-                if(!check_bounds(opcode, ARRAY_SIZE(tbl)))
-                    return strdup(".undefined");
-
-                instr = tbl[opcode];
-            }
-            else if((size >> 1) == 1){
-                const char *tbl[] = {"fminnmp", NULL, NULL, "fminp"};
-                if(!check_bounds(opcode, ARRAY_SIZE(tbl)))
-                    return strdup(".undefined");
-
-                instr = tbl[opcode];
-            }
-            else
-                return strdup(".undefined");
-
-            V = sz == 0 ? 's' : 'd';
-            T = sz == 0 ? "2s" : "2d";
-        }
-    }
-
-    disassembled = malloc(128);
-    sprintf(disassembled, "%s %c%d, %s.%s", instr, V, Rd, ARM64_VectorRegisters[Rn], T);
 
     return disassembled;
 }
@@ -4126,6 +4143,8 @@ int DataProcessingFloatingPointDisassemble(struct instruction *i,
 
         result = DisassembleAdvancedSIMDTwoRegisterMiscellaneousInstr(i, out, scalar, fp16);
     }
+    else if((op0 & ~2) == 5 && (op1 & ~1) == 0 && (op2 & ~8) == 6 && (op3 & ~0x7c) == 2)
+        result = DisassembleAdvancedSIMDScalarPairwiseInstr(i, out);
     else
         result = 1;
 

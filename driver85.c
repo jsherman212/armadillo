@@ -2104,6 +2104,7 @@ int main(int argc, char **argv, const char **envp){
     /* XXX end tests for DisassembleAdvancedSIMDThreeSameInstr */
 
     // XXX tests for Advanced SIMD scalar two-register miscellaneous
+    /*
     addinstr("fcvtns h4, h6", 0x5e79a8c4, 0);
     addinstr("fcmge h4, h3, 0.0", 0x7ef8c864, 0);
     addinstr("ucvtf h10, h11", 0x7e79d96a, 0);
@@ -2154,6 +2155,8 @@ int main(int argc, char **argv, const char **envp){
     addinstr("urecpe	v20.2s, v21.2s", 0x0ea1cab4, 0);
     addinstr("fcvtzs	v19.2d, v0.2d", 0x4ee1b813, 0);
     addinstr("fcvtzu	h0, h9", 0x7ef9b920, 0);
+    */
+    // XXX end tests for two reg misc
 
 
 
@@ -2167,6 +2170,13 @@ int main(int argc, char **argv, const char **envp){
     addinstr("neg	d20, d25", 0x7ee0bb34, 0);
     addinstr("scvtf	d2, d3", 0x5e61d862, 0);
     */
+
+    addinstr("addp d3, v8.2d", 0x5ef1b903, 0);
+    addinstr("fmaxp h2, v9.2h", 0x5e30f922, 0);
+    addinstr("fminp h18, v20.2h", 0x5eb0fa92, 0);
+    addinstr("fmaxnmp s0, v2.2s", 0x7e30c840, 0);
+    addinstr("fminnmp d5, v4.2d", 0x7ef0c885, 0);
+    addinstr("faddp	h20, v4.2h", 0x5e30d894, 0);
 
     for(struct node *current = instructions->front;
             current;
