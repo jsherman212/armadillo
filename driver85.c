@@ -2182,6 +2182,7 @@ int main(int argc, char **argv, const char **envp){
 
 
 
+    /*
     addinstr("sqdmlal s1, h2, h4", 0x5e649041, 0);
     addinstr("pmull2 v6.1q, v7.2d, v4.2d", 0x4ee4e0e6, 0);
     addinstr("umlsl v0.4s, v1.4h, v2.4h", 0x2e62a020, 0);
@@ -2189,6 +2190,28 @@ int main(int argc, char **argv, const char **envp){
     addinstr("rsubhn v20.8b, v14.8h, v7.8h", 0x2e2761d4, 0);
     addinstr("umull2	v6.2d, v20.4s, v6.4s", 0x6ea6c286, 0);
     addinstr("sqdmlsl2	v6.4s, v5.8h, v21.8h", 0x4e75b0a6, 0);
+    */
+    addinstr("sshr d6, d7, #2", 0x5f7e04e6, 0);
+    addinstr("sshr v4.4s, v4.4s, #2", 0x4f3e0484, 0);
+    addinstr("sqshlu s5, s6, #4", 0x7f2464c5, 0);
+    addinstr("sri v8.16b, v9.16b, #6", 0x6f0a4528, 0);
+    addinstr("sqshrn2 v10.8h, v4.4s, #5", 0x4f1b948a, 0);
+    addinstr("fcvtzs v19.2s, v9.2s, #32", 0x0f20fd33, 0);
+    addinstr("uqshrn b8, h9, #1", 0x7f0f9528, 0);
+    addinstr("sqshl	b4, b2, #0x6", 0x5f0e7444, 0);
+    addinstr("sqshl	d4, d2, #0x17", 0x5f577444, 0);
+    addinstr("sqshlu	v20.2d, v1.2d, #0x4", 0x6f446434, 0);
+    addinstr("ursra	v20.8h, v1.8h, #0xf", 0x6f113434, 0);
+    addinstr("ushll	v6.8h, v2.8b, #0x0", 0x2f08a446, 0);
+    addinstr("ushll2	v6.4s, v2.8h, #0x1", 0x6f11a446, 0);
+    addinstr("sqshrn	v5.2s, v8.2d, #0x1b", 0x0f259505, 0);
+    addinstr("uqshrn	s8, d9, #0x1", 0x7f3f9528, 0);
+    addinstr("scvtf	s18, s19, #0x14", 0x5f2ce672, 0);
+    addinstr("fcvtzu	h20, h19, #0x3", 0x7f1dfe74, 0);
+    addinstr("ucvtf	v1.2d, v4.2d, #0x40", 0x6f40e481, 0);
+    addinstr("fcvtzs	v9.4s, v1.4s, #0x1", 0x4f3ffc29, 0);
+    addinstr("scvtf	v0.4h, v20.4h, #0xe", 0x0f12e680, 0);
+    addinstr("fcvtzu	d20, d25, #0x37", 0x7f49ff34, 0);
 
 
     

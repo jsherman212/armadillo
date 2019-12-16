@@ -2532,6 +2532,385 @@ static int DisassembleAdvancedSIMDThreeDifferentInstr(struct instruction *i,
     return 0;
 }
 
+static int DisassembleAdvancedSIMDModifiedImmediateInstr(struct instruction *i,
+        struct ad_insn *out){
+    ADD_FIELD(out, 0);
+    printf("%s: here\n", __func__);
+
+    return 0;
+}
+
+static int DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *i,
+        struct ad_insn *out, int scalar){
+    unsigned Q = bits(i->opcode, 30, 30);
+    unsigned U = bits(i->opcode, 29, 29);
+    unsigned immh = bits(i->opcode, 19, 22);
+    unsigned immb = bits(i->opcode, 16, 18);
+    unsigned opcode = bits(i->opcode, 11, 15);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
+
+    if(!scalar)
+        ADD_FIELD(out, Q);
+
+    ADD_FIELD(out, U);
+    ADD_FIELD(out, immh);
+    ADD_FIELD(out, immb);
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
+
+    const char *instr_s = NULL;
+    int instr_id = NONE;
+
+    const char **rtbls[] = {
+        AD_RTBL_FP_8, AD_RTBL_FP_16, AD_RTBL_FP_32, AD_RTBL_FP_64
+    };
+
+    unsigned sizes[] = {
+        _8_BIT, _16_BIT, _32_BIT, _64_BIT
+    };
+
+    if(opcode <= 0xe){
+        struct itab tab[] = {
+            { U == 0 ? "sshr" : "ushr", U == 0 ? AD_INSTR_SSHR : AD_INSTR_USHR },
+            /* one blank, idx 1 */
+            { NULL, NONE },
+            { U == 0 ? "ssra" : "usra", U == 0 ? AD_INSTR_SSRA : AD_INSTR_USRA },
+            /* one blank, idx 3 */
+            { NULL, NONE },
+            { U == 0 ? "srshr" : "urshr", U == 0 ? AD_INSTR_SRSHR : AD_INSTR_URSHR },
+            /* one blank, idx 5 */
+            { NULL, NONE },
+            { U == 0 ? "srsra" : "ursra", U == 0 ? AD_INSTR_SRSRA : AD_INSTR_URSRA },
+            /* one blank, idx 7 */
+            { NULL, NONE },
+            { U == 0 ? NULL : "sri", U == 0 ? NONE : AD_INSTR_SRI },
+            /* one blank, idx 9 */
+            { NULL, NONE },
+            { U == 0 ? "shl" : "sli", U == 0 ? AD_INSTR_SHL : AD_INSTR_SLI },
+            /* one blank, idx 11 */
+            { NULL, NONE },
+            { U == 0 ? NULL : "sqshlu", U == 0 ? NONE : AD_INSTR_SQSHLU },
+            /* one blank, idx 13 */
+            { NULL, NONE },
+            { U == 0 ? "sqshl" : "uqshl", U == 0 ? AD_INSTR_SQSHL : AD_INSTR_UQSHL },
+        };
+
+        if(OOB(opcode, tab))
+            return 1;
+
+        instr_s = tab[opcode].instr_s;
+        
+        if(!instr_s)
+            return 1;
+
+        instr_id = tab[opcode].instr_id;
+
+        const char **rtbl = NULL;
+        unsigned sz = 0;
+
+        const char *T = NULL;
+
+        unsigned shift = 0;
+
+        if(scalar){
+            if(instr_id != AD_INSTR_SQSHL && instr_id != AD_INSTR_SQSHLU){
+                if((immh >> 3) == 0)
+                    return 1;
+
+                rtbl = AD_RTBL_FP_64;
+                sz = _64_BIT;
+            }
+            else{
+                int hsb = HighestSetBit(immh, 4);
+
+                if(hsb == -1)
+                    return 1;
+
+                rtbl = rtbls[hsb];
+                sz = sizes[hsb];
+            }
+        }
+        else{
+            if(immh == 1)
+                T = Q == 0 ? "8b" : "16b";
+            else if((immh & ~1) == 2)
+                T = Q == 0 ? "4h" : "8h";
+            else if((immh & ~3) == 4)
+                T = Q == 0 ? "2s" : "4s";
+            else if((immh & ~7) == 8 && Q == 1)
+                T = "2d";
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+
+        if(!rtbl)
+            return 1;
+
+        if(opcode <= 8){
+            if(scalar)
+                shift = ((8 << 3) * 2) - ((immh << 3) | immb);
+            else
+                shift = ((8 << HighestSetBit(immh, 4)) * 2) - ((immh << 3) | immb);
+        }
+        else if(opcode > 8 && opcode <= 0xb){
+            if(scalar)
+                shift = ((immh << 3) | immb) - (8 << 3);
+            else
+                shift = ((immh << 3) | immb) - (8 << HighestSetBit(immh, 4));
+        }
+        else if(opcode == 0xc || opcode == 0xe){
+            shift = ((immh << 3) | immb) - (8 << HighestSetBit(immh, 4));
+        }
+
+        const char *Rd_s = GET_FP_REG(rtbl, Rd);
+        const char *Rn_s = GET_FP_REG(rtbl, Rn);
+
+        ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+        ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+        concat(&DECODE_STR(out), "%s %s", instr_s, Rd_s);
+
+        if(scalar)
+            concat(&DECODE_STR(out), ", %s", Rn_s);
+        else
+            concat(&DECODE_STR(out), ".%s, %s.%s", T, Rn_s, T);
+
+        if(shift > 0){
+            concat(&DECODE_STR(out), ", #%#x", shift);
+
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&shift);
+        }
+    }
+    else if(opcode >= 0x10 && opcode <= 0x14){
+        const char **Rd_Rtbl = NULL;
+        const char **Rn_Rtbl = NULL;
+
+        unsigned Rd_sz = 0;
+        unsigned Rn_sz = 0;
+
+        const char *Ta = NULL;
+        const char *Tb = NULL;
+
+        int Ta_first = 0;
+
+        unsigned shift = 0;
+
+        if(scalar){
+            if(opcode == 0x10){
+                if(U == 0)
+                    return 1;
+
+                instr_s = "sqshrun";
+                instr_id = AD_INSTR_SQSHRUN;
+            }
+            else if(opcode == 0x11){
+                if(U == 0)
+                    return 1;
+
+                instr_s = "sqrshrun";
+                instr_id = AD_INSTR_SQRSHRUN;
+            }
+            else if(opcode == 0x12){
+                instr_s = U == 0 ? "sqshrn" : "uqshrn";
+                instr_id = U == 0 ? AD_INSTR_SQSHRN : AD_INSTR_UQSHRN;
+            }
+            else if(opcode == 0x13){
+                instr_s = U == 0 ? "sqrshrn" : "uqrshrn";
+                instr_id = U == 0 ? AD_INSTR_SQRSHRN : AD_INSTR_UQRSHRN;
+            }
+
+            int hsb = HighestSetBit(immh, 4);
+
+            if(hsb == -1)
+                return 1;
+
+            shift = (2 * (8 << hsb)) - ((immh << 3) | immb);
+
+            Rd_Rtbl = rtbls[hsb];
+            Rn_Rtbl = rtbls[hsb + 1];
+
+            Rd_sz = sizes[hsb];
+            Rn_sz = sizes[hsb + 1];
+        }
+        else{
+            struct itab u0_tab[] = {
+                { Q == 0 ? "shrn" : "shrn2", Q == 0 ? AD_INSTR_SHRN : AD_INSTR_SHRN2 },
+                { Q == 0 ? "rshrn" : "rshrn2", Q == 0 ? AD_INSTR_RSHRN : AD_INSTR_RSHRN2 },
+                { Q == 0 ? "sqshrn" : "sqshrn2", Q == 0 ? AD_INSTR_SQSHRN : AD_INSTR_SQSHRN2 },
+                { Q == 0 ? "sqrshrn" : "sqrshrn2", Q == 0 ? AD_INSTR_SQRSHRN : AD_INSTR_SQRSHRN2 },
+                { Q == 0 ? "sshll" : "sshll2", Q == 0 ? AD_INSTR_SSHLL : AD_INSTR_SSHLL2 }
+            };
+
+            struct itab u1_tab[] = {
+                { Q == 0 ? "sqshrun" : "sqshrun2", Q == 0 ? AD_INSTR_SQSHRUN : AD_INSTR_SQSHRUN2 },
+                { Q == 0 ? "sqrshrun" : "sqrshrun2", Q == 0 ? AD_INSTR_SQRSHRUN : AD_INSTR_SQRSHRUN2 },
+                { Q == 0 ? "uqshrn" : "uqshrn2", Q == 0 ? AD_INSTR_UQSHRN : AD_INSTR_UQSHRN2 },
+                { Q == 0 ? "uqrshrn" : "uqrshrn2", Q == 0 ? AD_INSTR_UQRSHRN : AD_INSTR_UQRSHRN2 },
+                { Q == 0 ? "ushll" : "ushll2", Q == 0 ? AD_INSTR_USHLL : AD_INSTR_USHLL2 }
+            };
+
+            unsigned tempop = opcode - 0x10;
+
+            if(U == 0 && OOB(tempop, u0_tab))
+                return 1;
+
+            if(U == 1 && OOB(tempop, u1_tab))
+                return 1;
+
+            struct itab *tab = U == 0 ? u0_tab : u1_tab;
+
+            instr_s = tab[tempop].instr_s;
+            instr_id = tab[tempop].instr_id;
+
+            int xshll_alias = 0;
+
+            if(instr_id != AD_INSTR_SSHLL && instr_id != AD_INSTR_SSHLL2 &&
+                    instr_id != AD_INSTR_USHLL && instr_id != AD_INSTR_USHLL2){
+                shift = (2 * (8 << HighestSetBit(immh, 4))) - ((immh << 3) | immb);
+            }
+            else{
+                xshll_alias = (immb == 0 && BitCount(immh, 4) == 1);
+                Ta_first = 1;
+
+                shift = ((immh << 3) | immb) - (8 << HighestSetBit(immh, 4));
+            }
+
+            if(xshll_alias){
+                if(U == 0){
+                    instr_s = Q == 0 ? "sxtl" : "sxtl2";
+                    instr_id = Q == 0 ? AD_INSTR_SXTL : AD_INSTR_SXTL2;
+                }
+                else{
+                    instr_s = Q == 0 ? "uxtl" : "uxtl2";
+                    instr_id = Q == 0 ? AD_INSTR_UXTL : AD_INSTR_UXTL2;
+                }
+            }
+
+            if(immh == 1){
+                Ta = "8h";
+                Tb = Q == 0 ? "8b": "16b";
+            }
+            else if((immh & ~1) == 2){
+                Ta = "4s";
+                Tb = Q == 0 ? "4h" : "8h";
+            }
+            else if((immh & ~3) == 4){
+                Ta = "2d";
+                Tb = Q == 0 ? "2s" : "4s";
+            }
+
+            if(!Ta || !Tb)
+                return 1;
+
+            Rd_Rtbl = AD_RTBL_FP_V_128;
+            Rn_Rtbl = AD_RTBL_FP_V_128;
+
+            Rd_sz = _128_BIT;
+            Rn_sz = _128_BIT;
+        }
+
+        if(!Rd_Rtbl || !Rn_Rtbl)
+            return 1;
+
+        const char *Rd_s = GET_FP_REG(Rd_Rtbl, Rd);
+        const char *Rn_s = GET_FP_REG(Rn_Rtbl, Rn);
+
+        ADD_REG_OPERAND(out, Rd, Rd_sz, NO_PREFER_ZR, _SYSREG(NONE), Rd_Rtbl);
+        ADD_REG_OPERAND(out, Rn, Rn_sz, NO_PREFER_ZR, _SYSREG(NONE), Rn_Rtbl);
+
+        concat(&DECODE_STR(out), "%s %s", instr_s, Rd_s);
+
+        if(scalar)
+            concat(&DECODE_STR(out), ", %s", Rn_s);
+        else{
+            concat(&DECODE_STR(out), ".%s, %s.%s", Ta_first ? Ta : Tb,
+                    Rn_s, Ta_first ? Tb : Ta);
+        }
+
+        if(shift > 0){
+            concat(&DECODE_STR(out), ", #%#x", shift);
+
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&shift);
+        }
+    }
+    else if(opcode == 0x1c || opcode == 0x1f){
+        if(opcode == 0x1c){
+            instr_s = U == 0 ? "scvtf" : "ucvtf";
+            instr_id = U == 0 ? AD_INSTR_SCVTF : AD_INSTR_UCVTF;
+        }
+        else{
+            instr_s = U == 0 ? "fcvtzs" : "fcvtzu";
+            instr_id = U == 0 ? AD_INSTR_FCVTZS : AD_INSTR_FCVTZU;
+        }
+
+        const char **rtbl = NULL;
+        unsigned sz = 0;
+
+        const char *T = NULL;
+
+        int hsb = HighestSetBit(immh, 4);
+
+        if(hsb <= 0)
+            return 1;
+
+        unsigned fbits = ((8 << hsb) * 2) - ((immh << 3) | immb);
+
+        if(scalar){
+            rtbl = rtbls[hsb];
+            sz = sizes[hsb];
+        }
+        else{
+            if((immh & ~1) == 2)
+                T = Q == 0 ? "4h" : "8h";
+            else if((immh & ~3) == 4)
+                T = Q == 0 ? "2s" : "4s";
+            else if((immh & ~7) == 8 && Q == 1)
+                T = "2d";
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+
+        if(!rtbl)
+            return 1;
+
+        const char *Rd_s = GET_FP_REG(rtbl, Rd);
+        const char *Rn_s = GET_FP_REG(rtbl, Rn);
+
+        ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+        ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+        concat(&DECODE_STR(out), "%s %s", instr_s, Rd_s);
+
+        if(scalar)
+            concat(&DECODE_STR(out), ", %s", Rn_s);
+        else
+            concat(&DECODE_STR(out), ".%s, %s.%s", T, Rn_s, T);
+
+        if(fbits > 0){
+            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&fbits);
+
+            concat(&DECODE_STR(out), ", #%#x", fbits);
+        }
+    }
+    else{
+        return 1;
+    }
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
+}
+
 /*
 int VFPExpandImm(int imm8){
     int E = 8, N = 32;
@@ -2819,111 +3198,6 @@ unsigned int get_shift_by_immediate_shift2(unsigned int immh, unsigned int immb)
         return 64 - combined;
     else
         return 128 - combined;
-}
-
-char *DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *instruction, int scalar){
-    char *disassembled = NULL;
-
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int opcode = getbitsinrange(instruction->opcode, 11, 5);
-    unsigned int immb = getbitsinrange(instruction->opcode, 16, 3);
-    unsigned int immh = getbitsinrange(instruction->opcode, 19, 4);
-    unsigned int U = getbitsinrange(instruction->opcode, 29, 1);
-    unsigned int Q = getbitsinrange(instruction->opcode, 30, 1);
-
-    const char *Vd = NULL, *Vn = NULL;
-    char Va = '\0', Vb = '\0';
-    const char *Ta = NULL, *Tb = NULL;
-    const char *T = NULL;
-    char V = '\0';
-    unsigned int shift = 0;
-    const char **instr_tbl = NULL;
-
-    const char *instr_tbl_u0[] = {"sshr", NULL, "ssra", NULL, "srshr", NULL, "srsra",
-        NULL, NULL, NULL, "shl", NULL, NULL, NULL, "sqshl",
-        NULL, "shrn", "rshrn", "sqshrn", "sqrshrn", "sshll",
-        NULL, NULL, NULL, NULL, NULL, NULL, NULL, "scvtf",
-        NULL, NULL, "fcvtzs"};
-    const char *instr_tbl_u1[] = {"ushr", NULL, "usra", NULL, "urshr", NULL, "ursra",		
-        NULL, "sri", NULL, "sli", NULL, "sqshlu", NULL, "uqshl",
-        NULL, "sqshrun", "sqrshrun", "uqshrn", "uqrshrn",
-        "ushll", NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-        "ucvtf", NULL, NULL, "fcvtzu"};
-
-    if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u0)))
-        return strdup(".undefined");
-
-    if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u1)))
-        return strdup(".undefined");
-
-    if(U == 0)
-        instr_tbl = instr_tbl_u0;
-    else
-        instr_tbl = instr_tbl_u1;
-
-    const char *instr = instr_tbl[opcode];
-
-    if(!instr)
-        return strdup(".undefined");
-
-    if(opcode >= 0x10 && opcode <= 0x14){
-        Vb = get_shift_by_immediate_Vb(immh);
-        Va = get_shift_by_immediate_Va(immh);
-        Tb = get_shift_by_immediate_arrangement(immh, Q);
-        Ta = get_shift_by_immediate_Ta(immh);
-
-        if(Va == '\0' || Vb == '\0' || !Tb || !Ta)
-            return strdup(".undefined");
-
-        shift = get_shift_by_immediate_shift2(immh, immb);
-
-        disassembled = malloc(128);
-
-        if(scalar)
-            sprintf(disassembled, "%s %c%d, %c%d, #%#x", instr, Vb, Rd, Va, Rn, shift);
-        else
-            sprintf(disassembled, "%s%s %s.%s, %s.%s, #%#x", instr, Q == 1 ? "2" : "", ARM64_VectorRegisters[Rd], Tb, ARM64_VectorRegisters[Rn], Ta, shift);
-    }
-    else{
-        V = get_shift_by_immediate_V(immh);
-        T = get_shift_by_immediate_arrangement(immh, Q);
-
-        if(V == '\0' || !T)
-            return strdup(".undefined");		
-
-        if(strcmp(instr, "sshr") == 0 || strcmp(instr, "ushr") == 0
-                || strcmp(instr, "ssra") == 0 || strcmp(instr, "usra") == 0
-                || strcmp(instr, "srshr") == 0 || strcmp(instr, "urshr") == 0
-                || strcmp(instr, "srsra") == 0 || strcmp(instr, "ursra") == 0
-                || strcmp(instr, "sri") == 0){
-            if((immh & ~0x7) == 0x8)
-                shift = 128 - ((immh << 3) | immb);
-            else
-                return strdup(".undefined");
-        }
-        else if(strcmp(instr, "shl") == 0 || strcmp(instr, "sli") == 0){
-            if((immh & ~0x7) == 0x8)
-                shift = 64 - ((immh << 3) | immb);
-            else
-                return strdup(".undefined");
-        }
-        else if(strcmp(instr, "sqshl") == 0 || strcmp(instr, "sqshlu") == 0
-                || strcmp(instr, "uqshl") == 0)
-            shift = get_shift_by_immediate_shift(immh, immb);
-        else if(strcmp(instr, "scvtf") == 0 || strcmp(instr, "fcvtzs") == 0
-                || strcmp(instr, "ucvtf") == 0 || strcmp(instr, "fcvtzu") == 0)
-            shift = get_shift_by_immediate_shift2(immh, immb);
-
-        disassembled = malloc(128);
-
-        if(scalar)
-            sprintf(disassembled, "%s %c%d, %c%d, #%#x", instr, V, Rd, V, Rn, shift);
-        else
-            sprintf(disassembled, "%s %s.%s, %s.%s, #%#x", instr, ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T, shift);
-    }
-
-    return disassembled;
 }
 
 char *DisassembleAdvancedSIMDIndexedElementInstr(struct instruction *instruction, int scalar){
@@ -4295,6 +4569,16 @@ int DataProcessingFloatingPointDisassemble(struct instruction *i,
         int scalar = (op0 & 1);
 
         result = DisassembleAdvancedSIMDThreeDifferentInstr(i, out, scalar);
+    }
+    else if(((op0 & ~2) == 5 || (op0 & ~6) == 0) &&
+            op1 == 2 &&
+            (op3 & ~0x1fe) == 1){
+        if(op2 == 0)
+            result = DisassembleAdvancedSIMDModifiedImmediateInstr(i, out);
+        else{
+            int scalar = (op0 & 1);
+            result = DisassembleAdvancedSIMDShiftByImmediateInstr(i, out, scalar);
+        }
     }
     else
         result = 1;

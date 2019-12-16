@@ -3,6 +3,7 @@
 
 int HighestSetBit(unsigned int, unsigned int);
 int LowestSetBit(unsigned int number, unsigned int n);
+int BitCount(unsigned, unsigned);
 unsigned long Ones(int len, int N);
 int DecodeBitMasks(unsigned int N, unsigned int imms, unsigned int immr, int immediate, unsigned long *out);
 unsigned long Replicate(unsigned long val, unsigned int bits);

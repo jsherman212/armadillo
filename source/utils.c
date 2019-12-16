@@ -37,6 +37,17 @@ int LowestSetBit(unsigned int number, unsigned int n){
     return ret;
 }
 
+int BitCount(unsigned X, unsigned N){
+    int result = 0;
+
+    for(int i=0; i<N; i++){
+        if(((X >> i) & 1) == 1)
+            result++;
+    }
+
+    return result;
+}
+
 unsigned long Ones(int len, int N){
     (void)N;
     unsigned long ret = 0;
