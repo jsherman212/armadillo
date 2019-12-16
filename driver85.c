@@ -2071,6 +2071,7 @@ int main(int argc, char **argv, const char **envp){
     addinstr("udot	v20.4s, v5.16b, v9.16b", 0x6e8994b4, 0);
     addinstr("fcadd	v5.2d, v6.2d, v7.2d, #90", 0x6ec7e4c5, 0);
     */
+    /*
     addinstr("sqadd s4, s3, s2", 0x5EA20C64, 0);
     addinstr("sshl v4.8b, v5.8b, v6.8b", 0x0E2644A4, 0);
     addinstr("cmtst d2, d0, d1", 0x5ee18c02, 0);
@@ -2099,22 +2100,73 @@ int main(int argc, char **argv, const char **envp){
     addinstr("fmaxp	v9.2s, v10.2s, v11.2s", 0x2e2bf549, 0);
     addinstr("frsqrts	s0, s3, s4", 0x5ea4fc60, 0);
     addinstr("fdiv	v0.2d, v0.2d, v1.2d", 0x6e61fc00, 0);
-
+    */
     /* XXX end tests for DisassembleAdvancedSIMDThreeSameInstr */
 
     // XXX tests for Advanced SIMD scalar two-register miscellaneous
+    addinstr("fcvtns h4, h6", 0x5e79a8c4, 0);
+    addinstr("fcmge h4, h3, 0.0", 0x7ef8c864, 0);
+    addinstr("ucvtf h10, h11", 0x7e79d96a, 0);
+    addinstr("frsqrte h11, h12", 0x7ef9d98b, 0);
+    addinstr("fcmgt s4, s5, 0.0", 0x5ea0c8a4, 0);
+    addinstr("fcmgt h4, h3, 0.0", 0x5ef8c864, 0);
+    addinstr("suqadd s4, s5", 0x5EA038A4, 0);
+    addinstr("sqxtn b0, h0", 0x5e214800, 0);
+    addinstr("rev64 v4.2s, v3.2s", 0x0ea00864, 0);
+    addinstr("rev32 v15.8h, v16.8h", 0x6e600a0f, 0);
+    addinstr("frintn v14.4h, v16.4h", 0x0e798a0e, 0);
+    addinstr("sqxtun v3.4h, v6.4s", 0x2e6128c3, 0);
+    addinstr("rbit v0.8b, v1.8b", 0x2e605820, 0);
+    addinstr("ursqrte v6.2s, v5.2s", 0x2ea1c8a6, 0);
+    addinstr("rev16	v20.16b, v3.16b", 0x4e201874, 0);
+    addinstr("uaddlp	v4.8h, v0.16b", 0x6e202804, 0);
+    addinstr("cnt	v4.16b, v7.16b", 0x4e2058e4, 0);
+    addinstr("uadalp	v4.4s, v0.8h", 0x6e606804, 0);
+    addinstr("sqabs	v20.2s, v1.2s", 0x0ea07834, 0);
+    addinstr("cmle	d4, d5, #0", 0x7ee098a4, 0);
+    addinstr("cmeq	v3.4h, v9.4h, #0", 0x0e609923, 0);
+    addinstr("neg	d4, d5", 0x7ee0b8a4, 0);
+    addinstr("abs	v1.2s, v9.2s", 0x0ea0b921, 0);
+    addinstr("fcmle	v6.8h, v4.8h, #0.0", 0x6ef8d886, 0);
+    addinstr("fcmeq	s0, s4, #0.0", 0x5ea0d880, 0);
+    addinstr("fcmge	v20.4s, v5.4s, #0.0", 0x6ea0c8b4, 0);
+    addinstr("fneg	v5.4h, v8.4h", 0x2ef8f905, 0);
+    addinstr("fabs	v1.2d, v9.2d", 0x4ee0f921, 0);
+    addinstr("sqxtun	b5, h11", 0x7e212965, 0);
+    addinstr("sqxtun2	v9.16b, v2.8h", 0x6e212849, 0);
+    addinstr("xtn	v20.2s, v0.2d", 0x0ea12814, 0);
+    addinstr("shll2	v9.2d, v2.4s, #32", 0x6ea13849, 0);
+    addinstr("uqxtn	h5, s11", 0x7e614965, 0);
+    addinstr("uqxtn2	v9.4s, v2.2d", 0x6ea14849, 0);
+    addinstr("fcvtxn	s2, d5", 0x7e6168a2, 0);
+    addinstr("fcvtxn	v8.2s, v9.2d", 0x2e616928, 0);
+    addinstr("fcvtxn2	v8.4s, v9.2d", 0x6e616928, 0);
+    addinstr("fcvtl	v9.2d, v10.2s", 0x0e617949, 0);
+    addinstr("fcvtl2	v0.4s, v1.8h", 0x4e217820, 0);
+    addinstr("frintn v14.4h, v16.4h", 0x0e798a0e, 0);
+    addinstr("frintz	v9.4s, v8.4s", 0x4ea19909, 0);
+    addinstr("frinti	v20.2d, v11.2d", 0x6ee19974, 0);
+    addinstr("frinta	v10.8h, v0.8h", 0x6e79880a, 0);
+    addinstr("fsqrt	v20.2d, v11.2d", 0x6ee1f974, 0);
+    addinstr("fcvtnu	h5, h2", 0x7e79a845, 0);
+    addinstr("ucvtf	d4, d5", 0x7e61d8a4, 0);
+    addinstr("fcvtas	v9.8h, v20.8h", 0x4e79ca89, 0);
+    addinstr("urecpe	v20.2s, v21.2s", 0x0ea1cab4, 0);
+    addinstr("fcvtzs	v19.2d, v0.2d", 0x4ee1b813, 0);
+    addinstr("fcvtzu	h0, h9", 0x7ef9b920, 0);
+
+
+
     /*
-       addinstr("sqadd s4, s3, s2", 0x5EA20C64, 0);
        addinstr("suqadd	s8, s1", 0x5ea03828, 0);
        addinstr("suqadd	b1, b0", 0x5e203801, 0);
        addinstr("cmlt	d10, d11, #0", 0x5ee0a96a, 0);
        addinstr("sqxtn	b20, h4", 0x5e214894, 0);
-       addinstr("frecpx	d8, d9", 0x5ee1f928, 0);
-       addinstr("frsqrte	s10, s22", 0x7ea1daca, 0);
-       addinstr("neg	d20, d25", 0x7ee0bb34, 0);
-       addinstr("scvtf	d2, d3", 0x5e61d862, 0);
-       */
-
+    addinstr("frecpx	d8, d9", 0x5ee1f928, 0);
+    addinstr("frsqrte	s10, s22", 0x7ea1daca, 0);
+    addinstr("neg	d20, d25", 0x7ee0bb34, 0);
+    addinstr("scvtf	d2, d3", 0x5e61d862, 0);
+    */
 
     for(struct node *current = instructions->front;
             current;

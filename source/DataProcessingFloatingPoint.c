@@ -249,140 +249,6 @@ static int DisassembleAdvancedSIMDScalarCopyInstr(struct instruction *i,
     return 0;
 }
 
-static int DisassembleAdvancedSIMDScalarTwoRegisterMiscFP16Instr(struct instruction *i,
-        struct ad_insn *out){
-    unsigned U = bits(i->opcode, 29, 29);
-    unsigned a = bits(i->opcode, 23, 23);
-    unsigned opcode = bits(i->opcode, 12, 16);
-    unsigned Rn = bits(i->opcode, 5, 9);
-    unsigned Rd = bits(i->opcode, 0, 4);
-
-    ADD_FIELD(out, U);
-    ADD_FIELD(out, a);
-    ADD_FIELD(out, opcode);
-    ADD_FIELD(out, Rn);
-    ADD_FIELD(out, Rd);
-
-    const char *instr_s = NULL;
-    int instr_id = NONE;
-
-    if(a == 0){
-        unsigned idx = opcode - 26;
-
-        struct itab *tab = NULL;
-
-        struct itab tab0[] = {
-            { "fcvtns", AD_INSTR_FCVTNS }, { "fcvtms", AD_INSTR_FCVTMS },
-            { "fcvtas", AD_INSTR_FCVTAS }, { "scvtf", AD_INSTR_SCVTF }
-        };
-
-        struct itab tab1[] = {
-            { "fcvtnu", AD_INSTR_FCVTNU }, { "fcvtmu", AD_INSTR_FCVTMU },
-            { "fcvtau", AD_INSTR_FCVTAU }, { "ucvtf", AD_INSTR_UCVTF }
-        };
-
-        if(U == 0){
-            if(OOB(idx, tab0))
-                return 1;
-
-            tab = tab0;
-        }
-        else{
-            if(OOB(idx, tab0))
-                return 1;
-
-            tab = tab1;
-        }
-
-        instr_s = tab[idx].instr_s;
-        instr_id = tab[idx].instr_id;
-    }
-    else{
-        unsigned idx = opcode - 12;
-
-        struct itab *tab = NULL;
-
-        struct itab tab0[] = {
-            { "fcmgt", AD_INSTR_FCMGT }, { "fcmeq", AD_INSTR_FCMEQ },
-            { "fcmlt", AD_INSTR_FCMLT },
-            { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
-            { NULL, NONE }, { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
-            { NULL, NONE }, { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
-            { "fcvtps", AD_INSTR_FCVTPS }, { "fcvtzs", AD_INSTR_FCVTZS },
-            { NULL, NONE }, { "frecpe", AD_INSTR_FRECPE }, { NULL, NONE },
-            { "frecpx", AD_INSTR_FRECPX }
-        };
-
-        struct itab tab1[] = {
-            { "fcmge", AD_INSTR_FCMGE }, { "fcmle", AD_INSTR_FCMLE },
-            { NULL, NONE }, { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
-            { NULL, NONE }, { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
-            { NULL, NONE }, { NULL, NONE }, { NULL, NONE }, { NULL, NONE },
-            { "fcvtpu", AD_INSTR_FCVTPU }, { "fcvtzu", AD_INSTR_FCVTZU },
-            { NULL, NONE }, { "frsqrte", AD_INSTR_FRSQRTE }
-        };
-
-        if(U == 0){
-            if(OOB(idx, tab0))
-                return 1;
-
-            tab = tab0;
-        }
-        else{
-            if(OOB(idx, tab1))
-                return 1;
-            
-            tab = tab1;
-        }
-
-        instr_s = tab[idx].instr_s;
-
-        if(!instr_s)
-            return 1;
-
-        instr_id = tab[idx].instr_id;
-    }
-
-    const char **rtbl = AD_RTBL_FP_16;
-
-    const char *Rd_s = GET_FP_REG(rtbl, Rd);
-    const char *Rn_s = GET_FP_REG(rtbl, Rn);
-
-    ADD_REG_OPERAND(out, Rd, _SZ(_16_BIT), NO_PREFER_ZR, _SYSREG(NONE), rtbl);
-    ADD_REG_OPERAND(out, Rn, _SZ(_16_BIT), NO_PREFER_ZR, _SYSREG(NONE), rtbl);
-
-    concat(&DECODE_STR(out), "%s %s, %s", instr_s, Rd_s, Rn_s);
-
-    /* add #0.0 to the instrs doing compares */
-    if(instr_id == AD_INSTR_FCMGT || instr_id == AD_INSTR_FCMEQ ||
-            instr_id == AD_INSTR_FCMLT || instr_id == AD_INSTR_FCMGE ||
-            instr_id == AD_INSTR_FCMLE){
-        ADD_IMM_OPERAND(out, AD_FLOAT, 0);
-
-        concat(&DECODE_STR(out), ", #0.0");
-    }
-
-    SET_INSTR_ID(out, instr_id);
-
-    return 0;
-}
-
-/*
-const char *get_arrangement2(int fp16, unsigned int sz, unsigned int Q){
-    if(fp16)
-        return Q == 0 ? "4h" : "8h";
-    else{
-        unsigned int encoding = (sz << 1) | Q;
-
-        if(sz == 0)
-            return Q == 0 ? "2s" : "4s";
-        else		
-            return Q == 0 ? ".unk" : "2d";
-    }
-}
-*/
-
-
 /* This function takes care of:
  *      - Advanced SIMD scalar three same FP16
  *      - Advanced SIMD scalar three same extra
@@ -1547,1127 +1413,827 @@ static int DisassembleAdvancedSIMDThreeSameInstr(struct instruction *i,
     return 0;
 }
 
-/*
-char *DisassembleAdvancedSIMDThreeSameInstr(struct instruction *instruction, int scalar, int fp16, int extra){
-    char *disassembled = NULL;
-
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int opcode = getbitsinrange(instruction->opcode, 11, 3);
-    unsigned int rot = (opcode & ~0x4);
-    unsigned int Rm = getbitsinrange(instruction->opcode, 16, 5);
-    unsigned int size = getbitsinrange(instruction->opcode, 22, 2);
-    unsigned int sz = (size & 1);
-    unsigned int a = (size >> 1);
-    unsigned int U = getbitsinrange(instruction->opcode, 29, 1);
-    unsigned int Q = getbitsinrange(instruction->opcode, 30, 1);
-
-    const char *_Rd = NULL, *_Rn = NULL, *_Rm = NULL;
-
-    const char sizes[] = {'b', 'h', 's', 'd'};
-    const char sz_s[] = {'s', 'd'};
-
-    const char *T = NULL, *instr = NULL;
-    const char *Ta = NULL, *Tb = NULL;
-    char V = '\0';
-    int rotate = 0;
-    int add_rotate = 0;
-
-    if(fp16){
-        if(U == 0 && a == 0){
-            const char **instr_tbl = NULL;
-
-            if(scalar){
-                static const char *_temp_tbl[] = {NULL, NULL, NULL, "fmulx", "fcmeq", NULL, NULL, "frecps"};
-                instr_tbl = _temp_tbl;
-
-                _Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
-                _Rn = ARM64_VectorHalfPrecisionRegisters[Rn];
-                _Rm = ARM64_VectorHalfPrecisionRegisters[Rm];
-            }
-            else{
-                static const char *_temp_tbl[] = {"fmaxnm", "fmla", "fadd", "fmulx", "fcmeq", NULL, "fmax", "frecps"};
-                instr_tbl = _temp_tbl;
-
-                _Rd = ARM64_VectorRegisters[Rd];
-                _Rn = ARM64_VectorRegisters[Rn];
-                _Rm = ARM64_VectorRegisters[Rm];
-            }
-
-            instr = instr_tbl[opcode];
-
-            if(!instr)
-                return strdup(".undefined");
-
-            disassembled = malloc(128);
-
-            T = get_arrangement2(fp16, sz, Q);
-        }
-        else if(U == 0 && a == 1){
-            const char **instr_tbl = NULL;
-
-            if(scalar){
-                static const char *_temp_tbl[] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, "frsqrts"};
-                instr_tbl = _temp_tbl;
-
-                _Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
-                _Rn = ARM64_VectorHalfPrecisionRegisters[Rn];
-                _Rm = ARM64_VectorHalfPrecisionRegisters[Rm];
-            }
-            else{
-                static const char *_temp_tbl[] = {"fminnm", "fmls", "fsub", NULL, NULL, NULL, "fmin", "frsqrts"};
-                instr_tbl = _temp_tbl;
-
-                _Rd = ARM64_VectorRegisters[Rd];
-                _Rn = ARM64_VectorRegisters[Rn];
-                _Rm = ARM64_VectorRegisters[Rm];
-            }
-
-            instr = instr_tbl[opcode];
-
-            if(!instr)
-                return strdup(".undefined");
-
-            disassembled = malloc(128);
-
-            T = get_arrangement2(fp16, sz, Q);
-        }
-        else if(U == 1 && a == 0){
-            const char **instr_tbl = NULL;
-
-            if(scalar){
-                static const char *_temp_tbl[] = {NULL, NULL, NULL, NULL, "fcmge", "facge"};
-                instr_tbl = _temp_tbl;
-
-                _Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
-                _Rn = ARM64_VectorHalfPrecisionRegisters[Rn];
-                _Rm = ARM64_VectorHalfPrecisionRegisters[Rm];
-            }
-            else{
-                static const char *_temp_tbl[] = {"fmaxnmp", NULL, "faddp", "fmul", "fcmge", "facge", "fmaxp", "fdiv"};
-                instr_tbl = _temp_tbl;
-
-                _Rd = ARM64_VectorRegisters[Rd];
-                _Rn = ARM64_VectorRegisters[Rn];
-                _Rm = ARM64_VectorRegisters[Rm];
-            }
-
-            instr = instr_tbl[opcode];
-
-            if(!instr)
-                return strdup(".undefined");
-
-            disassembled = malloc(128);
-
-            T = get_arrangement2(fp16, sz, Q);
-        }
-        else if(U == 1 && a == 1){
-            const char **instr_tbl = NULL;
-
-            if(scalar){
-                static const char *_temp_tbl[] = {NULL, NULL, "fabd", NULL, "fcmgt", "facgt"};
-                instr_tbl = _temp_tbl;
-
-                _Rd = ARM64_VectorHalfPrecisionRegisters[Rd];
-                _Rn = ARM64_VectorHalfPrecisionRegisters[Rn];
-                _Rm = ARM64_VectorHalfPrecisionRegisters[Rm];
-            }
-            else{
-                static const char *_temp_tbl[] = {"fminnmp", NULL, "fabd", NULL, "fcmgt", "facgt", "fminp"};
-                instr_tbl = _temp_tbl;
-
-                _Rd = ARM64_VectorRegisters[Rd];
-                _Rn = ARM64_VectorRegisters[Rn];
-                _Rm = ARM64_VectorRegisters[Rm];
-            }
-
-            instr = instr_tbl[opcode];
-
-            if(!instr)
-                return strdup(".undefined");
-
-            disassembled = malloc(128);
-
-            T = get_arrangement2(fp16, sz, Q);
-        }
-
-        if(scalar)
-            sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
-        else
-            sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, _Rd, T, _Rn, T, _Rm, T);
-
-        return disassembled;
-    }
-    else if(extra){
-        // opcode is different with these instructions
-        opcode = getbitsinrange(instruction->opcode, 11, 4);
-
-        if(opcode == 0x2 && (U == 0 || U == 1)){
-            instr = U == 0 ? "sdot" : "udot";
-
-            Ta = Q == 0 ? "2s" : "4s";
-            Tb = Q == 0 ? "8b" : "16b";
-
-            _Rd = ARM64_VectorRegisters[Rd];
-            _Rn = ARM64_VectorRegisters[Rn];
-            _Rm = ARM64_VectorRegisters[Rm];
-
-            disassembled = malloc(128);
-            sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, _Rd, Ta, _Rn, Tb, _Rm, Tb);
-
-            return disassembled;
-        }
-        else{
-            if(opcode == 0x0){
-                if(size == 0 || size == 3)
-                    return strdup(".undefined");
-
-                instr = "sqrdmlah";
-
-                V = size == 1 ? 'h' : 's';
-                T = get_arrangement(size, Q);
-
-                _Rd = ARM64_VectorRegisters[Rd];
-                _Rn = ARM64_VectorRegisters[Rn];
-                _Rm = ARM64_VectorRegisters[Rm];
-            }
-            else if(opcode == 0x1){
-                if(size == 0 || size == 3)
-                    return strdup(".undefined");
-
-                instr = "sqrdmlsh";
-
-                V = size == 1 ? 'h' : 's';
-                T = get_arrangement(size, Q);
-
-                _Rd = ARM64_VectorRegisters[Rd];
-                _Rn = ARM64_VectorRegisters[Rn];
-                _Rm = ARM64_VectorRegisters[Rm];
-            }
-            else if((opcode >= 0x8 && opcode <= 0xb) || (opcode >= 0xc && opcode <= 0xe)){
-                if(size == 0)
-                    return strdup(".undefined");
-
-                if(size == 3 && Q == 0)
-                    return strdup(".undefined");
-
-                add_rotate = 1;
-
-                instr = (opcode >= 0x8 && opcode <= 0xb) ? "fcmla" : "fcadd";
-
-                T = get_arrangement(size, Q);
-
-                _Rd = ARM64_VectorRegisters[Rd];
-                _Rn = ARM64_VectorRegisters[Rn];
-                _Rm = ARM64_VectorRegisters[Rm];
-
-                if(strcmp(instr, "fcmla") == 0)
-                    rot *= 90;
-                else
-                    rot = rot == 0 ? 90 : 270;
-            }
-
-            disassembled = malloc(128);
-
-            if(scalar)
-                sprintf(disassembled, "%s %c%d, %c%d, %c%d", instr, V, Rd, V, Rn, V, Rm);
-            else
-                sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, _Rd, T, _Rn, T, _Rm, T);
-
-            if(add_rotate)
-                sprintf(disassembled, "%s, #%d", disassembled, rot);
-
-            return disassembled;
-        }
-    }
-    else{
-        opcode = getbitsinrange(instruction->opcode, 11, 5);
-
-        if(opcode == 0x0){
-            if(scalar)
-                return strdup(".undefined");
-
-            instr = U == 0 ? "shadd" : "uhadd";
-
-            if(size == 3)
-                return strdup(".undefined");
-
-            V = sizes[size];
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x1){
-            instr = U == 0 ? "sqadd" : "uqadd";
-
-            V = sizes[size];
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x2){
-            if(scalar)
-                return strdup(".undefined");
-
-            instr = U == 0 ? "srhadd" : "urhadd";
-
-            if(size == 3)
-                return strdup(".undefined");
-
-            V = sizes[size];
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x3){
-            if(scalar)
-                return strdup(".undefined");
-
-            const char *u0[] = {"and", "bic", "orr", "orn"};
-            const char *u1[] = {"eor", "bsl", "bit", "bif"};
-
-            instr = U == 0 ? u0[size] : u1[size];
-
-            T = Q == 0 ? "8b" : "16b";
-        }
-        else if(opcode == 0x4){
-            if(scalar)
-                return strdup(".undefined");
-
-            instr = U == 0 ? "shsub" : "uhsub";
-
-            if(size == 3)
-                return strdup(".undefined");
-
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x5){
-            instr = U == 0 ? "sqsub" : "uqsub";
-
-            if(size == 3)
-                return strdup(".undefined");
-
-            V = sizes[size];
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x6){
-            instr = U == 0 ? "cmgt" : "cmhi";
-
-            if(scalar && size != 3)
-                return strdup(".undefined");
-
-            V = 'd';
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x7){
-            instr = U == 0 ? "cmge" : "cmhs";
-
-            if(scalar && size != 3)
-                return strdup(".undefined");
-
-            V = 'd';
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x8){
-            instr = U == 0 ? "sshl" : "ushl";
-
-            if(scalar && size != 3)
-                return strdup(".undefined");
-
-            V = 'd';
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x9){
-            instr = U == 0 ? "sqshl" : "uqshl";
-
-            if(size == 3 && Q == 0)
-                return strdup(".undefined");
-
-            V = sizes[size];
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0xa){
-            instr = U == 0 ? "srshl" : "urshl";
-
-            if(scalar && size != 3)
-                return strdup(".undefined");
-
-            V = 'd';
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0xb){
-            instr = U == 0 ? "sqrshl" : "uqrshl";
-
-            if(size == 3 && Q == 0)
-                return strdup(".undefined");
-
-            V = sizes[size];
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0xc){
-            if(scalar)
-                return strdup(".undefined");
-
-            instr = U == 0 ? "smax" : "umax";
-
-            if(size == 3)
-                return strdup(".undefined");
-
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0xd){
-            if(scalar)
-                return strdup(".undefined");
-
-            instr = U == 0 ? "smin" : "umin";
-
-            if(size == 3)
-                return strdup(".undefined");
-
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0xe){
-            if(scalar)
-                return strdup(".undefined");
-
-            instr = U == 0 ? "sabd" : "uabd";
-
-            if(size == 3)
-                return strdup(".undefined");
-
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0xf){
-            if(scalar)
-                return strdup(".undefined");
-
-            instr = U == 0 ? "saba" : "uaba";
-
-            if(size == 3)
-                return strdup(".undefined");
-
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x10){
-            instr = U == 0 ? "add" : "sub";
-
-            if(scalar && size != 3)
-                return strdup(".undefined");
-
-            if(!scalar && (size == 3 && Q == 0))
-                return strdup(".undefined");
-
-            V = 'd';
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x11){
-            instr = U == 0 ? "cmtst" : "cmeq";
-
-            if(scalar && size != 3)
-                return strdup(".undefined");
-
-            if(size == 3 && Q == 0)
-                return strdup(".undefined");
-
-            V = 'd';
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x12){
-            if(scalar)
-                return strdup(".undefined");
-
-            instr = U == 0 ? "mla" : "mls";
-
-            if(size == 3)
-                return strdup(".undefined");
-
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x13){
-            if(scalar)
-                return strdup(".undefined");
-
-            instr = U == 0 ? "mul" : "pmul";
-
-            if(size != 0)
-                return strdup(".undefined");
-
-            T = Q == 0 ? "8b" : "16b";
-        }
-        else if(opcode == 0x14){
-            if(scalar)
-                return strdup(".undefined");
-
-            instr = U == 0 ? "smaxp" : "umaxp";
-
-            if(size == 3)
-                return strdup(".undefined");
-
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x15){
-            if(scalar)
-                return strdup(".undefined");
-
-            instr = U == 0 ? "sminp" : "uminp";
-
-            if(size == 3)
-                return strdup(".undefined");
-
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x16){
-            instr = U == 0 ? "sqdmulh" : "sqrdmulh";
-
-            if(size == 1)
-                V = 'h';
-            else if(size == 2)
-                V = 's';
-            else
-                return strdup(".undefined");
-
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x17){
-            if(scalar)
-                return strdup(".undefined");
-
-            if(U == 1)
-                return strdup(".undefined");
-
-            instr = "addp";
-
-            if(size == 3 && Q == 0)
-                return strdup(".undefined");
-
-            T = get_arrangement(size, Q);
-        }
-        else if(opcode == 0x18){
-            if(scalar)
-                return strdup(".undefined");
-
-            if(U == 0)
-                instr = a == 0 ? "fmaxnm" : "fminnm";
-            else
-                instr = a == 0 ? "fmaxnmp" : "fminnmp";
-
-            if(sz == 1 && Q == 0)
-                return strdup(".undefined");
-
-            T = get_arrangement2(fp16, sz, Q);
-        }
-        else if(opcode == 0x19){
-            if(scalar)
-                return strdup(".undefined");
-
-            if(U == 0)
-                instr = a == 0 ? "fmla" : "fmls";
-            else{
-                if(size == 0)
-                    return strdup(".undefined");
-
-                instr = "fmlal2";
-
-                Ta = Q == 0 ? "2s" : "4s";
-                Tb = Q == 0 ? "2h" : "4h";
-
-                disassembled = malloc(128);
-
-                sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, ARM64_VectorRegisters[Rd], Ta, ARM64_VectorRegisters[Rn], Tb, ARM64_VectorRegisters[Rm], Tb);
-                return disassembled;
-            }
-
-            T = get_arrangement2(fp16, sz, Q);
-        }
-        else if(opcode == 0x1a){
-            if(scalar){
-                if(U != 1 && a != 1)
-                    return strdup(".undefined");
-            }
-
-            if(scalar)
-                instr = "fabd";
-            else{
-                if(U == 0)
-                    instr = a == 0 ? "fadd" : "fsub";
-                else
-                    instr = a == 0 ? "faddp" : "fabd";
-            }
-
-            V = sz_s[sz];
-
-            if(sz == 1 && Q == 0)
-                return strdup(".undefined");
-
-            T = get_arrangement2(fp16, sz, Q);
-        }
-        else if(opcode == 0x1b){
-            if(scalar && U == 1)
-                return strdup(".undefined");
-
-            if(scalar){
-                if(U == 0)
-                    instr = "fmulx";
-            }
-            else{
-                if(a == 1)
-                    return strdup(".undefined");
-
-                instr = U == 0 ? "fmulx" : "fmul";
-            }
-
-            V = sz_s[sz];
-
-            if(sz == 1 && Q == 0)
-                return strdup(".undefined");
-
-            T = get_arrangement2(fp16, sz, Q);
-        }
-        else if(opcode == 0x1c){
-            if(!scalar && U == 0 && a == 1)
-                return strdup(".undefined");
-
-            if(U == 0)
-                instr = "fcmeq";
-            else
-                instr = a == 0 ? "fcmge" : "fcmgt";
-
-            V = sz_s[sz];
-
-            if(sz == 1 && Q == 0)
-                return strdup(".undefined");
-
-            T = get_arrangement2(fp16, sz, Q);
-        }
-        else if(opcode == 0x1d){
-            if(scalar && U != 1)
-                return strdup(".undefined");
-
-            if(U == 1)
-                instr = a == 0 ? "facge" : "facgt";
-            else{
-                if(size == 0)
-                    instr = "fmlal";
-                else if(size == 2)
-                    instr = "fmlsl";
-                else
-                    return strdup(".undefined");
-
-                Ta = Q == 0 ? "2s" : "4s";
-                Tb = Q == 0 ? "2h" : "4h";
-
-                disassembled = malloc(128);
-
-                sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, ARM64_VectorRegisters[Rd], Ta, ARM64_VectorRegisters[Rn], Tb, ARM64_VectorRegisters[Rm], Tb);
-                return disassembled;
-            }
-
-            V = sz_s[sz];
-
-            if(sz == 1 && Q == 0)
-                return strdup(".undefined");
-
-            T = get_arrangement2(fp16, sz, Q);
-        }
-        else if(opcode == 0x1e){
-            if(scalar)
-                return strdup(".undefined");
-
-            if(U == 0)
-                instr = a == 0 ? "fmax" : "fmin";
-            else
-                instr = a == 0 ? "fmaxp" : "fminp";
-
-            if(sz == 1 && Q == 0)
-                return strdup(".undefined");
-
-            T = get_arrangement2(fp16, sz, Q);
-        }
-        else if(opcode == 0x1f){
-            if(scalar)
-                return strdup(".undefined");
-
-            if(U == 0)
-                instr = a == 0 ? "frecps" : "frsqrts";
-            else{
-                if(a != 0)
-                    return strdup(".undefined");
-
-                instr = "fdiv";
-            }
-
-            if(sz == 1 && Q == 0)
-                return strdup(".undefined");
-
-            T = get_arrangement2(fp16, sz, Q);
-        }
-
-        disassembled = malloc(128);
-
-        if(scalar)
-            sprintf(disassembled, "%s %c%d, %c%d, %c%d", instr, V, Rd, V, Rn, V, Rm);
-        else
-            sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T, ARM64_VectorRegisters[Rm], T);
-    }
-
-    if(!disassembled)
-        return strdup(".unknown");
-
-    return disassembled;
-}
-
-char *DisassembleAdvancedSIMDTwoRegisterMiscellaneousInstr(struct instruction *instruction, int scalar, int fp16){
-    char *disassembled = NULL;
-
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int opcode = getbitsinrange(instruction->opcode, 12, 5);
-    unsigned int size = getbitsinrange(instruction->opcode, 22, 2);
-    unsigned int sz = (size & 1);
-    unsigned int a = (size >> 1);
-    unsigned int U = getbitsinrange(instruction->opcode, 29, 1);
-    unsigned int Q = getbitsinrange(instruction->opcode, 30, 1);
-
-    const char sizes[] = {'b', 'h', 's', 'd'};
-    const char sz_s[] = {'s', 'd'};
-
-    const char *instr = NULL;
-    int add_zero = 0;
-    char V = '\0';
+/* This function takes care of:
+ *      - Advanced SIMD scalar two-register miscellaneous FP16
+ *      - Advanced SIMD scalar two-register miscellaneous
+ *      - Advanced SIMD two-register miscellaneous (FP16)
+ *      - Advanced SIMD two-register miscellaneous
+ */
+static int DisassembleAdvancedSIMDTwoRegisterMiscellaneousInstr(struct instruction *i,
+        struct ad_insn *out, int scalar, int fp16){
+    unsigned Q = bits(i->opcode, 30, 30);
+    unsigned U = bits(i->opcode, 29, 29);
+    unsigned a = bits(i->opcode, 23, 23);
+    unsigned size = bits(i->opcode, 22, 23);
+    unsigned opcode = bits(i->opcode, 12, 16);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
+
+    if(!scalar)
+        ADD_FIELD(out, Q);
+
+    ADD_FIELD(out, U);
+
+    if(fp16)
+        ADD_FIELD(out, a);
+    else
+        ADD_FIELD(out, size);
+
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
+
+    const char *instr_s = NULL;
+    int instr_id = NONE;
+
+    const char **rtbls[] = {
+        AD_RTBL_FP_8, AD_RTBL_FP_16, AD_RTBL_FP_32, AD_RTBL_FP_64
+    };
+
+    unsigned sizes[] = {
+        _8_BIT, _16_BIT, _32_BIT, _64_BIT
+    };
+
+    const char **rtbl = NULL;
     const char *T = NULL;
 
-    if(opcode == 0x0){
-        if(scalar == 1)
-            return strdup(".undefined");
+    unsigned sz = 0;
 
-        instr = U == 0 ? "rev64" : "rev32";
+    int add_zero = 0;
+    int add_zerof = 0;
 
-        if(size == 3)
-            return strdup(".undefined");
+    if(opcode < 2){
+        if(scalar || fp16)
+            return 1;
 
-        T = get_arrangement(size, Q);
-    }
-    else if(opcode == 0x1){
-        if(scalar == 1)
-            return strdup(".undefined");
+        if(opcode == 1 && U == 1)
+            return 1;
 
-        if(U == 1)
-            return strdup(".undefined");
+        unsigned o0 = bits(i->opcode, 12, 12);
+        unsigned op = (o0 << 1) | U;
 
-        instr = "rev16";
+        struct itab tab[] = {
+            { "rev64", AD_INSTR_REV64 }, { "rev32", AD_INSTR_REV32 },
+            { "rev16", AD_INSTR_REV16 }
+        };
 
-        if(size != 0)
-            return strdup(".undefined");
+        if(OOB(op, tab))
+            return 1;
 
-        T = Q == 0 ? "8b" : "16b";
-    }
-    else if(opcode == 0x2){
-        if(scalar == 1)
-            return strdup(".undefined");
-
-        instr = U == 0 ? "saddlp" : "uaddlp";
-
-        if(size == 3)
-            return strdup(".undefined");
-
-        T = get_arrangement(size, Q);
-    }
-    else if(opcode == 0x3){
-        instr = U == 0 ? "suqadd" : "usqadd";
-        V = sizes[size];
-
-        if(scalar == 0 && size == 3 && Q == 0)
-            return strdup(".undefined");
-
-        T = get_arrangement(size, Q);
-    }
-    else if(opcode == 0x4){
-        if(scalar == 1)
-            return strdup(".undefined");
-
-        instr = U == 0 ? "cls" : "clz";
-
-        if(size == 3)
-            return strdup(".undefined");
-
-        T = get_arrangement(size, Q);
-    }
-    else if(opcode == 0x5){
-        if(scalar == 1)
-            return strdup(".undefined");
-
-        instr = "cnt";
-
-        if(U == 1)
-            instr = sz == 0 ? "not" : "rbit";
-
-        T = Q == 0 ? "8b" : "16b";
-    }
-    else if(opcode == 0x6){
-        if(scalar == 1)
-            return strdup(".undefined");
-
-        if(size == 3)
-            return strdup(".undefined");
-
-        instr = U == 0 ? "sadalp" : "uadalp";
-        T = get_arrangement(size, Q);
-    }
-    else if(opcode == 0x7){
-        instr = U == 0 ? "sqabs" : "sqneg";
-        V = sizes[size];
-
-        if(scalar == 0 && size == 3 && Q == 0)
-            return strdup(".undefined");
-
-        T = get_arrangement(size, Q);
-    }
-    else if(opcode == 0x8){
-        instr = U == 0 ? "cmgt" : "cmge";
-        add_zero = 1;
-
-        if(scalar == 1 && size != 3)
-            return strdup(".undefined");
-
-        V = 'd';
-
-        if(scalar == 0 && size == 3 && Q == 0)
-            return strdup(".undefined");
-
-        T = get_arrangement(size, Q);
-    }
-    else if(opcode == 0x9){
-        instr = U == 0 ? "cmeq" : "cmle";
-        add_zero = 1;
-
-        if(scalar == 1 && size != 3)
-            return strdup(".undefined");
-
-        V = 'd';
-
-        if(scalar == 0 && size == 3 && Q == 0)
-            return strdup(".undefined");
-
-        T = get_arrangement(size, Q);
-    }
-    else if(opcode == 0xa){
-        if(U == 1)
-            return strdup(".undefined");
-
-        instr = "cmlt";
-        add_zero = 1;
-
-        if(size != 3)
-            return strdup(".undefined");
-
-        V = 'd';
-
-        if(scalar == 0 && size == 3 && Q == 0)
-            return strdup(".undefined");
-
-        T = get_arrangement(size, Q);
-    }
-    else if(opcode == 0xb){
-        instr = U == 0 ? "abs" : "neg";
-
-        if(size != 3)
-            return strdup(".undefined");
-
-        V = 'd';
-
-        if(scalar == 0 && size == 3 && Q == 0)
-            return strdup(".undefined");
-
-        T = get_arrangement(size, Q);
-    }
-    else if(opcode == 0xc){
-        instr = U == 0 ? "fcmgt" : "fcmge";
-        add_zero = 1;
-
-        V = sz_s[sz];
-        T = get_arrangement2(fp16, sz, Q);
-    }
-    else if(opcode == 0xd){
-        instr = U == 0 ? "fcmeq" : "fcmle";
-        add_zero = 1;
-
-        V = sz_s[sz];
-        T = get_arrangement2(fp16, sz, Q);
-    }
-    else if(opcode == 0xe){
-        if(U == 1)
-            return strdup(".undefined");
-
-        instr = "fcmlt";
-        add_zero = 1;
-
-        V = sz_s[sz];
-        T = get_arrangement2(fp16, sz, Q);
-    }
-    else if(opcode == 0xf){
-        if(scalar == 1)
-            return strdup(".undefined");
-
-        instr = U == 0 ? "fabs" : "fneg";
-        T = get_arrangement2(fp16, sz, Q);
-    }
-    else if(opcode == 0x12){
-        if(scalar == 0 && U == 0)
-            return strdup(".undefined");
-
-        disassembled = malloc(128);
-
-        if(scalar == 0){
-            instr = U == 0 ? "xtn" : "sqxtun";
-
-            const char *Tb = NULL, *Ta = NULL;
-
-            if(size == 3)
-                return strdup(".undefined");
-
-            Tb = get_arrangement(size, Q);
-
-            if(size == 0)
-                Ta = "8h";
-            else if(size == 1)
-                Ta = "4s";
-            else if(size == 2)
-                Ta = "2d";
-
-            sprintf(disassembled, "%s%s %s.%s, %s.%s", instr, Q == 1 ? "2" : "", ARM64_VectorRegisters[Rd], Tb, ARM64_VectorRegisters[Rn], Ta);
-            return disassembled;
-        }
-        else{
-            if(size == 3)
-                return strdup(".undefined");
-
-            char Vb = sizes[size];
-            char Va = '\0';
-
-            if(size == 0)
-                Va = 'h';
-            else if(size == 1)
-                Va = 's';
-            else if(size == 2)
-                Va = 'd';
-            else
-                return strdup(".undefined");
-
-            sprintf(disassembled, "%s %c%d, %c%d", instr, Vb, Rd, Va, Rn);
-        }
-        return disassembled;
-    }
-    else if(opcode == 0x13){
-        if(scalar == 1)
-            return strdup(".undefined");
-
-        if(U == 0)
-            return strdup(".undefined");
-
-        disassembled = malloc(128);
-        instr = "shll";
-
-        const char *Tb = NULL, *Ta = NULL;
-
-        if(size == 3)
-            return strdup(".undefined");
-
-        Tb = get_arrangement(size, Q);
+        instr_s = tab[op].instr_s;
+        instr_id = tab[op].instr_id;
 
         if(size == 0)
-            Ta = "8h";
+            T = Q == 0 ? "8b" : "16b";
         else if(size == 1)
-            Ta = "4s";
+            T = Q == 0 ? "4h" : "8h";
         else if(size == 2)
-            Ta = "2d";
+            T = Q == 0 ? "2s" : "4s";
 
-        sprintf(disassembled, "%s%s %s.%s, %s.%s, #%d", instr, Q == 1 ? "2" : "", ARM64_VectorRegisters[Rd], Tb, ARM64_VectorRegisters[Rn], Ta, 8 << size);
-        return disassembled;
+        if(!T)
+            return 1;
+
+        rtbl = AD_RTBL_FP_V_128;
+        sz = _128_BIT;
     }
-    else if(opcode == 0x14){
-        instr = U == 0 ? "sqxtn" : "uqxtn";
+    else if(opcode == 2 || opcode == 6){
+        if(scalar || fp16)
+            return 1;
 
-        disassembled = malloc(128);
+        if(opcode == 2){
+            instr_s = U == 0 ? "saddlp" : "uaddlp";
+            instr_id = U == 0 ? AD_INSTR_SADDLP : AD_INSTR_UADDLP;
+        }
+        else{
+            instr_s = U == 0 ? "sadalp" : "uadalp";
+            instr_id = U == 0 ? AD_INSTR_SADALP : AD_INSTR_UADALP;
+        }
 
-        if(scalar == 0){
-            const char *Tb = NULL, *Ta = NULL;
+        const char *Ta = NULL;
+        const char *Tb = NULL;
 
-            if(size == 3)
-                return strdup(".undefined");
+        if(size == 0){
+            Ta = Q == 0 ? "4h" : "8h";
+            Tb = Q == 0 ? "8b" : "16b";
+        }
+        else if(size == 1){
+            Ta = Q == 0 ? "2s" : "4s";
+            Tb = Q == 0 ? "4h" : "8h";
+        }
+        else if(size == 2){
+            Ta = Q == 0 ? "1d" : "2d";
+            Tb = Q == 0 ? "2s" : "4s";
+        }
 
-            Tb = get_arrangement(size, Q);
+        if(!Ta || !Tb)
+            return 1;
 
-            if(size == 0)
+        rtbl = AD_RTBL_FP_V_128;
+        sz = _128_BIT;
+
+        const char *Rd_s = GET_FP_REG(rtbl, Rd);
+        const char *Rn_s = GET_FP_REG(rtbl, Rn);
+
+        ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+        ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+        concat(&DECODE_STR(out), "%s %s.%s, %s.%s", instr_s, Rd_s, Ta, Rn_s, Tb);
+
+        SET_INSTR_ID(out, instr_id);
+
+        return 0;
+    }
+    else if(opcode == 3 || opcode == 7){
+        if(fp16)
+            return 1;
+
+        if(opcode == 3){
+            instr_s = U == 0 ? "suqadd" : "usqadd";
+            instr_id = U == 0 ? AD_INSTR_SUQADD : AD_INSTR_USQADD;
+        }
+        else{
+            instr_s = U == 0 ? "sqabs" : "sqneg";
+            instr_id = U == 0 ? AD_INSTR_SQABS : AD_INSTR_SQNEG;
+        }
+
+        if(size == 0)
+            T = Q == 0 ? "8b" : "16b";
+        else if(size == 1)
+            T = Q == 0 ? "4h" : "8h";
+        else if(size == 2)
+            T = Q == 0 ? "2s" : "4s";
+        else if(size == 3 && Q == 1)
+            T = "2d";
+
+        if(!scalar && !T)
+            return 1;
+
+        if(scalar){
+            rtbl = rtbls[size];
+            sz = sizes[size];
+        }
+        else{
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+    }
+    else if(opcode == 4){
+        if(scalar || fp16)
+            return 1;
+
+        instr_s = U == 0 ? "cls" : "clz";
+        instr_id = U == 0 ? AD_INSTR_CLS : AD_INSTR_CLZ;
+
+        if(size == 0)
+            T = Q == 0 ? "8b" : "16b";
+        else if(size == 1)
+            T = Q == 0 ? "4h" : "8h";
+        else if(size == 2)
+            T = Q == 0 ? "2s" : "4s";
+        else if(size == 3 && Q == 1)
+            T = "2d";
+
+        if(!T)
+            return 1;
+
+        rtbl = AD_RTBL_FP_V_128;
+        sz = _128_BIT;
+    }
+    else if(opcode == 5){
+        if(scalar || fp16)
+            return 1;
+
+        if(U == 0){
+            if(size != 0)
+                return 1;
+
+            instr_s = "cnt";
+            instr_id = AD_INSTR_CNT;
+        }
+        else{
+            if((size >> 1) == 1)
+                return 1;
+            
+            instr_s = size == 0 ? "not" : "rbit";
+            instr_id = size == 0 ? AD_INSTR_NOT : AD_INSTR_RBIT;
+        }
+
+        T = Q == 0 ? "8b" : "16b";
+
+        rtbl = AD_RTBL_FP_V_128;
+        sz = _128_BIT;
+    }
+    else if(opcode >= 8 && opcode <= 0xa){
+        if(fp16)
+            return 1;
+
+        if(opcode == 0xa && U == 1)
+            return 1;
+
+        if(scalar && size != 3)
+            return 1;
+
+        unsigned op = bits(i->opcode, 12, 12);
+        unsigned cop = (op << 1) | U;
+
+        struct itab tab[] = {
+            { "cmgt", AD_INSTR_CMGT }, { "cmge", AD_INSTR_CMGE },
+            { "cmeq", AD_INSTR_CMEQ }, { "cmle", AD_INSTR_CMLE }
+        };
+
+        instr_s = tab[cop].instr_s;
+        instr_id = tab[cop].instr_id;
+
+        if(size == 0)
+            T = Q == 0 ? "8b" : "16b";
+        else if(size == 1)
+            T = Q == 0 ? "4h" : "8h";
+        else if(size == 2)
+            T = Q == 0 ? "2s" : "4s";
+        else if(size == 3 && Q == 1)
+            T = "2d";
+
+        if(!scalar && !T)
+            return 1;
+
+        if(scalar){
+            rtbl = rtbls[size];
+            sz = sizes[size];
+        }
+        else{
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+
+        add_zero = 1;
+    }
+    else if(opcode == 0xb){
+        if(fp16)
+            return 1;
+
+        if(scalar && size != 3)
+            return 1;
+
+        instr_s = U == 0 ? "abs" : "neg";
+        instr_id = U == 0 ? AD_INSTR_ABS : AD_INSTR_NEG;
+
+        if(size == 0)
+            T = Q == 0 ? "8b" : "16b";
+        else if(size == 1)
+            T = Q == 0 ? "4h" : "8h";
+        else if(size == 2)
+            T = Q == 0 ? "2s" : "4s";
+        else if(size == 3 && Q == 1)
+            T = "2d";
+
+        if(!scalar && !T)
+            return 1;
+
+        if(scalar){
+            rtbl = rtbls[size];
+            sz = sizes[size];
+        }
+        else{
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+    }
+    else if(opcode >= 0xc && opcode <= 0xe){
+        if(opcode == 0xe && U == 1)
+            return 1;
+
+        unsigned _sz = (size & 1);
+
+        unsigned op = bits(i->opcode, 12, 12);
+        unsigned cop = (op << 1) | U;
+
+        struct itab tab[] = {
+            { "fcmgt", AD_INSTR_FCMGT }, { "fcmge", AD_INSTR_FCMGE },
+            { "fcmeq", AD_INSTR_FCMEQ }, { "fcmle", AD_INSTR_FCMLE }
+        };
+
+        instr_s = tab[cop].instr_s;
+        instr_id = tab[cop].instr_id;
+
+        if(scalar && fp16){
+            T = Q == 0 ? "4h" : "8h";
+
+            rtbl = AD_RTBL_FP_16;
+            sz = _16_BIT;
+        }
+        else if(scalar){
+            rtbl = rtbls[2 + _sz];
+            sz = sizes[2 + _sz];
+        }
+        else if(fp16){
+            T = Q == 0 ? "4h" : "8h";
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else{
+            if(_sz == 0)
+                T = Q == 0 ? "2s" : "4s";
+            else if(_sz == 1 && Q == 1)
+                T = "2d";
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+
+        add_zerof = 1;
+    }
+    else if(opcode == 0xf){
+        if(scalar)
+            return 1;
+
+        instr_s = U == 0 ? "fabs" : "fneg";
+        instr_id = U == 0 ? AD_INSTR_FABS : AD_INSTR_FNEG;
+
+        unsigned _sz = (size & 1);
+
+        if(fp16)
+            T = Q == 0 ? "4h" : "8h";
+        else{
+            if(_sz == 0)
+                T = Q == 0 ? "2s" : "4s";
+            else if(_sz == 1 && Q == 1)
+                T = "2d";
+
+            if(!T)
+                return 1;
+        }
+
+        rtbl = AD_RTBL_FP_V_128;
+        sz = _128_BIT;
+    }
+    else if(opcode == 0x12 || opcode == 0x14){
+        if(fp16)
+            return 1;
+
+        if(scalar && size == 3)
+            return 1;
+
+        if(U == 0){
+            if(opcode == 0x12){
+                instr_s = Q == 0 ? "xtn" : "xtn2";
+                instr_id = Q == 0 ? AD_INSTR_XTN : AD_INSTR_XTN2;
+            }
+            else{
+                if(scalar){
+                    instr_s = "sqxtn";
+                    instr_id = AD_INSTR_SQXTN;
+                }
+                else{
+                    instr_s = Q == 0 ? "sqxtn" : "sqxtn2";
+                    instr_id = Q == 0 ? AD_INSTR_SQXTN : AD_INSTR_SQXTN2;
+                }
+            }
+        }
+        else{
+            if(opcode == 0x12){
+                if(scalar){
+                    instr_s = "sqxtun";
+                    instr_id = AD_INSTR_SQXTUN;
+                }
+                else{
+                    instr_s = Q == 0 ? "sqxtun" : "sqxtun2";
+                    instr_id = Q == 0 ? AD_INSTR_SQXTUN : AD_INSTR_SQXTUN2;
+                }
+            }
+            else{
+                if(scalar){
+                    instr_s = "uqxtn";
+                    instr_id = AD_INSTR_UQXTN;
+                }
+                else{
+                    instr_s = Q == 0 ? "uqxtn" : "uqxtn2";
+                    instr_id = Q == 0 ? AD_INSTR_UQXTN : AD_INSTR_UQXTN2;
+                }
+            }
+        }
+
+        concat(&DECODE_STR(out), "%s", instr_s);
+
+        if(scalar){
+            const char **Rd_rtbl = rtbls[size];
+            const char **Rn_rtbl = rtbls[1 + size];
+
+            unsigned Rd_sz = sizes[size];
+            unsigned Rn_sz = sizes[1 + size];
+
+            const char *Rd_s = GET_FP_REG(Rd_rtbl, Rd);
+            const char *Rn_s = GET_FP_REG(Rn_rtbl, Rn);
+
+            ADD_REG_OPERAND(out, Rd, Rd_sz, NO_PREFER_ZR, _SYSREG(NONE), Rd_rtbl);
+            ADD_REG_OPERAND(out, Rn, Rn_sz, NO_PREFER_ZR, _SYSREG(NONE), Rn_rtbl);
+
+            concat(&DECODE_STR(out), " %s, %s", Rd_s, Rn_s);
+        }
+        else{
+            const char *Ta = NULL;
+            const char *Tb = NULL;
+
+            if(size == 0){
                 Ta = "8h";
-            else if(size == 1)
+                Tb = Q == 0 ? "8b" : "16b";
+            }
+            else if(size == 1){
                 Ta = "4s";
-            else if(size == 2)
-                Ta = "2d";
-
-            sprintf(disassembled, "%s%s %s.%s, %s.%s", instr, Q == 1 ? "2" : "", ARM64_VectorRegisters[Rd], Tb, ARM64_VectorRegisters[Rn], Ta);
-            return disassembled;
-        }
-        else{
-            if(size == 3)
-                return strdup(".undefined");
-
-            char Vb = sizes[size];
-            char Va = '\0';
-
-            if(size == 0)
-                Va = 'h';
-            else if(size == 1)
-                Va = 's';
-            else if(size == 2)
-                Va = 'd';
-            else
-                return strdup(".undefined");
-
-            sprintf(disassembled, "%s %c%d, %c%d", instr, Vb, Rd, Va, Rn);
-            return disassembled;
-        }
-    }
-    else if(opcode == 0x16){
-        if(U == 0)
-            return strdup(".undefined");
-
-        instr = "fcvtxn";
-
-        if(scalar == 0 && U == 0)
-            instr = "fcvtn";
-
-        disassembled = malloc(128);
-
-        if(strcmp(instr, "fcvtxn") == 0){
-            if(sz == 0)
-                return strdup(".undefined");
-
-            if(scalar == 0){
-                const char *Tb = NULL, *Ta = "2d";
-
-                Tb = Q == 0 ? "2s" : "4s";
-
-                sprintf(disassembled, "%s%s %s.%s, %s.%s", instr, scalar == 0 ? Q == 1 ? "2" : "" : "", ARM64_VectorRegisters[Rd], Tb, ARM64_VectorRegisters[Rn], Ta);
-            }
-            else{
-                char Vb = 's';
-                char Va = 'd';
-
-                sprintf(disassembled, "%s%s %c%d, %c%d", instr, scalar == 0 ? Q == 1 ? "2" : "" : "", Vb, Rd, Va, Rn);
-                return disassembled;
-            }
-        }
-        else{
-            const char *Tb = NULL, *Ta = NULL;
-
-            if(sz == 0){
                 Tb = Q == 0 ? "4h" : "8h";
-                Ta = "4s";
             }
-            else{
-                Tb = Q == 0 ? "2s" : "4s";
+            else if(size == 2){
                 Ta = "2d";
+                Tb = Q == 0 ? "2s" : "4s";
             }
 
-            sprintf(disassembled, "%s%s, %s.%s, %s.%s", instr, scalar == 0 ? Q == 1 ? "2" : "" : "", ARM64_VectorRegisters[Rd], Tb, ARM64_VectorRegisters[Rn], Ta);
-            return disassembled;
+            if(!Ta || !Tb)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+
+            const char *Rd_s = GET_FP_REG(rtbl, Rd);
+            const char *Rn_s = GET_FP_REG(rtbl, Rn);
+
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+            concat(&DECODE_STR(out), " %s.%s, %s.%s", Rd_s, Tb, Rn_s, Ta);
         }
+
+        SET_INSTR_ID(out, instr_id);
+
+        return 0;
     }
-    else if(opcode == 0x17){
-        if(scalar == 1)
-            return strdup(".undefined");
+    else if(opcode == 0x13){
+        if(fp16 || scalar)
+            return 1;
 
-        if(U == 1)
-            return strdup(".undefined");
+        if(U == 0)
+            return 1;
 
-        disassembled = malloc(128);
+        instr_s = Q == 0 ? "shll" : "shll2";
+        instr_id = Q == 0 ? AD_INSTR_SHLL : AD_INSTR_SHLL2;
 
-        const char *Ta = NULL, *Tb = NULL;
+        const char *Ta = NULL;
+        const char *Tb = NULL;
 
-        if(sz == 0){
+        if(size == 0){
+            Ta = "8h";
+            Tb = Q == 0 ? "8b" : "16b";
+        }
+        else if(size == 1){
             Ta = "4s";
             Tb = Q == 0 ? "4h" : "8h";
         }
-        else{
+        else if(size == 2){
             Ta = "2d";
             Tb = Q == 0 ? "2s" : "4s";
         }
 
-        sprintf(disassembled, "%s%s, %s.%s, %s.%s", instr, scalar == 0 ? Q == 1 ? "2" : "" : "", ARM64_VectorRegisters[Rd], Ta, ARM64_VectorRegisters[Rn], Tb);
-        return disassembled;
+        if(!Ta || !Tb)
+            return 1;
+
+        rtbl = AD_RTBL_FP_V_128;
+        sz = _128_BIT;
+
+        const char *Rd_s = GET_FP_REG(rtbl, Rd);
+        const char *Rn_s = GET_FP_REG(rtbl, Rn);
+
+        ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+        ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+        unsigned shift = 8 << size;
+
+        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&shift);
+
+        concat(&DECODE_STR(out), "%s %s.%s, %s.%s, #%#x", instr_s, Rd_s, Ta,
+                Rn_s, Tb, shift);
+
+        SET_INSTR_ID(out, instr_id);
+
+        return 0;
     }
-    else if(opcode == 0x18){
-        if(scalar == 1)
-            return strdup(".undefined");
-
-        instr = U == 0 ? "frintn" : "frinta";
-        T = get_arrangement2(fp16, sz, Q);
-    }
-    else if(opcode == 0x19){
-        if(scalar == 1)
-            return strdup(".undefined");
-
-        instr = U == 0 ? "frintz" : "frintx";
-        T = get_arrangement2(fp16, sz, Q);
-    }
-    else if(opcode == 0x1a){
-        if(U == 0)
-            instr = a == 0 ? "fcvtns" : "fcvtps";
-        else
-            instr = a == 0 ? "fcvtnu" : "fcvtpu";
-
-        V = sz_s[sz];
-        T = get_arrangement2(fp16, sz, Q);
-    }
-    else if(opcode == 0x1b){
-        if(U == 0)
-            instr = a == 0 ? "fcvtms" : "fcvtzs";
-        else
-            instr = a == 0 ? "fcvtmu" : "fcvtzu";
-
-        V = sz_s[sz];
-        T = get_arrangement2(fp16, sz, Q);
-    }
-    else if(opcode == 0x1c){
-        if(U == 0)
-            instr = a == 0 ? "fcvtas" : "urecpe";
-        else
-            instr = a == 0 ? "fcvtau" : "ursqrte";
-
-        V = sz_s[sz];
-        T = get_arrangement2(fp16, sz, Q);
-    }
-    else if(opcode == 0x1d){
-        if(U == 0)
-            instr = a == 0 ? "scvtf" : "frecpe";
-        else
-            instr = a == 0 ? "ucvtf" : "frsqrte";
-
-        V = sz_s[sz];
-        T = get_arrangement2(fp16, sz, Q);
-    }
-    else if(opcode == 0x1f){
-        if(U == 1)
-            return strdup(".undefined");
-
-        instr = scalar ? "frecpx" : "fsqrt";
-        V = sz_s[sz];
-        T = get_arrangement2(fp16, sz, Q);
-    }
-    else
-        return strdup(".undefined");
-
-    disassembled = malloc(128);
-
-    if(scalar == 0)
-        sprintf(disassembled, "%s %s.%s, %s.%s", instr, ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T);
-    else{
+    else if(opcode == 0x16){
         if(fp16)
-            sprintf(disassembled, "%s %s, %s", instr, ARM64_VectorHalfPrecisionRegisters[Rd], ARM64_VectorHalfPrecisionRegisters[Rn]);
-        else
-            sprintf(disassembled, "%s %c%d, %c%d", instr, V, Rd, V, Rn);
+            return 1;
+
+        unsigned _sz = (size & 1);
+
+        if(U == 0){
+            instr_s = Q == 0 ? "fcvtn" : "fcvtn2";
+            instr_id = Q == 0 ? AD_INSTR_FCVTN : AD_INSTR_FCVTN2;
+        }
+        else{
+            if(scalar){
+                instr_s = "fcvtxn";
+                instr_id = AD_INSTR_FCVTXN;
+            }
+            else{
+                instr_s = Q == 0 ? "fcvtxn" : "fcvtxn2";
+                instr_id = Q == 0 ? AD_INSTR_FCVTXN : AD_INSTR_FCVTXN2;
+            }
+        }
+
+        concat(&DECODE_STR(out), "%s", instr_s);
+
+        if(scalar){
+            if(_sz == 0)
+                return 1;
+
+            const char **Rd_rtbl = AD_RTBL_FP_32;
+            const char **Rn_rtbl = AD_RTBL_FP_64;
+
+            unsigned Rd_sz = _32_BIT;
+            unsigned Rn_sz = _64_BIT;
+
+            const char *Rd_s = GET_FP_REG(Rd_rtbl, Rd);
+            const char *Rn_s = GET_FP_REG(Rn_rtbl, Rn);
+
+            ADD_REG_OPERAND(out, Rd, Rd_sz, NO_PREFER_ZR, _SYSREG(NONE), Rd_rtbl);
+            ADD_REG_OPERAND(out, Rn, Rn_sz, NO_PREFER_ZR, _SYSREG(NONE), Rn_rtbl);
+
+            concat(&DECODE_STR(out), " %s, %s", Rd_s, Rn_s);
+        }
+        else{
+            const char *Ta = NULL;
+            const char *Tb = NULL;
+
+            if(_sz == 0){
+                if(instr_id == AD_INSTR_FCVTXN || instr_id == AD_INSTR_FCVTXN2)
+                    return 1;
+
+                Ta = "4s";
+                Tb = Q == 0 ? "4h" : "8h";
+            }
+            else if(_sz == 1){
+                Ta = "2d";
+                Tb = Q == 0 ? "2s" : "4s";
+            }
+
+            if(!Ta || !Tb)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+
+            const char *Rd_s = GET_FP_REG(rtbl, Rd);
+            const char *Rn_s = GET_FP_REG(rtbl, Rn);
+
+            ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+            ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+            concat(&DECODE_STR(out), " %s.%s, %s.%s", Rd_s, Tb, Rn_s, Ta);
+        }
+
+        SET_INSTR_ID(out, instr_id);
+
+        return 0;
+    }
+    else if(opcode == 0x17){
+        if(fp16 || scalar)
+            return 1;
+
+        unsigned _sz = (size & 1);
+
+        instr_s = Q == 0 ? "fcvtl" : "fcvtl2";
+        instr_id = Q == 0 ? AD_INSTR_FCVTL : AD_INSTR_FCVTL2;
+
+        const char *Ta = NULL;
+        const char *Tb = NULL;
+
+        if(_sz == 0){
+            Ta = "4s";
+            Tb = Q == 0 ? "4h" : "8h";
+        }
+        else if(_sz == 1){
+            Ta = "2d";
+            Tb = Q == 0 ? "2s" : "4s";
+        }
+
+        if(!Ta || !Tb)
+            return 1;
+
+        rtbl = AD_RTBL_FP_V_128;
+        sz = _128_BIT;
+
+        const char *Rd_s = GET_FP_REG(rtbl, Rd);
+        const char *Rn_s = GET_FP_REG(rtbl, Rn);
+
+        ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+        ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+        concat(&DECODE_STR(out), "%s %s.%s, %s.%s", instr_s, Rd_s, Ta, Rn_s, Tb);
+
+        SET_INSTR_ID(out, instr_id);
+
+        return 0;
+    }
+    else if(opcode == 0x18 || opcode == 0x19 || opcode == 0x1e || opcode == 0x1f){
+        if(scalar)
+            return 1;
+
+        unsigned s = size >> 1;
+        unsigned _sz = (size & 1);
+
+        if(U == 0){
+            if(s == 0){
+                if(opcode == 0x18){
+                    instr_s = "frintn";
+                    instr_id = AD_INSTR_FRINTN;
+                }
+                else if(opcode == 0x19){
+                    instr_s = "frintm";
+                    instr_id = AD_INSTR_FRINTM;
+                }
+                else if(opcode == 0x1e){
+                    instr_s = "frint32z";
+                    instr_id = AD_INSTR_FRINT32Z;
+                }
+                else{
+                    instr_s = "frint64z";
+                    instr_id = AD_INSTR_FRINT64Z;
+                }
+            }
+            else{
+                if(opcode == 0x1e || opcode == 0x1f)
+                    return 1;
+
+                instr_s = opcode == 0x18 ? "frintp" : "frintz";
+                instr_id = opcode == 0x18 ? AD_INSTR_FRINTP : AD_INSTR_FRINTZ;
+            }
+        }
+        else{
+            if(s == 0){
+                if(opcode == 0x18){
+                    instr_s = "frinta";
+                    instr_id = AD_INSTR_FRINTA;
+                }
+                else if(opcode == 0x19){
+                    instr_s = "frintx";
+                    instr_id = AD_INSTR_FRINTX;
+                }
+                else if(opcode == 0x1e){
+                    instr_s = "frint32x";
+                    instr_id = AD_INSTR_FRINT32X;
+                }
+                else{
+                    instr_s = "frint64x";
+                    instr_id = AD_INSTR_FRINT64X;
+                }
+            }
+            else{
+                if(opcode == 0x18 || opcode == 0x1e)
+                    return 1;
+
+                instr_s = opcode == 0x19 ? "frinti" : "fsqrt";
+                instr_id = opcode == 0x19 ? AD_INSTR_FRINTI : AD_INSTR_FSQRT;
+            }
+        }
+
+        if(fp16)
+            T = Q == 0 ? "4h" : "8h";
+        else{
+            if(_sz == 0)
+                T = Q == 0 ? "2s" : "4s";
+            else if(_sz == 1 && Q == 1)
+                T = "2d";
+
+            if(!T)
+                return 1;
+        }
+
+        rtbl = AD_RTBL_FP_V_128;
+        sz = _128_BIT;
+    }
+    else if(opcode >= 0x1a && opcode <= 0x1d){
+        unsigned s = size >> 1;
+        unsigned tempop = opcode - 0x1a;
+
+        if(U == 0){
+            if(s == 0){
+                struct itab tab[] = {
+                    { "fcvtns", AD_INSTR_FCVTNS }, { "fcvtms", AD_INSTR_FCVTMS },
+                    { "fcvtas", AD_INSTR_FCVTAS }, { "scvtf", AD_INSTR_SCVTF }
+                };
+
+                if(OOB(tempop, tab))
+                    return 1;
+
+                instr_s = tab[tempop].instr_s;
+                instr_id = tab[tempop].instr_id;
+            }
+            else{
+                struct itab tab[] = {
+                    { "fcvtps", AD_INSTR_FCVTPS }, { "fcvtzs", AD_INSTR_FCVTZS },
+                    { "urecpe", AD_INSTR_URECPE }, { "frecpe", AD_INSTR_FRECPE }
+                };
+
+                if(OOB(tempop, tab))
+                    return 1;
+
+                instr_s = tab[tempop].instr_s;
+                instr_id = tab[tempop].instr_id;
+            }
+        }
+        else{
+            if(s == 0){
+                struct itab tab[] = {
+                    { "fcvtnu", AD_INSTR_FCVTNU }, { "fcvtmu", AD_INSTR_FCVTMU },
+                    { "fcvtau", AD_INSTR_FCVTAU }, { "ucvtf", AD_INSTR_UCVTF }
+                };
+
+                if(OOB(tempop, tab))
+                    return 1;
+
+                instr_s = tab[tempop].instr_s;
+                instr_id = tab[tempop].instr_id;
+            }
+            else{
+                struct itab tab[] = {
+                    { "fcvtpu", AD_INSTR_FCVTPU }, { "fcvtzu", AD_INSTR_FCVTZU },
+                    { "ursqrte", AD_INSTR_URSQRTE }, { "frsqrte", AD_INSTR_FRSQRTE }
+                };
+
+                if(OOB(tempop, tab))
+                    return 1;
+
+                instr_s = tab[tempop].instr_s;
+                instr_id = tab[tempop].instr_id;
+            }
+        }
+
+        unsigned _sz = (size & 1);
+
+        if(scalar && fp16){
+            T = Q == 0 ? "4h" : "8h";
+
+            rtbl = AD_RTBL_FP_16;
+            sz = _16_BIT;
+        }
+        else if(scalar){
+            rtbl = _sz == 0 ? AD_RTBL_FP_32 : AD_RTBL_FP_64;
+            sz = _sz == 0 ? _32_BIT : _64_BIT;
+        }
+        else if(fp16){
+            T = Q == 0 ? "4h" : "8h";
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
+        else{
+            if(_sz == 0)
+                T = Q == 0 ? "2s" : "4s";
+            else if(_sz == 1 && Q == 1){
+                if(instr_id == AD_INSTR_URECPE || instr_id == AD_INSTR_URSQRTE)
+                    return 1;
+
+                T = "2d";
+            }
+
+            if(!T)
+                return 1;
+
+            rtbl = AD_RTBL_FP_V_128;
+            sz = _128_BIT;
+        }
     }
 
-    if(add_zero)
-        sprintf(disassembled, "%s, #0.0", disassembled);
+    if(!rtbl)
+        return 1;
 
-    return disassembled;
+    const char *Rd_s = GET_FP_REG(rtbl, Rd);
+    const char *Rn_s = GET_FP_REG(rtbl, Rn);
+
+    ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+    ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+    concat(&DECODE_STR(out), "%s %s", instr_s, Rd_s);
+
+    if(scalar)
+        concat(&DECODE_STR(out), ", %s", Rn_s);
+    else
+        concat(&DECODE_STR(out), ".%s, %s.%s", T, Rn_s, T);
+
+    if(add_zero){
+        ADD_IMM_OPERAND(out, AD_INT, 0);
+        concat(&DECODE_STR(out), ", #0");
+    }
+    else if(add_zerof){
+        ADD_IMM_OPERAND(out, AD_FLOAT, 0);
+        concat(&DECODE_STR(out), ", #0.0");
+    }
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
+/*
 char *DisassembleAdvancedSIMDThreeDifferentInstr(struct instruction *instruction, int scalar){
     char *disassembled = NULL;
 
@@ -4551,18 +4117,15 @@ int DataProcessingFloatingPointDisassemble(struct instruction *i,
 
         result = DisassembleAdvancedSIMDThreeSameInstr(i, out, scalar, fp16, extra);
     }
-    else if((op0 & ~2) == 5 && (op1 & ~1) == 0 && op2 == 0xf && (op3 & ~0x7c) == 2)
-        result = DisassembleAdvancedSIMDScalarTwoRegisterMiscFP16Instr(i, out);
-    /*
-    else if((op0 & ~2) == 5 && (op1 & ~1) == 0 && (op2 & ~3) == 8 && (op3 & ~0x1ce) == 1)
-        result = DisassembleAdvancedSIMDScalarThreeSameFP16Instr(i, out);
-    else if((op0 & ~2) == 5 && (op1 & ~1) == 0 && op2 == 0xf && (op3 & ~0x7c) == 2)
-        result = DisassembleAdvancedSIMDScalarTwoRegisterMiscFP16Instr(i, out);
-    else if((op0 & ~2) == 5 && (op1 & ~1) == 0 && (op2 & ~11) == 0 && (op3 & ~0x1de) == 0x21)
-        result = DisassembleAdvancedSIMDScalarThreeSameExtraInstr(i, out);
-    else if((op0 & ~2) == 5 && (op1 & ~1) == 0 && (op2 & ~8) == 4 && (op3 & ~0x7c) == 2)
-        result = DisassembleAdvancedSIMDScalarTwoRegisterMiscInstr(i, out);
-        */
+    else if(((op0 & ~2) == 5 || (op0 & ~6) == 0) &&
+            (op1 & ~1) == 0 &&
+            ((op2 == 0xf) || (op2 & ~8) == 4) &&
+            (op3 & ~0x7c) == 2){
+        int scalar = (op0 & 1);
+        int fp16 = (op2 == 0xf);
+
+        result = DisassembleAdvancedSIMDTwoRegisterMiscellaneousInstr(i, out, scalar, fp16);
+    }
     else
         result = 1;
 
