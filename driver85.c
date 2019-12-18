@@ -2015,8 +2015,6 @@ int main(int argc, char **argv, const char **envp){
     addinstr("mov	h22, v12.h[0]", 0x5e020596, 0);
     */
 
-    /* XXX vector variant of DUP */
-    //addinstr("dup	v3.16b, v3.b[0]", 0x4e010463, 0);
 
     /*
     addinstr("fmulx h4, h5, h6", 0x5e461ca4, 0);
@@ -2191,30 +2189,61 @@ int main(int argc, char **argv, const char **envp){
     addinstr("umull2	v6.2d, v20.4s, v6.4s", 0x6ea6c286, 0);
     addinstr("sqdmlsl2	v6.4s, v5.8h, v21.8h", 0x4e75b0a6, 0);
     */
-    addinstr("sshr d6, d7, #2", 0x5f7e04e6, 0);
-    addinstr("sshr v4.4s, v4.4s, #2", 0x4f3e0484, 0);
-    addinstr("sqshlu s5, s6, #4", 0x7f2464c5, 0);
-    addinstr("sri v8.16b, v9.16b, #6", 0x6f0a4528, 0);
-    addinstr("sqshrn2 v10.8h, v4.4s, #5", 0x4f1b948a, 0);
-    addinstr("fcvtzs v19.2s, v9.2s, #32", 0x0f20fd33, 0);
-    addinstr("uqshrn b8, h9, #1", 0x7f0f9528, 0);
-    addinstr("sqshl	b4, b2, #0x6", 0x5f0e7444, 0);
-    addinstr("sqshl	d4, d2, #0x17", 0x5f577444, 0);
-    addinstr("sqshlu	v20.2d, v1.2d, #0x4", 0x6f446434, 0);
-    addinstr("ursra	v20.8h, v1.8h, #0xf", 0x6f113434, 0);
-    addinstr("ushll	v6.8h, v2.8b, #0x0", 0x2f08a446, 0);
-    addinstr("ushll2	v6.4s, v2.8h, #0x1", 0x6f11a446, 0);
-    addinstr("sqshrn	v5.2s, v8.2d, #0x1b", 0x0f259505, 0);
-    addinstr("uqshrn	s8, d9, #0x1", 0x7f3f9528, 0);
-    addinstr("scvtf	s18, s19, #0x14", 0x5f2ce672, 0);
-    addinstr("fcvtzu	h20, h19, #0x3", 0x7f1dfe74, 0);
-    addinstr("ucvtf	v1.2d, v4.2d, #0x40", 0x6f40e481, 0);
-    addinstr("fcvtzs	v9.4s, v1.4s, #0x1", 0x4f3ffc29, 0);
-    addinstr("scvtf	v0.4h, v20.4h, #0xe", 0x0f12e680, 0);
-    addinstr("fcvtzu	d20, d25, #0x37", 0x7f49ff34, 0);
+    /* addinstr("sshr d6, d7, #2", 0x5f7e04e6, 0); */
+    /* addinstr("sshr v4.4s, v4.4s, #2", 0x4f3e0484, 0); */
+    /* addinstr("sqshlu s5, s6, #4", 0x7f2464c5, 0); */
+    /* addinstr("sri v8.16b, v9.16b, #6", 0x6f0a4528, 0); */
+    /* addinstr("sqshrn2 v10.8h, v4.4s, #5", 0x4f1b948a, 0); */
+    /* addinstr("fcvtzs v19.2s, v9.2s, #32", 0x0f20fd33, 0); */
+    /* addinstr("uqshrn b8, h9, #1", 0x7f0f9528, 0); */
+    /* addinstr("sqshl	b4, b2, #0x6", 0x5f0e7444, 0); */
+    /* addinstr("sqshl	d4, d2, #0x17", 0x5f577444, 0); */
+    /* addinstr("sqshlu	v20.2d, v1.2d, #0x4", 0x6f446434, 0); */
+    /* addinstr("ursra	v20.8h, v1.8h, #0xf", 0x6f113434, 0); */
+    /* addinstr("ushll	v6.8h, v2.8b, #0x0", 0x2f08a446, 0); */
+    /* addinstr("ushll2	v6.4s, v2.8h, #0x1", 0x6f11a446, 0); */
+    /* addinstr("sqshrn	v5.2s, v8.2d, #0x1b", 0x0f259505, 0); */
+    /* addinstr("uqshrn	s8, d9, #0x1", 0x7f3f9528, 0); */
+    /* addinstr("scvtf	s18, s19, #0x14", 0x5f2ce672, 0); */
+    /* addinstr("fcvtzu	h20, h19, #0x3", 0x7f1dfe74, 0); */
+    /* addinstr("ucvtf	v1.2d, v4.2d, #0x40", 0x6f40e481, 0); */
+    /* addinstr("fcvtzs	v9.4s, v1.4s, #0x1", 0x4f3ffc29, 0); */
+    /* addinstr("scvtf	v0.4h, v20.4h, #0xe", 0x0f12e680, 0); */
+    /* addinstr("fcvtzu	d20, d25, #0x37", 0x7f49ff34, 0); */
+
+    /* the first two are scalar dup's, always use MOV as the alias */
+    addinstr("dup b7, v6.b[5]", 0x5e0b04c7, 0);
+    addinstr("dup d1, v19.d[0]", 0x5e080661, 0);
+    addinstr("dup	v3.16b, v3.b[0]", 0x4e010463, 0);
+    addinstr("dup v8.8b, v6.b[3]", 0x0e0704c8, 0);
+    addinstr("dup v5.2d, x5", 0x4e080ca5, 0);
+    addinstr("dup v9.8h, w3", 0x4e020c69, 0);
+    addinstr("smov w4, v9.b[0]", 0x0e012d24, 0);
+    addinstr("smov x5, v0.h[5]", 0x4e162c05, 0);
+    addinstr("umov w4, v5.h[4]", 0x0e123ca4, 0);
+    addinstr("umov x3, v10.d[1]", 0x4e183d43, 0);
+    addinstr("ins v9.b[0], w3", 0x4e011c69, 0);
+    addinstr("ins v10.h[2], v9.h[1]", 0x6e0a152a, 0);
+    addinstr("ins	v8.b[13], v10.b[15]", 0x6e1b7d48, 0);
+    addinstr("ins	v8.b[0], v10.b[1]", 0x6e010d48, 0);
+    addinstr("ins	v8.h[1], v10.h[0]", 0x6e060548, 0);
+    addinstr("ins	v8.s[0], v10.s[1]", 0x6e042548, 0);
+    addinstr("ins	v8.s[1], v10.s[0]", 0x6e0c0548, 0);
+    addinstr("ins	v8.d[0], v10.d[1]", 0x6e084548, 0);
+    addinstr("ins	v8.d[1], v10.d[0]", 0x6e180548, 0);
+    addinstr("mov	v9.b[8], w4", 0x4e111c89, 0);
+    addinstr("mov	v0.d[0], x22", 0x4e081ec0, 0);
+    addinstr("mov	v1.s[2], w7", 0x4e141ce1, 0);
+    addinstr("mov	v10.h[5], w0", 0x4e161c0a, 0);
+    addinstr("smov	xzr, v0.s[1]", 0x4e0c2c1f, 0);
+    addinstr("umov	wzr, v3.h[4]", 0x0e123c7f, 0);
+    addinstr("umov	w5, v1.s[2]", 0x0e143c25, 0);
+    addinstr("umov	x20, v0.d[0]", 0x4e083c14, 0);
 
 
-    
+
+
+
     for(struct node *current = instructions->front;
             current;
             current = current->next){

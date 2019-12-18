@@ -183,6 +183,239 @@ static int DisassembleCryptographicTwoRegisterSHAInstr(struct instruction *i,
     return 0;
 }
 
+static int DisassembleAdvancedSIMDCopyInstr(struct instruction *i,
+        struct ad_insn *out, int scalar){
+    unsigned Q = bits(i->opcode, 30, 30);
+    unsigned op = bits(i->opcode, 29, 29);
+    unsigned imm5 = bits(i->opcode, 16, 20);
+    unsigned imm4 = bits(i->opcode, 11, 14);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
+
+    if((imm5 & ~0x10) == 0)
+        return 1;
+
+    if(!scalar)
+        ADD_FIELD(out, Q);
+
+    ADD_FIELD(out, op);
+    ADD_FIELD(out, imm5);
+    ADD_FIELD(out, imm4);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
+
+    const char *instr_s = NULL;
+    int instr_id = NONE;
+    int unaliased_instr_id = NONE;
+
+    int size = LowestSetBit(imm5, 5);
+
+    if(op == 0 && (imm4 == 0 || imm4 == 1)){
+        /* MOV alias for scalar DUP is always preferred */
+        instr_s = scalar ? "mov" : "dup";
+        instr_id = scalar ? AD_INSTR_MOV : AD_INSTR_DUP;
+
+        unaliased_instr_id = AD_INSTR_DUP;
+    }
+    else if(op == 0 && imm4 == 5){
+        instr_s = "smov";
+        instr_id = AD_INSTR_SMOV;
+
+        unaliased_instr_id = AD_INSTR_SMOV;
+    }
+    else if(op == 0 && imm4 == 7){
+        int umov_alias = (size == 3 || size == 2);
+
+        instr_s = umov_alias ? "mov" : "umov";
+        instr_id = umov_alias ? AD_INSTR_MOV : AD_INSTR_UMOV;
+
+        unaliased_instr_id = AD_INSTR_UMOV;
+    }
+    else if(Q == 1 && ((op == 0 && imm4 == 3) || op == 1)){
+        /* MOV alias for INS (general) and INS (element) is always preferred */
+        instr_s = "mov";
+        instr_id = AD_INSTR_MOV;
+
+        unaliased_instr_id = AD_INSTR_INS;
+    }
+
+    if(!instr_s)
+        return 1;
+
+    const char **Rd_Rtbl = NULL;
+    const char **Rn_Rtbl = NULL;
+
+    unsigned Rd_sz = 0;
+    unsigned Rn_sz = 0;
+
+    const char *T = NULL;
+    const char *Ts = NULL;
+
+    const char **rtbls[] = {
+        AD_RTBL_FP_8, AD_RTBL_FP_16, AD_RTBL_FP_32, AD_RTBL_FP_64
+    };
+
+    unsigned sizes[] = {
+        _8_BIT, _16_BIT, _32_BIT, _64_BIT
+    };
+
+    const char *sizes_s[] = {
+        "b", "h", "s", "d"
+    };
+
+    if(unaliased_instr_id == AD_INSTR_DUP){
+        if(scalar){
+            if(size == -1 || size > 3)
+                return 1;
+
+            Rd_Rtbl = rtbls[size];
+            Rd_sz = sizes[size];
+
+            T = sizes_s[size];
+        }
+        else{
+            Rd_Rtbl = AD_RTBL_FP_V_128;
+            Rd_sz = _128_BIT;
+
+            if(size == 0)
+                T = Q == 0 ? "8b" : "16b";
+            else if(size == 1)
+                T = Q == 0 ? "4h" : "8h";
+            else if(size == 2)
+                T = Q == 0 ? "2s" : "4s";
+            else if(size == 3 && Q == 1)
+                T = "2d";
+
+            if(!T)
+                return 1;
+        }
+
+        if(imm4 == 0){
+            /* DUP (element) */
+            Rn_Rtbl = AD_RTBL_FP_V_128;
+            Rn_sz = _128_BIT;
+
+            Ts = sizes_s[size];
+        }
+        else{
+            /* DUP (general) */
+            if(size == -1 || size > 3)
+                return 1;
+
+            Rn_Rtbl = size <= 2 ? AD_RTBL_GEN_32 : AD_RTBL_GEN_64;
+            Rn_sz = size <= 2 ? _32_BIT : _64_BIT;
+        }
+    }
+    else if(unaliased_instr_id == AD_INSTR_SMOV || unaliased_instr_id == AD_INSTR_UMOV){
+        Rd_Rtbl = Q == 0 ? AD_RTBL_GEN_32 : AD_RTBL_GEN_64;
+        Rn_Rtbl = AD_RTBL_FP_V_128;
+
+        Rd_sz = Q == 0 ? _32_BIT : _64_BIT;
+        Rn_sz = _128_BIT;
+
+        if(unaliased_instr_id == AD_INSTR_SMOV){
+            if((Q == 0 && size > 1) || (Q == 1 && size > 2))
+                return 1;
+        }
+        else{
+            if((Q == 0 && size > 2) || (Q == 1 && size != 3))
+                return 1;
+        }
+
+        Ts = sizes_s[size];
+    }
+    else{
+        Rd_Rtbl = AD_RTBL_FP_V_128;
+        Rd_sz = _128_BIT;
+
+        if(op == 1){
+            /* INS (element) */
+            Rn_Rtbl = AD_RTBL_FP_V_128;
+            Rn_sz = _128_BIT;
+        }
+        else{
+            /* INS (general) */
+            if(size == -1 || size > 3)
+                return 1;
+
+            Rn_Rtbl = size <= 2 ? AD_RTBL_GEN_32 : AD_RTBL_GEN_64;
+            Rn_sz = size <= 2 ? _32_BIT : _64_BIT;
+        }
+
+        Ts = sizes_s[size];
+    }
+
+    if(!Rd_Rtbl || !Rn_Rtbl)
+        return 1;
+
+    const char *Rd_s = NULL;
+    int Rd_prefer_zr = 0;
+
+    if(unaliased_instr_id != AD_INSTR_SMOV && unaliased_instr_id != AD_INSTR_UMOV)
+        Rd_s = GET_FP_REG(Rd_Rtbl, Rd);
+    else{
+        Rd_s = GET_GEN_REG(Rd_Rtbl, Rd, PREFER_ZR);
+        Rd_prefer_zr = 1;
+    }
+
+    const char *Rn_s = NULL;
+    int Rn_prefer_zr = 0;
+
+    unsigned index = (imm5 >> (size + 1));
+    unsigned index2 = (imm4 >> size);
+
+    /* DUP (general) or INS (general) */
+    if((unaliased_instr_id == AD_INSTR_DUP && imm4 == 1) ||
+            (unaliased_instr_id == AD_INSTR_INS && op == 0)){
+        Rn_s = GET_GEN_REG(Rn_Rtbl, Rn, PREFER_ZR);
+        Rn_prefer_zr = 1;
+    }
+    else{
+        Rn_s = GET_FP_REG(Rn_Rtbl, Rn);
+    }
+
+    ADD_REG_OPERAND(out, Rd, Rd_sz, Rd_prefer_zr, _SYSREG(NONE), Rd_Rtbl);
+    ADD_REG_OPERAND(out, Rn, Rn_sz, Rn_prefer_zr, _SYSREG(NONE), Rn_Rtbl);
+
+    concat(&DECODE_STR(out), "%s %s", instr_s, Rd_s);
+
+    /* DUP (element, vector) or DUP (general) */
+    if(unaliased_instr_id == AD_INSTR_DUP && !scalar)
+        concat(&DECODE_STR(out), ".%s", T);
+    /* INS (element) or INS (general) */
+    else if(unaliased_instr_id == AD_INSTR_INS){
+        /* index == index1 for INS (element) */
+        concat(&DECODE_STR(out), ".%s[%d]", Ts, index);
+    }
+
+    concat(&DECODE_STR(out), ", %s", Rn_s);
+
+    /* DUP (general) or INS (general) */
+    if((unaliased_instr_id == AD_INSTR_DUP && imm4 == 1) || 
+            (unaliased_instr_id == AD_INSTR_INS && op == 0)){
+        /* in this case, we're done constructing the decode string */
+        SET_INSTR_ID(out, instr_id);
+
+        return 0;
+    }
+
+    /* DUP (element, scalar) */
+    if(unaliased_instr_id == AD_INSTR_DUP && scalar)
+        concat(&DECODE_STR(out), ".%s", T);
+    else
+        concat(&DECODE_STR(out), ".%s", Ts);
+
+    /* INS (element) */
+    if(unaliased_instr_id == AD_INSTR_INS && op == 1)
+        concat(&DECODE_STR(out), "[%d]", index2);
+    else
+        concat(&DECODE_STR(out), "[%d]", index);
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
+}
+
 static int DisassembleAdvancedSIMDScalarCopyInstr(struct instruction *i,
         struct ad_insn *out){
     unsigned op = bits(i->opcode, 29, 29);
@@ -2614,6 +2847,8 @@ static int DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *i,
 
         unsigned shift = 0;
 
+        int hsb = HighestSetBit(immh, 4);
+
         if(scalar){
             if(instr_id != AD_INSTR_SQSHL && instr_id != AD_INSTR_SQSHLU){
                 if((immh >> 3) == 0)
@@ -2623,8 +2858,6 @@ static int DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *i,
                 sz = _64_BIT;
             }
             else{
-                int hsb = HighestSetBit(immh, 4);
-
                 if(hsb == -1)
                     return 1;
 
@@ -2656,16 +2889,16 @@ static int DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *i,
             if(scalar)
                 shift = ((8 << 3) * 2) - ((immh << 3) | immb);
             else
-                shift = ((8 << HighestSetBit(immh, 4)) * 2) - ((immh << 3) | immb);
+                shift = ((8 << hsb) * 2) - ((immh << 3) | immb);
         }
         else if(opcode > 8 && opcode <= 0xb){
             if(scalar)
                 shift = ((immh << 3) | immb) - (8 << 3);
             else
-                shift = ((immh << 3) | immb) - (8 << HighestSetBit(immh, 4));
+                shift = ((immh << 3) | immb) - (8 << hsb);
         }
         else if(opcode == 0xc || opcode == 0xe){
-            shift = ((immh << 3) | immb) - (8 << HighestSetBit(immh, 4));
+            shift = ((immh << 3) | immb) - (8 << hsb);
         }
 
         const char *Rd_s = GET_FP_REG(rtbl, Rd);
@@ -2769,16 +3002,17 @@ static int DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *i,
             instr_id = tab[tempop].instr_id;
 
             int xshll_alias = 0;
+            int hsb = HighestSetBit(immh, 4);
 
             if(instr_id != AD_INSTR_SSHLL && instr_id != AD_INSTR_SSHLL2 &&
                     instr_id != AD_INSTR_USHLL && instr_id != AD_INSTR_USHLL2){
-                shift = (2 * (8 << HighestSetBit(immh, 4))) - ((immh << 3) | immb);
+                shift = (2 * (8 << hsb)) - ((immh << 3) | immb);
             }
             else{
                 xshll_alias = (immb == 0 && BitCount(immh, 4) == 1);
                 Ta_first = 1;
 
-                shift = ((immh << 3) | immb) - (8 << HighestSetBit(immh, 4));
+                shift = ((immh << 3) | immb) - (8 << hsb);
             }
 
             if(xshll_alias){
@@ -4538,9 +4772,15 @@ int DataProcessingFloatingPointDisassemble(struct instruction *i,
         result = DisassembleCryptographicThreeRegisterSHAInstr(i, out);
     else if(op0 == 5 && (op1 & ~1) == 0 && (op2 & ~8) == 5 && (op3 & ~0x7c) == 2)
         result = DisassembleCryptographicTwoRegisterSHAInstr(i, out);
-    else if((op0 & ~2) == 5 && op1 == 0 && (op2 & ~3) == 0 && (op3 & ~0x1de) == 1)
-        result = DisassembleAdvancedSIMDScalarCopyInstr(i, out);
-    // XXX in between: else if ... DisassembleAdvancedSIMDCopyInstr
+    /* else if((op0 & ~2) == 5 && op1 == 0 && (op2 & ~3) == 0 && (op3 & ~0x1de) == 1) */
+    /*     result = DisassembleAdvancedSIMDScalarCopyInstr(i, out); */
+    else if(((op0 & ~2) == 5 || (op0 & ~6) == 0) &&
+            op1 == 0 &&
+            (op2 & ~3) == 0 &&
+            (op3 & ~0x1de) == 1){
+        int scalar = (op0 & 1);
+        result = DisassembleAdvancedSIMDCopyInstr(i, out, scalar);
+    }
     else if(((op0 & ~2) == 5 || (op0 & ~6) == 0) &&
             (op1 & ~1) == 0 &&
             ((op2 & ~3) == 8 || (op2 & ~11) == 4 || (op2 & ~11) == 0) &&
