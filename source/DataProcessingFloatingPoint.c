@@ -416,72 +416,6 @@ static int DisassembleAdvancedSIMDCopyInstr(struct instruction *i,
     return 0;
 }
 
-static int DisassembleAdvancedSIMDScalarCopyInstr(struct instruction *i,
-        struct ad_insn *out){
-    unsigned op = bits(i->opcode, 29, 29);
-    unsigned imm5 = bits(i->opcode, 16, 20);
-    unsigned imm4 = bits(i->opcode, 11, 14);
-    unsigned Rn = bits(i->opcode, 5, 9);
-    unsigned Rd = bits(i->opcode, 0, 4);
-
-    if(op != 0 && imm4 != 0)
-        return 1;
-
-    ADD_FIELD(out, op);
-    ADD_FIELD(out, imm5);
-    ADD_FIELD(out, imm4);
-    ADD_FIELD(out, Rn);
-    ADD_FIELD(out, Rd);
-
-    /* alias MOV is always preferred disasm for this DUP variant */
-    SET_INSTR_ID(out, AD_INSTR_MOV);
-
-    char V = '\0';
-    const char **Rd_rtbl = NULL;
-    unsigned Rd_sz = NONE;
-    unsigned index = imm5;
-
-    if((imm5 & ~0x1e) == 1){
-        V = 'b';
-        Rd_rtbl = AD_RTBL_FP_8;
-        Rd_sz = _8_BIT;
-        index >>= 1;
-    }
-    else if((imm5 & ~0x1c) == 2){
-        V = 'h';
-        Rd_rtbl = AD_RTBL_FP_16;
-        Rd_sz = _16_BIT;
-        index >>= 2;
-    }
-    else if((imm5 & ~0x18) == 4){
-        V = 's';
-        Rd_rtbl = AD_RTBL_FP_32;
-        Rd_sz = _32_BIT;
-        index >>= 3;
-    }
-    else if((imm5 & ~0x10) == 8){
-        V = 'd';
-        Rd_rtbl = AD_RTBL_FP_64;
-        Rd_sz = _64_BIT;
-        index >>= 4;
-    }
-    
-    if(!V)
-        return 1;
-
-    const char *Rd_s = GET_FP_REG(Rd_rtbl, Rd);
-    ADD_REG_OPERAND(out, Rd, Rd_sz, NO_PREFER_ZR, _SYSREG(NONE), Rd_rtbl);
-    
-    const char *Rn_s = GET_FP_REG(AD_RTBL_FP_V_128, Rn);
-    ADD_REG_OPERAND(out, Rn, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_FP_V_128));
-
-    char T = V;
-
-    concat(&DECODE_STR(out), "mov %s, %s.%c[%d]", Rd_s, Rn_s, T, index);
-
-    return 0;
-}
-
 /* This function takes care of:
  *      - Advanced SIMD scalar three same FP16
  *      - Advanced SIMD scalar three same extra
@@ -2765,10 +2699,243 @@ static int DisassembleAdvancedSIMDThreeDifferentInstr(struct instruction *i,
     return 0;
 }
 
+/*
+ * num: the number to replicate
+ * nbits: how many bits make up this number
+ * cnt: how many times to replicate
+ */
+static unsigned long replicate(unsigned long num, int nbits, int cnt){
+    unsigned long result = 0;
+
+    for(int i=0; i<cnt; i++){
+        result <<= nbits;
+        result |= num;
+    }
+
+    return result;
+}
+
+static unsigned long VFPExpandImm(unsigned imm8, int N){
+    int E;
+
+    if(N == 16)
+        E = 5;
+    else if(N == 32)
+        E = 8;
+    else
+        E = 11;
+
+    const int F = N - E - 1;
+
+    int sign = bits(imm8, 7, 7) << (1 + (E - 3) + 2 + (F - 4) + 4);
+
+    int exp_p1 = (bits(imm8, 6, 6) ^ 1) << ((E - 3) + 2);
+    int exp_p2 = replicate(bits(imm8, 6, 6), 1, E - 3) << 2;
+    int exp_p3 = bits(imm8, 4, 5);
+
+    int exp = (exp_p1 | exp_p2 | exp_p3) << ((F - 4) + 4);
+
+    int frac = bits(imm8, 0, 4) << (F - 4);
+
+    return sign | exp | frac;
+}
+
 static int DisassembleAdvancedSIMDModifiedImmediateInstr(struct instruction *i,
         struct ad_insn *out){
-    ADD_FIELD(out, 0);
-    printf("%s: here\n", __func__);
+    unsigned Q = bits(i->opcode, 30, 30);
+    unsigned op = bits(i->opcode, 29, 29);
+    unsigned a = bits(i->opcode, 18, 18);
+    unsigned b = bits(i->opcode, 17, 17);
+    unsigned c = bits(i->opcode, 16, 16);
+    unsigned cmode = bits(i->opcode, 12, 15);
+    unsigned o2 = bits(i->opcode, 11, 11);
+    unsigned d = bits(i->opcode, 9, 9);
+    unsigned e = bits(i->opcode, 8, 8);
+    unsigned f = bits(i->opcode, 7, 7);
+    unsigned g = bits(i->opcode, 6, 6);
+    unsigned h = bits(i->opcode, 5, 5);
+    unsigned Rd = bits(i->opcode, 0, 4);
+
+    ADD_FIELD(out, Q);
+    ADD_FIELD(out, op);
+    ADD_FIELD(out, a);
+    ADD_FIELD(out, b);
+    ADD_FIELD(out, c);
+    ADD_FIELD(out, cmode);
+    ADD_FIELD(out, o2);
+    ADD_FIELD(out, d);
+    ADD_FIELD(out, e);
+    ADD_FIELD(out, f);
+    ADD_FIELD(out, g);
+    ADD_FIELD(out, h);
+    ADD_FIELD(out, Rd);
+
+    const char *instr_s = NULL;
+    int instr_id = NONE;
+
+    unsigned operation = (cmode << 1) | op;
+
+    if(cmode == 0xf){
+        if(Q == 0 && op == 1 && o2 == 0)
+            return 1;
+
+        instr_s = "fmov";
+        instr_id = AD_INSTR_FMOV;
+    }
+    else if((operation & ~12) == 0 || (operation & ~4) == 0x10 || (operation & ~2) == 0x18 ||
+            (operation & ~1) == 0x1c || operation == 0x1e || operation == 0x1f){
+        if(operation == 0x1f && Q == 0)
+            return 1;
+
+        instr_s = "movi";
+        instr_id = AD_INSTR_MOVI;
+    }
+    else if((operation & ~12) == 1 || (operation & ~4) == 0x11 || (operation & ~2) == 0x19){
+        instr_s = "mvni";
+        instr_id = AD_INSTR_MVNI;
+    }
+    else if((operation & ~12) == 2 || (operation & ~4) == 0x12){
+        instr_s = "orr";
+        instr_id = AD_INSTR_ORR;
+    }
+    else if((operation & ~12) == 3 || (operation & ~4) == 0x13){
+        instr_s = "bic";
+        instr_id = AD_INSTR_BIC;
+    }
+
+    const char **Rd_Rtbl = NULL;
+    unsigned Rd_sz = 0;
+
+    const char *T = NULL;
+
+    const char *shift_s = NULL;
+    int shift_type = NONE;
+    int shift_amt = NONE;
+
+    unsigned imm8 = (a << 7) | (b << 6) | (c << 5) | (d << 4) | (e << 3) |
+        (f << 2) | (g << 1) | h;
+
+    unsigned long imm = 0;
+    float immf = 0.0f;
+
+    if(instr_id == AD_INSTR_FMOV){
+        if(Q == 1 && op == 1)
+            T = "2d";
+        else if(op == 0){
+            if(o2 == 0)
+                T = Q == 0 ? "2s" : "4s";
+            else
+                T = Q == 0 ? "4h" : "8h";
+        }
+
+        unsigned tempimm = VFPExpandImm(imm8, 32);
+
+        immf = *(float *)&tempimm;
+
+        Rd_Rtbl = AD_RTBL_FP_V_128;
+        Rd_sz = _128_BIT;
+    }
+    else{
+        if(op == 0 && cmode == 14){
+            T = Q == 0 ? "8b" : "16b";
+
+            Rd_Rtbl = AD_RTBL_FP_V_128;
+            Rd_sz = _128_BIT;
+        }
+        else if((cmode & ~2) == 8 || (cmode & ~2) == 9){
+            T = Q == 0 ? "4h" : "8h";
+
+            shift_s = "lsl";
+            shift_type = AD_SHIFT_LSL;
+            shift_amt = 8 * ((cmode >> 1) & 1);
+
+            Rd_Rtbl = AD_RTBL_FP_V_128;
+            Rd_sz = _128_BIT;
+        }
+        else if((cmode & ~6) == 0 || (cmode & ~6) == 1 || (cmode & ~1) == 12){
+            T = Q == 0 ? "2s" : "4s";
+
+            if((cmode & ~6) == 0 || (cmode & ~6) == 1){
+                shift_s = "lsl";
+                shift_type = AD_SHIFT_LSL;
+                shift_amt = 8 * bits(cmode, 1, 2);
+            }
+            else{
+                shift_s = "msl";
+                shift_type = AD_SHIFT_MSL;
+                shift_amt = 8 << (cmode & 1);
+            }
+
+            Rd_Rtbl = AD_RTBL_FP_V_128;
+            Rd_sz = _128_BIT;
+        }
+        else if(op == 1 && cmode == 14){
+            if(Q == 0){
+                Rd_Rtbl = AD_RTBL_FP_64;
+                Rd_sz = _64_BIT;
+            }
+            else{
+                T = "2d";
+
+                Rd_Rtbl = AD_RTBL_FP_V_128;
+                Rd_sz = _128_BIT;
+            }
+        }
+
+        imm = (replicate(a, 1, 8) << 56) | (replicate(b, 1, 8) << 48) |
+            (replicate(c, 1, 8) << 40) | (replicate(d, 1, 8) << 32) |
+            (replicate(e, 1, 8) << 24) | (replicate(f, 1, 8) << 16) |
+            (replicate(g, 1, 8) << 8) | replicate(h, 1, 8);
+    }
+
+    if(!Rd_Rtbl)
+        return 1;
+    
+    const char *Rd_s = GET_FP_REG(Rd_Rtbl, Rd);
+
+    ADD_REG_OPERAND(out, Rd, Rd_sz, NO_PREFER_ZR, _SYSREG(NONE), Rd_Rtbl);
+
+    concat(&DECODE_STR(out), "%s %s", instr_s, Rd_s);
+
+    /* only instr without arrangement specifier is MOVI (64 bit scalar variant) */
+    if(!(instr_id == AD_INSTR_MOVI && Q == 0 && op == 1 && cmode == 14))
+        concat(&DECODE_STR(out), ".%s", T);
+
+    if(instr_id == AD_INSTR_FMOV){
+        ADD_IMM_OPERAND(out, AD_FLOAT, *(unsigned *)&immf);
+
+        concat(&DECODE_STR(out), ", #%f", immf);
+
+        /* done constructing decode string for FMOV */
+        SET_INSTR_ID(out, instr_id);
+
+        return 0;
+    }
+
+    /* at this point, only instr without shift is MOVI (64 bit, both variants) */
+    if(instr_id == AD_INSTR_MOVI && op == 1 && cmode == 14){
+        ADD_IMM_OPERAND(out, AD_LONG, *(long *)&imm);
+
+        concat(&DECODE_STR(out), ", #"S_LX"", S_LA(imm));
+
+        SET_INSTR_ID(out, instr_id);
+
+        return 0;
+    }
+
+    ADD_IMM_OPERAND(out, AD_INT, *(int *)&imm8);
+
+    concat(&DECODE_STR(out), ", #"S_X"", S_A(imm8));
+
+    if(shift_type != NONE){
+        if(shift_type == AD_SHIFT_MSL || (shift_type == AD_SHIFT_LSL && shift_amt > 0)){
+            ADD_SHIFT_OPERAND(out, shift_type, shift_amt);
+
+            concat(&DECODE_STR(out), ", %s #%d", shift_s, shift_amt);
+        }
+    }
+
+    SET_INSTR_ID(out, instr_id);
 
     return 0;
 }
@@ -3146,213 +3313,6 @@ static int DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *i,
 }
 
 /*
-int VFPExpandImm(int imm8){
-    int E = 8, N = 32;
-
-    const int F = N - E - 1;
-
-    int sign = ((imm8 >> 7) & 1);
-    int exp = (((imm8 >> 6) & 1) ^ 1) << ((E - 3) + 2) |
-        _Replicate(((imm8 >> 6) & 1), 1, E - 3) << 2 |
-        getbitsinrange(imm8, 4, 2);
-    int frac = getbitsinrange(imm8, 0, 4) << (F - 4);
-
-    return sign << ((1 + (E - 3) + 2) + (4 + (F - 4))) |
-        exp << (4 + (F - 4)) |
-        frac;
-}
-
-char *DisassembleAdvancedSIMDModifiedImmediateInstr(struct instruction *instruction){
-    char *disassembled = NULL;
-
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int h = getbitsinrange(instruction->opcode, 5, 1);
-    unsigned int g = getbitsinrange(instruction->opcode, 6, 1);
-    unsigned int f = getbitsinrange(instruction->opcode, 7, 1);
-    unsigned int e = getbitsinrange(instruction->opcode, 8, 1);
-    unsigned int d = getbitsinrange(instruction->opcode, 9, 1);
-    unsigned int o2 = getbitsinrange(instruction->opcode, 11, 1);
-    unsigned int cmode = getbitsinrange(instruction->opcode, 12, 4);
-    unsigned int c = getbitsinrange(instruction->opcode, 16, 1);
-    unsigned int b = getbitsinrange(instruction->opcode, 17, 1);
-    unsigned int a = getbitsinrange(instruction->opcode, 18, 1);
-    unsigned int op = getbitsinrange(instruction->opcode, 29, 1);
-    unsigned int Q = getbitsinrange(instruction->opcode, 30, 1);
-
-    const char *instr = NULL, *Vt = NULL, *T = NULL, *_Rd = NULL;
-    const char *T_8[] = {"8b", "16b"};
-    const char *T_16[] = {"4h", "8h"};
-    const char *T_32[] = {"2s", "4s"};
-
-    int amount_16[] = {0, 8};
-    int amount_32_imm[] = {0, 8, 16, 24};
-    int amount_32_ones[] = {8, 16};
-
-    unsigned long imm8 = (a << 7) |
-        (b << 6) |
-        (c << 5) |
-        (d << 4) |
-        (e << 3) |
-        (f << 2) |
-        (g << 1) |
-        h;
-
-    int operation = (cmode << 1) | op;
-
-    if(cmode != 0xf){
-        unsigned long imm = _Replicate(a, 1, 8) << 56 |
-            _Replicate(b, 1, 8) << 48 |
-            _Replicate(c, 1, 8) << 40 |
-            _Replicate(d, 1, 8) << 32 |
-            _Replicate(e, 1, 8) << 24 |
-            _Replicate(f, 1, 8) << 16 |
-            _Replicate(g, 1, 8) << 8 |
-            _Replicate(h, 1, 8);
-
-        int shifts = 0, shift_amount = 0, use_imm = 0;
-        const char *shift_str = NULL;
-
-        if((operation & ~0xc) == 0)
-            instr = "movi";
-        else if((operation & ~0xc) == 1)
-            instr = "mvni";
-        else if((operation & ~0xc) == 2)
-            instr = "orr";
-        else if((operation & ~0xc) == 3)
-            instr = "bic";
-        else if((operation & ~0x4) == 0x10)
-            instr = "movi";
-        else if((operation & ~0x4) == 0x11)
-            instr = "mvni";
-        else if((operation & ~0x4) == 0x12)
-            instr = "orr";
-        else if((operation & ~0x4) == 0x13)
-            instr = "bic";
-        else if((operation & ~0x2) == 0x18)
-            instr = "movi";
-        else if((operation & ~0x2) == 0x19)
-            instr = "mvni";
-        else
-            instr = "movi";
-
-        if(strcmp(instr, "movi") == 0){
-            if(op == 0){
-                if(cmode != 0xe)
-                    shift_str = (cmode & ~0x1) == 0xc ? "msl" : "lsl";
-
-                if(cmode == 0xe)
-                    T = T_8[Q];
-                else if((cmode & ~0x2) == 0x8){
-                    T = T_16[Q];
-                    shift_amount = amount_16[((cmode >> 1) & 1)];
-                }
-                else{
-                    T = T_32[Q];
-                    shift_amount = (cmode & ~0x1) == 0xc ? amount_32_ones[(cmode & 1)] : amount_32_imm[getbitsinrange(cmode, 1, 2)];
-                }
-
-                _Rd = ARM64_VectorRegisters[Rd];
-            }
-            else{
-                use_imm = 1;
-
-                if(Q == 0)
-                    _Rd = ARM64_VectorDoublePrecisionRegisters[Rd];
-                else{
-                    _Rd = ARM64_VectorRegisters[Rd];
-                    T = "2d";
-                }
-            }
-        }
-        else if(strcmp(instr, "orr") == 0){
-            shift_str = "lsl";
-
-            if((cmode & ~0x2) == 0x9){
-                T = T_16[Q];
-                shift_amount = amount_16[((cmode >> 1) & 1)];
-            }
-            else{
-                T = T_32[Q];
-                shift_amount = amount_32_imm[getbitsinrange(cmode, 1, 2)];
-            }
-
-            _Rd = ARM64_VectorRegisters[Rd];
-        }
-        else if(strcmp(instr, "mvni") == 0){
-            _Rd = ARM64_VectorRegisters[Rd];
-
-            if((cmode & ~0x2) == 0x9){
-                shift_str = "lsl";
-                T = T_16[Q];
-                shift_amount = amount_16[((cmode >> 1) & 1)];
-            }
-            else if((cmode & ~0x1) == 0xc){
-                shift_str = "msl";
-                T = T_32[Q];
-                shift_amount = amount_32_ones[(cmode & 1)];
-            }
-            else{
-                shift_str = "lsl";
-                T = T_32[Q];
-                shift_amount = amount_32_imm[getbitsinrange(cmode, 1, 2)];
-            }
-        }
-        else{
-            _Rd = ARM64_VectorRegisters[Rd];
-            shift_str = "lsl";
-
-            if((cmode & ~0x2) == 0x9){
-                T = T_16[Q];
-                shift_amount = amount_16[((cmode >> 1) & 1)];
-            }
-            else{
-                T = T_32[Q];
-                shift_amount = amount_32_imm[getbitsinrange(cmode, 1, 2)];
-            }
-        }
-
-        if(shift_amount > 0)
-            shifts = 1;
-
-        disassembled = malloc(128);
-
-        sprintf(disassembled, "%s %s", instr, _Rd);
-
-        if(T)
-            sprintf(disassembled, "%s.%s", disassembled, T);
-
-        sprintf(disassembled, "%s, #%#lx", disassembled, use_imm ? imm : imm8);
-
-        if(shifts)
-            sprintf(disassembled, "%s, %s #%d", disassembled, shift_str, shift_amount);
-    }
-    else{
-        instr = "fmov";
-        _Rd = ARM64_VectorRegisters[Rd];
-
-        if(op == 1)
-            T = "2d";
-        else if(o2 == 0)
-            T = T_32[Q];
-        else
-            T = T_16[Q];
-
-        int imm = VFPExpandImm(imm8);
-
-        union intfloat {
-            int i;
-            float f;
-        } _if;
-
-        _if.i = imm;
-
-        disassembled = malloc(128);
-        sprintf(disassembled, "%s %s.%s, #%.1f", instr, _Rd, T, _if.f);
-    }			
-
-    return disassembled;
-}
-
 const char *get_shift_by_immediate_arrangement(unsigned int immh, unsigned int Q){
     if(immh == 1)
         return Q == 0 ? "8b" : "16b";
@@ -4772,8 +4732,6 @@ int DataProcessingFloatingPointDisassemble(struct instruction *i,
         result = DisassembleCryptographicThreeRegisterSHAInstr(i, out);
     else if(op0 == 5 && (op1 & ~1) == 0 && (op2 & ~8) == 5 && (op3 & ~0x7c) == 2)
         result = DisassembleCryptographicTwoRegisterSHAInstr(i, out);
-    /* else if((op0 & ~2) == 5 && op1 == 0 && (op2 & ~3) == 0 && (op3 & ~0x1de) == 1) */
-    /*     result = DisassembleAdvancedSIMDScalarCopyInstr(i, out); */
     else if(((op0 & ~2) == 5 || (op0 & ~6) == 0) &&
             op1 == 0 &&
             (op2 & ~3) == 0 &&

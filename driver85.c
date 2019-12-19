@@ -1272,7 +1272,7 @@ static const char *AD_TYPE_TABLE[] = {
 };
 
 static const char *AD_SHIFT_TABLE[] = {
-    "AD_SHIFT_LSL", "AD_SHIFT_LSR", "AD_SHIFT_ASR", "AD_SHIFT_ROR"
+    "AD_SHIFT_LSL", "AD_SHIFT_LSR", "AD_SHIFT_ASR", "AD_SHIFT_ROR", "AD_SHIFT_MSL"
 };
 
 static const char *AD_IMM_TYPE_TABLE[] = {
@@ -2212,33 +2212,65 @@ int main(int argc, char **argv, const char **envp){
     /* addinstr("fcvtzu	d20, d25, #0x37", 0x7f49ff34, 0); */
 
     /* the first two are scalar dup's, always use MOV as the alias */
-    addinstr("dup b7, v6.b[5]", 0x5e0b04c7, 0);
-    addinstr("dup d1, v19.d[0]", 0x5e080661, 0);
-    addinstr("dup	v3.16b, v3.b[0]", 0x4e010463, 0);
-    addinstr("dup v8.8b, v6.b[3]", 0x0e0704c8, 0);
-    addinstr("dup v5.2d, x5", 0x4e080ca5, 0);
-    addinstr("dup v9.8h, w3", 0x4e020c69, 0);
-    addinstr("smov w4, v9.b[0]", 0x0e012d24, 0);
-    addinstr("smov x5, v0.h[5]", 0x4e162c05, 0);
-    addinstr("umov w4, v5.h[4]", 0x0e123ca4, 0);
-    addinstr("umov x3, v10.d[1]", 0x4e183d43, 0);
-    addinstr("ins v9.b[0], w3", 0x4e011c69, 0);
-    addinstr("ins v10.h[2], v9.h[1]", 0x6e0a152a, 0);
-    addinstr("ins	v8.b[13], v10.b[15]", 0x6e1b7d48, 0);
-    addinstr("ins	v8.b[0], v10.b[1]", 0x6e010d48, 0);
-    addinstr("ins	v8.h[1], v10.h[0]", 0x6e060548, 0);
-    addinstr("ins	v8.s[0], v10.s[1]", 0x6e042548, 0);
-    addinstr("ins	v8.s[1], v10.s[0]", 0x6e0c0548, 0);
-    addinstr("ins	v8.d[0], v10.d[1]", 0x6e084548, 0);
-    addinstr("ins	v8.d[1], v10.d[0]", 0x6e180548, 0);
-    addinstr("mov	v9.b[8], w4", 0x4e111c89, 0);
-    addinstr("mov	v0.d[0], x22", 0x4e081ec0, 0);
-    addinstr("mov	v1.s[2], w7", 0x4e141ce1, 0);
-    addinstr("mov	v10.h[5], w0", 0x4e161c0a, 0);
-    addinstr("smov	xzr, v0.s[1]", 0x4e0c2c1f, 0);
-    addinstr("umov	wzr, v3.h[4]", 0x0e123c7f, 0);
-    addinstr("umov	w5, v1.s[2]", 0x0e143c25, 0);
-    addinstr("umov	x20, v0.d[0]", 0x4e083c14, 0);
+    /* addinstr("dup b7, v6.b[5]", 0x5e0b04c7, 0); */
+    /* addinstr("dup d1, v19.d[0]", 0x5e080661, 0); */
+    /* addinstr("dup	v3.16b, v3.b[0]", 0x4e010463, 0); */
+    /* addinstr("dup v8.8b, v6.b[3]", 0x0e0704c8, 0); */
+    /* addinstr("dup v5.2d, x5", 0x4e080ca5, 0); */
+    /* addinstr("dup v9.8h, w3", 0x4e020c69, 0); */
+    /* addinstr("smov w4, v9.b[0]", 0x0e012d24, 0); */
+    /* addinstr("smov x5, v0.h[5]", 0x4e162c05, 0); */
+    /* addinstr("umov w4, v5.h[4]", 0x0e123ca4, 0); */
+    /* addinstr("umov x3, v10.d[1]", 0x4e183d43, 0); */
+    /* addinstr("ins v9.b[0], w3", 0x4e011c69, 0); */
+    /* addinstr("ins v10.h[2], v9.h[1]", 0x6e0a152a, 0); */
+    /* addinstr("ins	v8.b[13], v10.b[15]", 0x6e1b7d48, 0); */
+    /* addinstr("ins	v8.b[0], v10.b[1]", 0x6e010d48, 0); */
+    /* addinstr("ins	v8.h[1], v10.h[0]", 0x6e060548, 0); */
+    /* addinstr("ins	v8.s[0], v10.s[1]", 0x6e042548, 0); */
+    /* addinstr("ins	v8.s[1], v10.s[0]", 0x6e0c0548, 0); */
+    /* addinstr("ins	v8.d[0], v10.d[1]", 0x6e084548, 0); */
+    /* addinstr("ins	v8.d[1], v10.d[0]", 0x6e180548, 0); */
+    /* addinstr("mov	v9.b[8], w4", 0x4e111c89, 0); */
+    /* addinstr("mov	v0.d[0], x22", 0x4e081ec0, 0); */
+    /* addinstr("mov	v1.s[2], w7", 0x4e141ce1, 0); */
+    /* addinstr("mov	v10.h[5], w0", 0x4e161c0a, 0); */
+    /* addinstr("smov	xzr, v0.s[1]", 0x4e0c2c1f, 0); */
+    /* addinstr("umov	wzr, v3.h[4]", 0x0e123c7f, 0); */
+    /* addinstr("umov	w5, v1.s[2]", 0x0e143c25, 0); */
+    /* addinstr("umov	x20, v0.d[0]", 0x4e083c14, 0); */
+    /* addinstr("ins v9.d[1], xzr", 0x4e181fe9, 0); */
+
+
+    addinstr("movi v6.8b, 0x4", 0x0f00e486, 0);
+    addinstr("movi d5, 0xffffffffffffffff", 0x2f07e7e5, 0);
+    addinstr("movi v10.2s, 0x8, lsl #16", 0x0f00450a, 0);
+    addinstr("movi v1.4s, 0x20, msl #8", 0x4f01c401, 0);
+    addinstr("movi d5, 0xffff000000000000", 0x2f06e405, 0);
+    addinstr("orr v0.4h, 0x40, lsl #8", 0x0f02b400, 0);
+    addinstr("orr v7.4s, 0x90, lsl #24", 0x4f047607, 0);
+    addinstr("mvni v16.4s, 0x50, msl #16", 0x6f02d610, 0);
+    addinstr("bic v19.2s, 0xff", 0x2f0717f3, 0);
+    addinstr("bic v20.8h, 0x5", 0x6f0094b4, 0);
+    addinstr("fmov v3.4h, #31.0", 0x0f01ffe3, 0);
+    addinstr("fmov v5.2s, #25.0", 0x0f01f725, 0);
+    addinstr("fmov v6.2d, #-3.0", 0x6f04f506, 0);
+    addinstr("movi	v1.4s, #0xff, msl #16", 0x4f07d7e1, 0);
+    addinstr("fmov	v9.4h, #-31.00000000", 0x0f05ffe9, 0);
+    addinstr("fmov	v1.2d, #1.50000000", 0x6f03f701, 0);
+    addinstr("fmov	v1.4h, #14.00000000", 0x0f01fd81, 0);
+    addinstr("fmov	v1.4s, #-0.50000000", 0x4f07f401, 0);
+    addinstr("orr	v20.8h, #0x42, lsl #0", 0x4f029454, 0);
+    addinstr("movi	d4, #0xffffffff00000000", 0x2f07e604, 0);
+    addinstr("movi	d4, #0xffffffff0000ffff", 0x2f07e664, 0);
+    addinstr("movi	d4, #0xffff00000000ffff", 0x2f06e464, 0);
+    addinstr("movi	v1.2d, #0xffffffff00000000", 0x6f07e601, 0);
+    addinstr("orr	v5.2s, #0x6f, lsl #24", 0x0f0375e5, 0);
+    addinstr("orr	v5.2s, #0x6f, lsl #16", 0x0f0355e5, 0);
+    addinstr("mvni	v20.4s, #0x42, lsl #8", 0x6f022454, 0);
+    addinstr("mvni	v20.4s, #0x42, lsl #0", 0x6f020454, 0);
+    addinstr("mvni	v20.4s, #0x42, msl #8", 0x6f02c454, 0);
+    addinstr("mvni	v20.4s, #0x42, msl #16", 0x6f02d454, 0);
 
 
 
