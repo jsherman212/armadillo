@@ -2653,7 +2653,7 @@ static int DisassembleAdvancedSIMDThreeDifferentInstr(struct instruction *i,
         if(!Ta || !Tb)
             return 1;
 
-        if(opcode == 0 || opcode == 2 || opcode == 4 || opcode == 5 || opcode >= 7){
+        if(opcode == 0 || opcode == 2 || opcode == 5 || opcode >= 7){
             first_T = Ta;
             second_T = third_T = Tb;
         }
@@ -2661,7 +2661,7 @@ static int DisassembleAdvancedSIMDThreeDifferentInstr(struct instruction *i,
             first_T = second_T = Ta;
             third_T = Tb;
         }
-        else if(opcode == 6){
+        else if(opcode == 4 || opcode == 6){
             first_T = Tb;
             second_T = third_T = Ta;
         }
@@ -3017,7 +3017,8 @@ static int DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *i,
         int hsb = HighestSetBit(immh, 4);
 
         if(scalar){
-            if(instr_id != AD_INSTR_SQSHL && instr_id != AD_INSTR_SQSHLU){
+            if(instr_id != AD_INSTR_SQSHL && instr_id != AD_INSTR_SQSHLU &&
+                    instr_id != AD_INSTR_UQSHL){
                 if((immh >> 3) == 0)
                     return 1;
 
@@ -4916,8 +4917,8 @@ int DataProcessingFloatingPointDisassemble(struct instruction *i,
             result = DisassembleAdvancedSIMDShiftByImmediateInstr(i, out, scalar);
         }
     }
-    else if(((op0 & ~2) == 5 || (op0 & ~6) == 0) ||
-            (op1 & ~1) == 2 ||
+    else if(((op0 & ~2) == 5 || (op0 & ~6) == 0) &&
+            (op1 & ~1) == 2 &&
             (op3 & ~0x1fe) == 0){
         int scalar = (op0 & 1);
 

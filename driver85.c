@@ -2272,6 +2272,7 @@ int main(int argc, char **argv, const char **envp){
     /* addinstr("mvni	v20.4s, #0x42, msl #8", 0x6f02c454, 0); */
     /* addinstr("mvni	v20.4s, #0x42, msl #16", 0x6f02d454, 0); */
 
+    
     addinstr("smlal v6.4s, v9.4h, v3.h[3]", 0x0f732126, 0);
     addinstr("fmla h9, h3, v9.h[7]", 0x5f391869, 0);
     addinstr("fmls v10.2s, v2.2s, v8.s[0]", 0x0f88504a, 0);
@@ -2298,7 +2299,6 @@ int main(int argc, char **argv, const char **envp){
     addinstr("fcmla	v20.8h, v21.8h, v22.h[2], #90", 0x6f563ab4, 0);
     addinstr("fcmla	v20.4s, v21.4s, v22.s[0], #0", 0x6f9612b4, 0);
     addinstr("fmlal2	v8.2s, v0.2h, v23.h[3]", 0x2fb78008, 0);
-
 
 
 

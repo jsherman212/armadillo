@@ -370,7 +370,7 @@ static int DisassembleLoadStoreSingleStructuresInstr(struct instruction *i,
                 concat(&DECODE_STR(out), ", %s", Rm_s);
             }
             else{
-                unsigned imm = rimms[selem] * selem;
+                unsigned imm = rimms[size] * selem;
                 ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imm);
 
                 concat(&DECODE_STR(out), ", #%#x", imm);
