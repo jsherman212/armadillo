@@ -385,6 +385,7 @@ static int DisassembleAdvancedSIMDCopyInstr(struct instruction *i,
     /* INS (element) or INS (general) */
     else if(unaliased_instr_id == AD_INSTR_INS){
         /* index == index1 for INS (element) */
+        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&index);
         concat(&DECODE_STR(out), ".%s[%d]", Ts, index);
     }
 
@@ -406,10 +407,14 @@ static int DisassembleAdvancedSIMDCopyInstr(struct instruction *i,
         concat(&DECODE_STR(out), ".%s", Ts);
 
     /* INS (element) */
-    if(unaliased_instr_id == AD_INSTR_INS && op == 1)
+    if(unaliased_instr_id == AD_INSTR_INS && op == 1){
+        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&index2);
         concat(&DECODE_STR(out), "[%d]", index2);
-    else
+    }
+    else{
+        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&index);
         concat(&DECODE_STR(out), "[%d]", index);
+    }
 
     SET_INSTR_ID(out, instr_id);
 
@@ -3677,11 +3682,11 @@ static int DisassembleAdvancedSIMDXIndexedElementInstr(struct instruction *i,
             concat(&DECODE_STR(out), ".%s, %s.%s", Ta, Rn_s, Tb);
     }
 
+    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&index);
     concat(&DECODE_STR(out), ", %s.%s[%d]", Rm_s, Ts, index);
 
     if(instr_id == AD_INSTR_FCMLA){
         ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&rotate);
-
         concat(&DECODE_STR(out), ", #%d", rotate);
     }
 
@@ -3690,292 +3695,315 @@ static int DisassembleAdvancedSIMDXIndexedElementInstr(struct instruction *i,
     return 0;
 }
 
-/*
-char *DisassembleAdvancedSIMDTableLookupInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleAdvancedSIMDTableLookupInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned Q = bits(i->opcode, 30, 30);
+    unsigned op2 = bits(i->opcode, 22, 23);
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned len = bits(i->opcode, 13, 14);
+    unsigned op = bits(i->opcode, 12, 12);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int op = getbitsinrange(instruction->opcode, 12, 1);
-    unsigned int len = getbitsinrange(instruction->opcode, 13, 2);
-    unsigned int Rm = getbitsinrange(instruction->opcode, 16, 5);
-    unsigned int op2 = getbitsinrange(instruction->opcode, 22, 2);
-    unsigned int Q = getbitsinrange(instruction->opcode, 30, 1);
+    if(op2 != 0)
+        return 1;
 
-    const char *instr = NULL;
-    len++;
+    ADD_FIELD(out, Q);
+    ADD_FIELD(out, op2);
+    ADD_FIELD(out, Rm);
+    ADD_FIELD(out, len);
+    ADD_FIELD(out, op);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
 
-    if(op == 0)
-        instr = "tbl";
-    else
-        instr = "tbx";
+    const char *instr_s = op == 0 ? "tbl" : "tbx";
+    int instr_id = op == 0 ? AD_INSTR_TBL : AD_INSTR_TBX;
 
     const char *Ta = Q == 0 ? "8b" : "16b";
 
-    disassembled = malloc(128);
+    const char **rtbl = AD_RTBL_FP_V_128;
+    unsigned sz = _128_BIT;
 
-    sprintf(disassembled, "%s %s.%s, {", instr, ARM64_VectorRegisters[Rd], Ta);
+    len++;
 
-    for(int i=Rn; i<(Rn+len); i++)
-        sprintf(disassembled, "%s%s.16b, ", disassembled, ARM64_VectorRegisters[i]);
+    const char *Rd_s = GET_FP_REG(rtbl, Rd);
+    ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
 
-    disassembled[strlen(disassembled) - 2] = '\0';
+    concat(&DECODE_STR(out), "%s %s.%s, {", instr_s, Rd_s, Ta);
 
-    sprintf(disassembled, "%s}, %s.%s", disassembled, ARM64_VectorRegisters[Rm], Ta);
+    for(int i=Rn; i<(Rn+len); i++){
+        const char *Rn_s = GET_FP_REG(rtbl, i);
+        ADD_REG_OPERAND(out, i, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
 
-    return disassembled;
+        if(i == (Rn+len) - 1)
+            concat(&DECODE_STR(out), " %s.16b", Rn_s);
+        else
+            concat(&DECODE_STR(out), " %s.16b,", Rn_s);
+    }
+
+    const char *Rm_s = GET_FP_REG(rtbl, Rm);
+    ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+    concat(&DECODE_STR(out), " }, %s.%s", Rm_s, Ta);
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-char *DisassembleAdvancedSIMDPermuteInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleAdvancedSIMDPermuteInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned Q = bits(i->opcode, 30, 30);
+    unsigned size = bits(i->opcode, 22, 23);
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned opcode = bits(i->opcode, 12, 14);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int opcode = getbitsinrange(instruction->opcode, 12, 3);
-    unsigned int Rm = getbitsinrange(instruction->opcode, 16, 5);
-    unsigned int size = getbitsinrange(instruction->opcode, 22, 2);
-    unsigned int Q = getbitsinrange(instruction->opcode, 30, 1);
+    ADD_FIELD(out, Q);
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, Rm);
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
 
-    if(opcode == 0 || opcode == 4)
-        return strdup(".undefined");
+    struct itab tab[] = {
+        /* one blank, idx 0 */
+        { NULL, NONE },
+        { "uzp1", AD_INSTR_UZP1 }, { "trn1", AD_INSTR_TRN1 },
+        { "zip1", AD_INSTR_ZIP1 },
+        /* one blank, idx 4 */
+        { NULL, NONE },
+        { "uzp2", AD_INSTR_UZP2 }, { "trn2", AD_INSTR_TRN2 },
+        { "zip2", AD_INSTR_ZIP2 },
+    };
 
-    const char *instr_tbl[] = {NULL, "uzp1", "trn1", "zip1", NULL, "uzp2", "trn2", "zip2"};
-    const char *instr = instr_tbl[opcode];
+    if(OOB(opcode, tab))
+        return 1;
 
-    const char *T = get_arrangement(size, Q);
+    const char *instr_s = tab[opcode].instr_s;
 
-    disassembled = malloc(128);
+    if(!instr_s)
+        return 1;
 
-    sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s", instr, ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T, ARM64_VectorRegisters[Rm], T);
+    int instr_id = tab[opcode].instr_id;
 
-    return disassembled;
+    const char **rtbl = AD_RTBL_FP_V_128;
+    unsigned sz = _128_BIT;
+
+    const char *T = NULL;
+
+    if(size == 0)
+        T = Q == 0 ? "8b" : "16b";
+    else if(size == 1)
+        T = Q == 0 ? "4h" : "8h";
+    else if(size == 2)
+        T = Q == 0 ? "2s" : "4s";
+    else if(size == 3 && Q == 1)
+        T = "2d";
+
+    if(!T)
+        return 1;
+
+    const char *Rd_s = GET_FP_REG(rtbl, Rd);
+    const char *Rn_s = GET_FP_REG(rtbl, Rn);
+    const char *Rm_s = GET_FP_REG(rtbl, Rm);
+
+    ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+    ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+    ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+
+    concat(&DECODE_STR(out), "%s %s.%s, %s.%s, %s.%s", instr_s, Rd_s, T, Rn_s,
+            T, Rm_s, T);
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-char *DisassembleAdvancedSIMDExtractInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleAdvancedSIMDExtractInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned Q = bits(i->opcode, 30, 30);
+    unsigned op2 = bits(i->opcode, 22, 23);
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned imm4 = bits(i->opcode, 11, 14);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int imm4 = getbitsinrange(instruction->opcode, 11, 4);
-    unsigned int Rm = getbitsinrange(instruction->opcode, 16, 5);
-    unsigned int Q = getbitsinrange(instruction->opcode, 30, 1);
+    if(op2 != 0)
+        return 1;
+
+    if(Q == 0 && ((imm4 >> 3) & 1) == 1)
+        return 1;
+
+    ADD_FIELD(out, Q);
+    ADD_FIELD(out, op2);
+    ADD_FIELD(out, Rm);
+    ADD_FIELD(out, imm4);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
 
     const char *T = Q == 0 ? "8b" : "16b";
 
-    unsigned int index = 0;
+    const char **rtbl = AD_RTBL_FP_V_128;
+    unsigned sz = _128_BIT;
 
-    if(Q == 0 && ((imm4 >> 3) & 1) == 0)
-        index = getbitsinrange(imm4, 0, 3);
-    else
-        index = imm4;
+    const char *Rd_s = GET_FP_REG(rtbl, Rd);
+    const char *Rn_s = GET_FP_REG(rtbl, Rn);
+    const char *Rm_s = GET_FP_REG(rtbl, Rm);
 
-    disassembled = malloc(128);
-    sprintf(disassembled, "ext %s.%s, %s.%s, %s.%s, #%d", ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T, ARM64_VectorRegisters[Rm], T, index);
+    ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+    ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+    ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
 
-    return disassembled;
+    int index = sign_extend(imm4, 4);
+
+    ADD_IMM_OPERAND(out, AD_INT, *(int *)&index);
+
+    concat(&DECODE_STR(out), "ext %s.%s, %s.%s, %s.%s, #"S_X"", Rd_s, T, Rn_s,
+            T, Rm_s, T, S_A(index));
+
+    SET_INSTR_ID(out, AD_INSTR_EXT);
+
+    return 0;
 }
 
-const char *get_advanced_SIMD_copy_arrangement(unsigned int imm5, unsigned int Q){
-    if((imm5 & 1) == 1)
-        return Q == 0 ? "8b" : "16b";
-    else if(((imm5 >> 1) & 1) == 1)
-        return Q == 0 ? "4h" : "8h";
-    else if(((imm5 >> 2) & 1) == 1)
-        return Q == 0 ? "2s" : "4s";
-    else if(((imm5 >> 3) & 1) == 1)
-        return Q == 0 ? NULL : "2d";
-    else
-        return NULL;
-}
+static int DisassembleAdvancedSIMDAcrossLanesInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned Q = bits(i->opcode, 30, 30);
+    unsigned U = bits(i->opcode, 29, 29);
+    unsigned size = bits(i->opcode, 22, 23);
+    unsigned opcode = bits(i->opcode, 12, 16);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
-const char *get_advanced_SIMD_copy_specifier(unsigned int imm5){
-    if((imm5 & 1) == 1)
-        return "b";
-    else if(((imm5 >> 1) & 1) == 1)
-        return "h";
-    else if(((imm5 >> 2) & 1) == 1)
-        return "s";
-    else if(((imm5 >> 3) & 1) == 1)
-        return "d";
-    else
-        return NULL;
-}
+    ADD_FIELD(out, Q);
+    ADD_FIELD(out, U);
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
 
-char get_advanced_SIMD_gen_width_specifier(unsigned int imm5){
-    if((imm5 & 1) == 1)
-        return 'w';
-    else if(((imm5 >> 1) & 1) == 1)
-        return 'w';
-    else if(((imm5 >> 2) & 1) == 1)
-        return 'w';
-    else if(((imm5 >> 3) & 1) == 1)
-        return 'x';
-    else
-        return '\0';
-}
+    const char *instr_s = NULL;
+    int instr_id = NONE;
 
-unsigned int get_advanced_SIMD_copy_index(unsigned int imm5){
-    if((imm5 & 1) == 1)
-        return getbitsinrange(imm5, 1, 4);
-    else if(((imm5 >> 1) & 1) == 1)
-        return getbitsinrange(imm5, 2, 3);
-    else if(((imm5 >> 2) & 1) == 1)
-        return getbitsinrange(imm5, 3, 2);
-    else if(((imm5 >> 3) & 1) == 1)
-        return getbitsinrange(imm5, 4, 1);
-    else
-        return -1;
-}
-
-char *DisassembleAdvancedSIMDCopyInstr(struct instruction *instruction){
-    char *disassembled = NULL;
-
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int imm4 = getbitsinrange(instruction->opcode, 11, 4);
-    unsigned int imm5 = getbitsinrange(instruction->opcode, 16, 5);
-    unsigned int op = getbitsinrange(instruction->opcode, 29, 1);
-    unsigned int Q = getbitsinrange(instruction->opcode, 30, 1);
-
-    const char *instr = NULL;
-    const char *T = NULL, *Ts = NULL;
-    unsigned int index = 0;
-    char V = '\0', R = '\0';
-
-    T = get_advanced_SIMD_copy_arrangement(imm5, Q);
-    Ts = get_advanced_SIMD_copy_specifier(imm5);
-    index = get_advanced_SIMD_copy_index(imm5);
-    R = get_advanced_SIMD_gen_width_specifier(imm5);		
-
-    if(!T || !Ts || index == -1 || R == '\0')
-        return strdup(".undefined");
-
-    if(imm4 == 0 || imm4 == 1){
-        disassembled = malloc(128);
-
-        if(imm4 == 0)
-            sprintf(disassembled, "dup %s.%s, %s.%s[%d]", ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], Ts, index);
-        else
-            sprintf(disassembled, "dup %s.%s, %c%d", ARM64_VectorRegisters[Rd], T, R, Rn);
-    }
-    else if(imm4 == 5){
-        disassembled = malloc(128);
-
-        if(Q == 0)
-            sprintf(disassembled, "smov %s, %s.%s[%d]", ARM64_32BitGeneralRegisters[Rd], ARM64_VectorRegisters[Rn], Ts, index);
-        else
-            sprintf(disassembled, "smov %s, %s.%s[%d]", ARM64_GeneralRegisters[Rd], ARM64_VectorRegisters[Rn], Ts, index);
-    }
-    else if(imm4 == 7){
-        disassembled = malloc(128);
-
-        if(Q == 0){
-            const char *instr = "umov";
-
-            if(((imm5 >> 2) & 1) == 1)
-                instr = "mov";
-
-            sprintf(disassembled, "%s %s, %s.%s[%d]", instr, ARM64_32BitGeneralRegisters[Rd], ARM64_VectorRegisters[Rn], Ts, index);
-        }
-        else{
-            const char *instr = "umov";
-
-            if(((imm5 >> 3) & 1) == 1)
-                instr = "mov";
-
-            sprintf(disassembled, "%s %s, %s.%s[%d]", instr, ARM64_GeneralRegisters[Rd], ARM64_VectorRegisters[Rn], Ts, index);	
-        }
-    }
-    else{
-        disassembled = malloc(128);
-
-        if(op == 0)
-            sprintf(disassembled, "mov %s.%s[%d], %c%d", ARM64_VectorRegisters[Rd], Ts, index, R, Rn);
-        else{
-            unsigned int index1 = index;
-            unsigned int index2 = 0;
-
-            if((imm5 & 1) == 1)
-                index2 = getbitsinrange(imm4, 0, 4);
-            else if(((imm5 >> 1) & 1) == 1)
-                index2 = getbitsinrange(imm4, 1, 3);
-            else if(((imm5 >> 2) & 1) == 1)
-                index2 = getbitsinrange(imm4, 2, 2);
-            else if(((imm5 >> 3) & 1) == 1)
-                index2 = getbitsinrange(imm4, 3, 1);
-
-            sprintf(disassembled, "mov %s.%s[%d], %s.%s[%d]", ARM64_VectorRegisters[Rd], Ts, index1, ARM64_VectorRegisters[Rn], Ts, index2);
-        }
-    }
-
-    return disassembled;
-}
-
-char *DisassembleAdvancedSIMDAcrossLanesInstr(struct instruction *instruction){
-    char *disassembled = NULL;
-
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int opcode = getbitsinrange(instruction->opcode, 12, 5);
-    unsigned int size = getbitsinrange(instruction->opcode, 22, 2);
-    unsigned int sz = (size & 1);
-    unsigned int U = getbitsinrange(instruction->opcode, 29, 1);
-    unsigned int Q = getbitsinrange(instruction->opcode, 30, 1);
-
-    const char *instr = NULL;
-
-    const char *instr_tbl_u0[] = {NULL, NULL, NULL, "saddlv", NULL, NULL,
-        NULL, NULL, NULL, NULL, "smaxv", NULL,
-        (size == 0) ? "fmaxnmv" : "fminnmv",
-        NULL, NULL,
-        (size == 0) ? "fmaxv" : "fminv",
-        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-        "sminv", "addv"};
-    const char *instr_tbl_u1[] = {NULL, NULL, NULL, "addlv", NULL, NULL,
-        NULL, NULL, NULL, NULL, "umaxv", NULL,
-        ((size >> 1) == 0) ? "fmaxnmv" : "fminnmv",
-        NULL, NULL,
-        ((size >> 1) == 0) ? "fmaxv" : "fminv",
-        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-        "uminv", NULL};
-
-    if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u0)))
-        return strdup(".undefined");
-
-    if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl_u1)))
-        return strdup(".undefined");
+    const char **Rd_Rtbl = NULL;
+    unsigned Rd_sz = 0;
 
     const char *T = NULL;
-    char V = '\0';
 
-    char V_tbl[] = {'b', 'h', 's'};
-    char V_tbl2[] = {'h', 's', 'd'};
+    if(opcode == 3 || opcode == 10 || opcode == 0x1a || opcode == 0x1b){
+        if(size == 3)
+            return 1;
 
-    if(U == 0)
-        instr = instr_tbl_u0[opcode];
-    else
-        instr = instr_tbl_u1[opcode];
+        const char **rtbls_o3[] = {
+            AD_RTBL_FP_16, AD_RTBL_FP_32, AD_RTBL_FP_64
+        };
 
-    if(opcode == 3){
-        V = V_tbl2[size];
-        T = get_arrangement(size, Q);
-    }
-    else if(opcode == 12 || opcode == 15){
-        V = U == 0 ? 'h' : 's';
-        T = get_arrangement2(U == 0, sz, Q);
+        const char **rtbls[] = {
+            AD_RTBL_FP_8, AD_RTBL_FP_16, AD_RTBL_FP_32
+        };
+
+        unsigned sizes_o3[] = {
+            _16_BIT, _32_BIT, _64_BIT
+        };
+
+        unsigned sizes[] = {
+            _8_BIT, _16_BIT, _32_BIT
+        };
+
+        if(opcode == 3){
+            instr_s = U == 0 ? "saddlv" : "uaddlv";
+            instr_id = U == 0 ? AD_INSTR_SADDLV : AD_INSTR_UADDLV;
+        }
+        else if(opcode == 10){
+            instr_s = U == 0 ? "smaxv" : "umaxv";
+            instr_id = U == 0 ? AD_INSTR_SMAXV : AD_INSTR_UMAXV;
+        }
+        else if(opcode == 0x1a){
+            instr_s = U == 0 ? "sminv" : "uminv";
+            instr_id = U == 0 ? AD_INSTR_SMINV : AD_INSTR_UMINV;
+        }
+        else{
+            if(U == 1)
+                return 1;
+
+            instr_s = "addv";
+            instr_id = AD_INSTR_ADDV;
+        }
+
+        if(opcode == 3){
+            Rd_Rtbl = rtbls_o3[size];
+            Rd_sz = sizes_o3[size];
+        }
+        else{
+            Rd_Rtbl = rtbls[size];
+            Rd_sz = sizes[size];
+        }
+
+        if(size == 0)
+            T = Q == 0 ? "8b" : "16b";
+        else if(size == 1)
+            T = Q == 0 ? "4h" : "8h";
+        else if(size == 2 && Q == 1)
+            T = "4s";
     }
     else{
-        V = V_tbl[size];
-        T = get_arrangement(size, Q);
+        if(opcode != 12 && opcode != 15)
+            return 1;
+            
+        if(U == 0 && (size == 1 || size == 3))
+            return 1;
+
+        unsigned sz = (size & 1);
+
+        if(sz == 1)
+            return 1;
+
+        if(U == 0){
+            T = Q == 0 ? "4h" : "8h";
+
+            Rd_Rtbl = AD_RTBL_FP_16;
+            Rd_sz = _16_BIT;
+        }
+        else{
+            if(Q == 1)
+                T = "4s";
+
+            Rd_Rtbl = AD_RTBL_FP_32;
+            sz = _32_BIT;
+        }
+
+        unsigned s = size >> 1;
+        unsigned compar = U == 0 ? size : s;
+       
+        if(opcode == 12){
+            instr_s = compar == 0 ? "fmaxnmv" : "fminnmv";
+            instr_id = compar == 0 ? AD_INSTR_FMAXNMV : AD_INSTR_FMINNMV;
+        }
+        else{
+            instr_s = compar == 0 ? "fmaxv" : "fminv";
+            instr_id = compar == 0 ? AD_INSTR_FMAXV : AD_INSTR_FMINV;
+        }
     }
 
-    disassembled = malloc(128);
+    if(!Rd_Rtbl || !T)
+        return 1;
 
-    sprintf(disassembled, "%s %c%d, %s.%s", instr, V, Rd, ARM64_VectorRegisters[Rn], T);
+    const char *Rd_s = GET_FP_REG(Rd_Rtbl, Rd);
+    const char *Rn_s = GET_FP_REG(AD_RTBL_FP_V_128, Rn);
 
-    return disassembled;
+    ADD_REG_OPERAND(out, Rd, Rd_sz, NO_PREFER_ZR, _SYSREG(NONE), Rd_Rtbl);
+    ADD_REG_OPERAND(out, Rn, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_FP_V_128));
+
+    concat(&DECODE_STR(out), "%s %s, %s.%s", instr_s, Rd_s, Rn_s, T);
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
+/*
 char *DisassembleCryptographicThreeRegisterImm2(struct instruction *instruction){
     char *disassembled = NULL;
 
@@ -4904,7 +4932,6 @@ int DataProcessingFloatingPointDisassemble(struct instruction *i,
             (op2 & ~11) == 4 &&
             (op3 & ~0x1fc) == 0){
         int scalar = (op0 & 1);
-
         result = DisassembleAdvancedSIMDThreeDifferentInstr(i, out, scalar);
     }
     else if(((op0 & ~2) == 5 || (op0 & ~6) == 0) &&
@@ -4921,9 +4948,16 @@ int DataProcessingFloatingPointDisassemble(struct instruction *i,
             (op1 & ~1) == 2 &&
             (op3 & ~0x1fe) == 0){
         int scalar = (op0 & 1);
-
         result = DisassembleAdvancedSIMDXIndexedElementInstr(i, out, scalar);
     }
+    else if((op0 & ~4) == 0 && (op1 & ~1) == 0 && (op2 & ~11) == 0 && (op3 & ~0x1dc) == 0)
+        result = DisassembleAdvancedSIMDTableLookupInstr(i, out);
+    else if((op0 & ~4) == 0 && (op1 & ~1) == 0 && (op2 & ~11) == 0 && (op3 & ~0x1dc) == 2)
+        result = DisassembleAdvancedSIMDPermuteInstr(i, out);
+    else if((op0 & ~4) == 2 && (op1 & ~1) == 0 && (op2 & ~11) == 0 && (op3 & ~0x1de) == 0)
+        result = DisassembleAdvancedSIMDExtractInstr(i, out);
+    else if((op0 & ~6) == 0 && (op1 & ~1) == 0 && (op2 & ~8) == 6 && (op3 & ~0x7c) == 2)
+        result = DisassembleAdvancedSIMDAcrossLanesInstr(i, out);
     else
         result = 1;
 

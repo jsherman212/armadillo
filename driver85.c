@@ -2273,32 +2273,32 @@ int main(int argc, char **argv, const char **envp){
     /* addinstr("mvni	v20.4s, #0x42, msl #16", 0x6f02d454, 0); */
 
     
-    addinstr("smlal v6.4s, v9.4h, v3.h[3]", 0x0f732126, 0);
-    addinstr("fmla h9, h3, v9.h[7]", 0x5f391869, 0);
-    addinstr("fmls v10.2s, v2.2s, v8.s[0]", 0x0f88504a, 0);
-    addinstr("sqrdmlah h4, h5, v4.h[6]", 0x7f64d8a4, 0);
-    addinstr("fcmla v5.4h, v6.4h, v7.h[0], #180", 0x2f4750c5, 0);
-    addinstr("smlal2	v6.4s, v18.8h, v9.h[5]", 0x4f592a46, 0);
-    addinstr("mul	v7.4s, v9.4s, v23.s[3]", 0x4fb78927, 0);
-    addinstr("mul	v7.8h, v1.8h, v3.h[0]", 0x4f438027, 0);
-    addinstr("sdot	v4.2s, v9.8b, v7.4b[1]", 0x0fa7e124, 0);
-    addinstr("sqdmlal	s3, h8, v9.h[4]", 0x5f493903, 0);
-    addinstr("sqdmlal2	v9.4s, v0.8h, v1.h[4]", 0x4f413809, 0);
-    addinstr("fmlal2	v8.2s, v0.2h, v1.h[3]", 0x2fb18008, 0);
-    addinstr("mla	v8.4s, v5.4s, v9.s[1]", 0x6fa900a8, 0);
-    addinstr("sqdmulh	h7, h8, v0.h[2]", 0x5f60c107, 0);
-    addinstr("sqdmulh	v9.8h, v8.8h, v10.h[6]", 0x4f6ac909, 0);
-    addinstr("sqrdmlsh	v9.2s, v8.2s, v10.s[3]", 0x2faaf909, 0);
-    addinstr("mls	v8.4s, v5.4s, v9.s[1]", 0x6fa940a8, 0);
-    addinstr("fmulx	h20, h11, v7.h[2]", 0x7f279174, 0);
-    addinstr("fmul	h20, h11, v7.h[2]", 0x5f279174, 0);
-    addinstr("fmls	d1, d8, v1.d[0]", 0x5fc15101, 0);
-    addinstr("fmla	v20.4h, v16.4h, v6.h[7]", 0x0f361a14, 0);
-    addinstr("fmla	v19.2d, v9.2d, v8.d[1]", 0x4fc81933, 0);
-    addinstr("fcmla	v20.4h, v21.4h, v22.h[1], #270", 0x2f7672b4, 0);
-    addinstr("fcmla	v20.8h, v21.8h, v22.h[2], #90", 0x6f563ab4, 0);
-    addinstr("fcmla	v20.4s, v21.4s, v22.s[0], #0", 0x6f9612b4, 0);
-    addinstr("fmlal2	v8.2s, v0.2h, v23.h[3]", 0x2fb78008, 0);
+    /* addinstr("smlal v6.4s, v9.4h, v3.h[3]", 0x0f732126, 0); */
+    /* addinstr("fmla h9, h3, v9.h[7]", 0x5f391869, 0); */
+    /* addinstr("fmls v10.2s, v2.2s, v8.s[0]", 0x0f88504a, 0); */
+    /* addinstr("sqrdmlah h4, h5, v4.h[6]", 0x7f64d8a4, 0); */
+    /* addinstr("fcmla v5.4h, v6.4h, v7.h[0], #180", 0x2f4750c5, 0); */
+    /* addinstr("smlal2	v6.4s, v18.8h, v9.h[5]", 0x4f592a46, 0); */
+    /* addinstr("mul	v7.4s, v9.4s, v23.s[3]", 0x4fb78927, 0); */
+    /* addinstr("mul	v7.8h, v1.8h, v3.h[0]", 0x4f438027, 0); */
+    /* addinstr("sdot	v4.2s, v9.8b, v7.4b[1]", 0x0fa7e124, 0); */
+    /* addinstr("sqdmlal	s3, h8, v9.h[4]", 0x5f493903, 0); */
+    /* addinstr("sqdmlal2	v9.4s, v0.8h, v1.h[4]", 0x4f413809, 0); */
+    /* addinstr("fmlal2	v8.2s, v0.2h, v1.h[3]", 0x2fb18008, 0); */
+    /* addinstr("mla	v8.4s, v5.4s, v9.s[1]", 0x6fa900a8, 0); */
+    /* addinstr("sqdmulh	h7, h8, v0.h[2]", 0x5f60c107, 0); */
+    /* addinstr("sqdmulh	v9.8h, v8.8h, v10.h[6]", 0x4f6ac909, 0); */
+    /* addinstr("sqrdmlsh	v9.2s, v8.2s, v10.s[3]", 0x2faaf909, 0); */
+    /* addinstr("mls	v8.4s, v5.4s, v9.s[1]", 0x6fa940a8, 0); */
+    /* addinstr("fmulx	h20, h11, v7.h[2]", 0x7f279174, 0); */
+    /* addinstr("fmul	h20, h11, v7.h[2]", 0x5f279174, 0); */
+    /* addinstr("fmls	d1, d8, v1.d[0]", 0x5fc15101, 0); */
+    /* addinstr("fmla	v20.4h, v16.4h, v6.h[7]", 0x0f361a14, 0); */
+    /* addinstr("fmla	v19.2d, v9.2d, v8.d[1]", 0x4fc81933, 0); */
+    /* addinstr("fcmla	v20.4h, v21.4h, v22.h[1], #270", 0x2f7672b4, 0); */
+    /* addinstr("fcmla	v20.8h, v21.8h, v22.h[2], #90", 0x6f563ab4, 0); */
+    /* addinstr("fcmla	v20.4s, v21.4s, v22.s[0], #0", 0x6f9612b4, 0); */
+    /* addinstr("fmlal2	v8.2s, v0.2h, v23.h[3]", 0x2fb78008, 0); */
 
 
 
@@ -2320,6 +2320,28 @@ int main(int argc, char **argv, const char **envp){
     */
 
 
+    /* addinstr("tbl v0.8b, {v8.16b, v9.16b, v10.16b}, v4.8b", 0x0e044100, 0); */
+    /* addinstr("tbl v5.16b, {v9.16b, v10.16b}, v9.16b", 0x4e092125, 0); */
+    /* addinstr("tbx v20.8b, {v3.16b, v4.16b, v5.16b, v6.16b}, v13.8b", 0x0e0d7074, 0); */
+    /* addinstr("tbx v7.16b, {v9.16b}, v20.16b", 0x4e141127, 0); */
+
+    /* addinstr("uzp1 v8.16b, v9.16b, v10.16b", 0x4e0a1928, 0); */
+    /* addinstr("trn2 v10.2s, v6.2s, v19.2s", 0x0e9368ca, 0); */
+    /* addinstr("zip1 v15.4h, v10.4h, v6.4h", 0x0e46394f, 0); */
+
+    /* addinstr("ext v5.8b, v3.8b, v9.8b, #5", 0x2e092865, 0); */
+    /* addinstr("ext	v8.16b, v0.16b, v0.16b, #-0x1", 0x6e007808, 0); */
+    /* addinstr("ext	v8.16b, v0.16b, v0.16b, #0x7", 0x6e003808, 0); */
+    /* addinstr("ext	v8.16b, v0.16b, v0.16b, #0x913", 0x6e001808, 0); */
+
+    addinstr("saddlv s5, v3.4h", 0x0e703865, 0);
+    addinstr("sminv h2, v9.8h", 0x4e71a922, 0);
+    addinstr("fmaxnmv h12, v8.4h", 0x0e30c90c, 0);
+    addinstr("fminv h7, v2.8h", 0x4eb0f847, 0);
+    addinstr("umaxv b20, v5.8b", 0x2e30a8b4, 0);
+    addinstr("fminnmv s4, v7.4s", 0x6eb0c8e4, 0);
+    addinstr("uminv	b0, v0.16b", 0x6e31a800, 0);
+    addinstr("fmaxnmv	s9, v0.4s", 0x6e30c809, 0);
 
 
 

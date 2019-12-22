@@ -1290,7 +1290,6 @@ static int DisassembleUnconditionalBranchRegisterInstr(struct instruction *i,
                 instr_s = op3 == 2 ? "blraa" : "blrab";
                 instr_id = op3 == 2 ? AD_INSTR_BLRAA : AD_INSTR_BLRAB;
             }
-
         }
 
         ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_GEN_64));
