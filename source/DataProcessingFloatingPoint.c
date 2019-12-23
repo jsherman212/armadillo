@@ -4372,278 +4372,168 @@ static int DisassembleConversionBetweenFloatingAndFixedPointInstr(struct instruc
     return 0;
 }
 
-/*
-char *DisassembleConversionBetweenFloatingPointAndIntegerInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleConversionBetweenFloatingPointAndIntegerInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned sf = bits(i->opcode, 31, 31);
+    unsigned S = bits(i->opcode, 29, 29);
+    unsigned ptype = bits(i->opcode, 22, 23);
+    unsigned rmode = bits(i->opcode, 19, 20);
+    unsigned opcode = bits(i->opcode, 16, 18);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int opcode = getbitsinrange(instruction->opcode, 16, 3);
-    unsigned int rmode = getbitsinrange(instruction->opcode, 19, 2);
-    unsigned int type = getbitsinrange(instruction->opcode, 22, 2);
-    unsigned int S = getbitsinrange(instruction->opcode, 29, 1);
-    unsigned int sf = getbitsinrange(instruction->opcode, 31, 1);
+    ADD_FIELD(out, sf);
+    ADD_FIELD(out, S);
+    ADD_FIELD(out, ptype);
+    ADD_FIELD(out, rmode);
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
 
-    const char *instr = NULL;
+    const char *instr_s = NULL;
+    int instr_id = NONE;
 
-    char *_Rd = malloc(32);
-    char *_Rn = malloc(32);
+    unsigned operation = (bits(opcode, 1, 2) << 2) | rmode;
+    unsigned u = (opcode & 1);
 
-    if(sf == 0 && S == 0 && type == 0 && rmode == 0){
-        const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau", "fmov", "fmov"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
+    /* if this is zero, int to float */
+    int float_to_int = 0;
+    /* append .d[1]? */
+    int part = 0;
+
+    const char **Flt_Rtbl = NULL;
+    const char **Gen_Rtbl = sf == 0 ? AD_RTBL_GEN_32 : AD_RTBL_GEN_64;
+
+    unsigned ftype = ptype;
+
+    unsigned intsize = sf == 0 ? _32_BIT : _64_BIT;
+    unsigned fltsize;
+
+    if(ftype == 0){
+        Flt_Rtbl = AD_RTBL_FP_32;
+        fltsize = _32_BIT;
     }
-    else if(sf == 0 && S == 0 && type == 0 && rmode == 1){
-        const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
+    else if(ftype == 1){
+        Flt_Rtbl = AD_RTBL_FP_64;
+        fltsize = _64_BIT;
     }
-    else if(sf == 0 && S == 0 && type == 0 && rmode == 2){
-        const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 0 && S == 0 && type == 0 && rmode == 3){
-        const char *instr_tbl[] = {"fcvtzs", "fcvtzu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 0 && S == 0 && type == 1 && rmode == 0){
-        const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 0 && S == 0 && type == 1 && rmode == 1){
-        const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 0 && S == 0 && type == 1 && rmode == 2){
-        const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 0 && S == 0 && type == 1 && rmode == 3){
-        const char *instr_tbl[] = {"fcvtzs", "fcvtzu", NULL, NULL, NULL, NULL, "fjcvtzs"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 0 && S == 0 && type == 3 && rmode == 0){
-        const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau", "fmov", "fmov"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 0 && S == 0 && type == 3 && rmode == 1){
-        const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 0 && S == 0 && type == 3 && rmode == 2){
-        const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 0 && S == 0 && type == 3 && rmode == 3){
-        const char *instr_tbl[] = {"fcvtzs", "fcvtzu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 1 && S == 0 && type == 0 && rmode == 0){
-        const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 1 && S == 0 && type == 0 && rmode == 1){
-        const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 1 && S == 0 && type == 0 && rmode == 2){
-        const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 1 && S == 0 && type == 0 && rmode == 3){
-        const char *instr_tbl[] = {"fcvtzs", "fcvtzu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 1 && S == 0 && type == 1 && rmode == 0){
-        const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau", "fmov", "fmov"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 1 && S == 0 && type == 1 && rmode == 1){
-        const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 1 && S == 0 && type == 1 && rmode == 2){
-        const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 1 && S == 0 && type == 1 && rmode == 3){
-        const char *instr_tbl[] = {"fcvtzs", "fcvtzu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 1 && S == 0 && type == 2 && rmode == 1){
-        const char *instr_tbl[] = {NULL, NULL, NULL, NULL, NULL, NULL, "fmov", "fmov", NULL};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 1 && S == 0 && type == 3 && rmode == 0){
-        const char *instr_tbl[] = {"fcvtns", "fcvtnu", "scvtf", "ucvtf", "fcvtas", "fcvtau", "fmov", "fmov"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 1 && S == 0 && type == 3 && rmode == 1){
-        const char *instr_tbl[] = {"fcvtps", "fcvtpu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 1 && S == 0 && type == 3 && rmode == 2){
-        const char *instr_tbl[] = {"fcvtms", "fcvtmu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
-    }
-    else if(sf == 1 && S == 0 && type == 3 && rmode == 3){
-        const char *instr_tbl[] = {"fcvtzs", "fcvtzu"};
-        if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-            return strdup(".undefined");
-        instr = instr_tbl[opcode];
+    else if(ftype == 2){
+        if(operation != 13)
+            return 1;
+
+        Flt_Rtbl = AD_RTBL_FP_V_128;
+        fltsize = _128_BIT;
     }
     else{
-        free(_Rd);
-        free(_Rn);
-        return strdup(".undefined");
+        Flt_Rtbl = AD_RTBL_FP_16;
+        fltsize = _16_BIT;
     }
 
-    if(!instr)
-        return strdup(".undefined");
-
-    if(strstr(instr, "fcvt") || strcmp(instr, "fjcvtzs") == 0){
-        if(type == 3)
-            sprintf(_Rn, "h%d", Rn);
-        else if(type == 0)
-            sprintf(_Rn, "s%d", Rn);
-        else if(type == 1)
-            sprintf(_Rn, "d%d", Rn);
+    if((operation & ~3) == 0){
+        /* fcvt[npmz][us] */
+        if(rmode == 0){
+            instr_s = u == 0 ? "fcvtns" : "fcvtnu";
+            instr_id = u == 0 ? AD_INSTR_FCVTNS : AD_INSTR_FCVTNU;
+        }
+        else if(rmode == 1){
+            instr_s = u == 0 ? "fcvtps" : "fcvtpu";
+            instr_id = u == 0 ? AD_INSTR_FCVTPS : AD_INSTR_FCVTPU;
+        }
+        else if(rmode == 2){
+            instr_s = u == 0 ? "fcvtms" : "fcvtmu";
+            instr_id = u == 0 ? AD_INSTR_FCVTMS : AD_INSTR_FCVTMU;
+        }
         else{
-            free(_Rd);
-            free(_Rn);
-            return strdup(".undefined");
+            instr_s = u == 0 ? "fcvtzs" : "fcvtzu";
+            instr_id = u == 0 ? AD_INSTR_FCVTZS : AD_INSTR_FCVTZU;
         }
 
-        if(sf == 0)
-            sprintf(_Rd, "w%d", Rd);
-        else
-            sprintf(_Rd, "x%d", Rd);
+        float_to_int = 1;
     }
-    else if(strcmp(instr, "fmov") != 0){
-        if(type == 3)
-            sprintf(_Rd, "h%d", Rd);
-        else if(type == 0)
-            sprintf(_Rd, "s%d", Rd);
-        else if(type == 1)
-            sprintf(_Rd, "d%d", Rd);
-        else{
-            free(_Rd);
-            free(_Rn);
-            return strdup(".undefined");
-        }
-
-        if(sf == 0)
-            sprintf(_Rn, "w%d", Rn);
-        else
-            sprintf(_Rn, "x%d", Rn);
+    else if(operation == 4){
+        instr_s = u == 0 ? "scvtf" : "ucvtf";
+        instr_id = u == 0 ? AD_INSTR_SCVTF : AD_INSTR_UCVTF;
     }
-    else if(strcmp(instr, "fmov") == 0){
-        if(sf == 0 && type == 3 && rmode == 0 && opcode == 6){
-            sprintf(_Rd, "w%d", Rd);
-            sprintf(_Rn, "h%d", Rn);
-        }
-        else if(sf == 1 && type == 3 && rmode == 0 && opcode == 6){
-            sprintf(_Rd, "x%d", Rd);
-            sprintf(_Rn, "h%d", Rn);
-        }
-        else if(sf == 0 && type == 3 && rmode == 0 && opcode == 7){
-            sprintf(_Rd, "h%d", Rd);
-            sprintf(_Rn, "w%d", Rn);
-        }
-        else if(sf == 0 && type == 0 && rmode == 0 && opcode == 7){
-            sprintf(_Rd, "s%d", Rd);
-            sprintf(_Rn, "w%d", Rn);
-        }
-        else if(sf == 0 && type == 0 && rmode == 0 && opcode == 6){
-            sprintf(_Rd, "w%d", Rd);
-            sprintf(_Rn, "s%d", Rn);
-        }
-        else if(sf == 1 && type == 3 && rmode == 0 && opcode == 7){
-            sprintf(_Rd, "h%d", Rd);
-            sprintf(_Rn, "x%d", Rn);
-        }
-        else if(sf == 1 && type == 1 && rmode == 0 && opcode == 7){
-            sprintf(_Rd, "d%d", Rd);
-            sprintf(_Rn, "x%d", Rn);
-        }
-        else if(sf == 1 && type == 2 && rmode == 1 && opcode == 7){
-            sprintf(_Rd, "v%d.d[1]", Rd);
-            sprintf(_Rn, "x%d", Rn);
-        }
-        else if(sf == 1 && type == 1 && rmode == 0 && opcode == 6){
-            sprintf(_Rd, "x%d", Rd);
-            sprintf(_Rn, "d%d", Rn);
-        }
-        else if(sf == 1 && type == 2 && rmode == 1 && opcode == 6){
-            sprintf(_Rd, "x%d", Rd);
-            sprintf(_Rn, "v%d.d[1]", Rn);
-        }
-        else
-            return strdup(".undefined");
+    else if(operation == 8){
+        instr_s = u == 0 ? "fcvtas" : "fcvtau";
+        instr_id = u == 0 ? AD_INSTR_FCVTAS : AD_INSTR_FCVTAU;
 
-        if(strcmp(_Rn, "w31") == 0)
-            strcpy(_Rn, "#0.0");
-        else if(strcmp(_Rn, "x31") == 0)
-            strcpy(_Rn, "#0.0");
+        float_to_int = 1;
+    }
+    else if(operation == 12 || operation == 13){
+        instr_s = "fmov";
+        instr_id = AD_INSTR_FMOV;
+
+        if((opcode & 1) == 0)
+            float_to_int = 1;
+
+        if(operation == 13)
+            part = 1;
+    }
+    else if(operation == 15){
+        instr_s = "fjcvtzs";
+        instr_id = AD_INSTR_FJCVTZS;
+
+        float_to_int = 1;
+    }
+    else{
+        return 1;
     }
 
-    disassembled = malloc(128);
+    const char **Rd_Rtbl = NULL;
+    const char **Rn_Rtbl = NULL;
 
-    sprintf(disassembled, "%s %s, %s", instr, _Rd, _Rn);
+    unsigned Rd_sz = 0;
+    unsigned Rn_sz = 0;
 
-    free(_Rd);
-    free(_Rn);
+    const char *Rd_s = NULL;
+    const char *Rn_s = NULL;
 
-    return disassembled;
+    if(float_to_int){
+        Rd_Rtbl = Gen_Rtbl;
+        Rn_Rtbl = Flt_Rtbl;
+
+        Rd_sz = intsize;
+        Rn_sz = fltsize;
+
+        Rd_s = GET_GEN_REG(Rd_Rtbl, Rd, PREFER_ZR);
+        Rn_s = GET_FP_REG(Rn_Rtbl, Rn);
+    }
+    else{
+        Rd_Rtbl = Flt_Rtbl;
+        Rn_Rtbl = Gen_Rtbl;
+
+        Rd_sz = fltsize;
+        Rn_sz = intsize;
+
+        Rd_s = GET_FP_REG(Rd_Rtbl, Rd);
+        Rn_s = GET_GEN_REG(Rn_Rtbl, Rn, PREFER_ZR);
+    }
+
+    ADD_REG_OPERAND(out, Rd, Rd_sz, PREFER_ZR, _SYSREG(NONE), Rd_Rtbl);
+
+    concat(&DECODE_STR(out), "%s %s", instr_s, Rd_s);
+
+    if(!float_to_int && part){
+        ADD_IMM_OPERAND(out, AD_UINT, 1);
+        concat(&DECODE_STR(out), ".d[1]");
+    }
+
+    ADD_REG_OPERAND(out, Rn, Rn_sz, PREFER_ZR, _SYSREG(NONE), Rn_Rtbl);
+
+    concat(&DECODE_STR(out), ", %s", Rn_s);
+
+    if(float_to_int && part){
+        ADD_IMM_OPERAND(out, AD_UINT, 1);
+        concat(&DECODE_STR(out), ".d[1]");
+    }
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
+/*
 char *DisassembleFloatingPointDataProcessingOneSource(struct instruction *instruction){
     char *disassembled = NULL;
 
@@ -5132,6 +5022,8 @@ int DataProcessingFloatingPointDisassemble(struct instruction *i,
         result = DisassembleCryptographicTwoRegisterSHA512Instr(i, out);
     else if((op0 & ~10) == 1 && (op1 & ~1) == 0 && (op2 & ~11) == 0)
         result = DisassembleConversionBetweenFloatingAndFixedPointInstr(i, out);
+    else if((op0 & ~10) == 1 && (op1 & ~1) == 0 && (op2 & ~11) == 4 && (op3 & ~0x1c0) == 0)
+        result = DisassembleConversionBetweenFloatingPointAndIntegerInstr(i, out);
     else
         result = 1;
 
