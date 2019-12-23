@@ -4003,214 +4003,376 @@ static int DisassembleAdvancedSIMDAcrossLanesInstr(struct instruction *i,
     return 0;
 }
 
-/*
-char *DisassembleCryptographicThreeRegisterImm2(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleCryptographicThreeRegisterImm2Instr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned imm2 = bits(i->opcode, 12, 13);
+    unsigned opcode = bits(i->opcode, 10, 11);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int opcode = getbitsinrange(instruction->opcode, 10, 2);
-    unsigned int imm2 = getbitsinrange(instruction->opcode, 12, 2);
-    unsigned int Rm = getbitsinrange(instruction->opcode, 16, 5);
+    ADD_FIELD(out, Rm);
+    ADD_FIELD(out, imm2);
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
 
-    const char *instr_tbl[] = {"sm3tt1a", "sm3tt1b", "sm3tt2a", "sm3tt2b"};
-    const char *instr = instr_tbl[opcode];
+    struct itab tab[] = {
+        { "sm3tt1a", AD_INSTR_SM3TT1A }, { "sm3tt1b", AD_INSTR_SM3TT1B },
+        { "sm3tt2a", AD_INSTR_SM3TT2A }, { "sm3tt2b", AD_INSTR_SM3TT2B }
+    };
 
-    const char *T = "4s";
+    const char *instr_s = tab[opcode].instr_s;
+    int instr_id = tab[opcode].instr_id;
 
-    if(strcmp(instr, "sm3tt2b") == 0)
-        T = "s";
+    const char **rtbl = AD_RTBL_FP_V_128;
+    unsigned sz = _128_BIT;
 
-    disassembled = malloc(128);
+    const char *Rd_s = GET_FP_REG(rtbl, Rd);
+    const char *Rn_s = GET_FP_REG(rtbl, Rn);
+    const char *Rm_s = GET_FP_REG(rtbl, Rm);
 
-    sprintf(disassembled, "%s %s.%s, %s.%s, %s.s[%d]", instr, ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T, ARM64_VectorRegisters[Rm], imm2);
+    ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+    ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
+    ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(NONE), rtbl);
 
-    return disassembled;
+    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&imm2);
+
+    concat(&DECODE_STR(out), "%s %s.4s, %s.4s, %s.s[%d]", instr_s, Rd_s, Rn_s,
+            Rm_s, imm2);
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-char *DisassembleCryptographicThreeRegisterSHA512Instr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleCryptographicThreeRegisterSHA512Instr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned O = bits(i->opcode, 14, 14);
+    unsigned opcode = bits(i->opcode, 10, 11);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int opcode = getbitsinrange(instruction->opcode, 10, 2);
-    unsigned int O = getbitsinrange(instruction->opcode, 14, 1);
-    unsigned int Rm = getbitsinrange(instruction->opcode, 16, 5);
+    ADD_FIELD(out, Rm);
+    ADD_FIELD(out, O);
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
 
-    const char *instr_tbl_O0[] = {"sha512h", "sha512h2", "sha512su1", "rax1"};
-    const char *instr_tbl_O1[] = {"sm3partw1", "sm3partw2", "sm4ekey", NULL};
+    unsigned idx = (O << 2) | opcode;
 
-    const char *instr = NULL;
+    struct itab tab[] = {
+        { "sha512h", AD_INSTR_SHA512H }, { "sha512h2", AD_INSTR_SHA512H2 },
+        { "sha512su1", AD_INSTR_SHA512SU1 }, { "rax1", AD_INSTR_RAX1 },
+        { "sm3partw1", AD_INSTR_SM3PARTW1 }, { "sm3partw2", AD_INSTR_SM3PARTW2 },
+        { "sm4ekey", AD_INSTR_SM4EKEY }
+    };
 
-    if(O == 0)
-        instr = instr_tbl_O0[opcode];
-    else
-        instr = instr_tbl_O1[opcode];
+    if(OOB(idx, tab))
+        return 1;
 
-    if(!instr)
-        return strdup(".undefined");
+    const char *instr_s = tab[idx].instr_s;
+    int instr_id = tab[idx].instr_id;
 
-    char *_Rd = malloc(32);
-    char *_Rn = malloc(32);
-    char *_Rm = malloc(32);
+    const char **Rd_Rtbl = NULL;
+    const char **Rn_Rtbl = NULL;
 
-    if(strcmp(instr, "sha512h") == 0 || strcmp(instr, "sha512h2") == 0){
-        sprintf(_Rd, "q%d", Rd);
-        sprintf(_Rn, "q%d", Rn);
-        sprintf(_Rm, "v%d.2d", Rm);
-    }
-    else if(strcmp(instr, "sha512su1") == 0 || strcmp(instr, "rax1") == 0){
-        sprintf(_Rd, "v%d.2d", Rd);
-        sprintf(_Rn, "v%d.2d", Rn);
-        sprintf(_Rm, "v%d.2d", Rm);
+    if(instr_id == AD_INSTR_SHA512H || instr_id == AD_INSTR_SHA512H2){
+        Rd_Rtbl = AD_RTBL_FP_128;
+        Rn_Rtbl = AD_RTBL_FP_128;
     }
     else{
-        sprintf(_Rd, "v%d.4s", Rd);
-        sprintf(_Rn, "v%d.4s", Rn);
-        sprintf(_Rm, "v%d.4s", Rm);
+        Rd_Rtbl = AD_RTBL_FP_V_128;
+        Rn_Rtbl = AD_RTBL_FP_V_128;
     }
 
-    disassembled = malloc(128);
+    const char *T = NULL;
+    int T_on_all = 1;
 
-    sprintf(disassembled, "%s %s, %s, %s", instr, _Rd, _Rn, _Rm);
+    if(instr_id != AD_INSTR_SM3PARTW1 && instr_id != AD_INSTR_SM3PARTW2 &&
+            instr_id != AD_INSTR_SM4EKEY){
+        T = "2d";
+        T_on_all = (instr_id != AD_INSTR_SHA512H && instr_id != AD_INSTR_SHA512H2);
+    }
+    else{
+        T = "4s";
+    }
 
-    free(_Rd);
-    free(_Rn);
-    free(_Rm);
+    const char **Rm_Rtbl = AD_RTBL_FP_V_128;
 
-    return disassembled;
+    unsigned sz = _128_BIT;
+
+    const char *Rd_s = GET_FP_REG(Rd_Rtbl, Rd);
+    const char *Rn_s = GET_FP_REG(Rn_Rtbl, Rn);
+    const char *Rm_s = GET_FP_REG(Rm_Rtbl, Rm);
+
+    ADD_REG_OPERAND(out, Rd, sz, NO_PREFER_ZR, _SYSREG(NONE), Rd_Rtbl);
+    ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(NONE), Rn_Rtbl);
+    ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(NONE), Rm_Rtbl);
+
+    concat(&DECODE_STR(out), "%s", instr_s);
+
+    if(T_on_all)
+        concat(&DECODE_STR(out), " %s.%s, %s.%s, %s.%s", Rd_s, T, Rn_s, T, Rm_s, T);
+    else
+        concat(&DECODE_STR(out), " %s, %s, %s.%s", Rd_s, Rn_s, Rm_s, T);
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-char *DisassembleCryptographicFourRegisterInstr(struct instruction *instruction){
-    char *disassembled = NULL;
-
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int Ra = getbitsinrange(instruction->opcode, 10, 5);
-    unsigned int Rm = getbitsinrange(instruction->opcode, 16, 5);
-    unsigned int Op0 = getbitsinrange(instruction->opcode, 21, 2);
+static int DisassembleCryptographicFourRegisterInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned Op0 = bits(i->opcode, 21, 22);
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned Ra = bits(i->opcode, 10, 14);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
     if(Op0 == 3)
-        return strdup(".undefined");
+        return 1;
 
-    const char *instr_tbl[] = {"eor3", "bcax", "sm3ss1"};
-    const char *instr = instr_tbl[Op0];
+    ADD_FIELD(out, Op0);
+    ADD_FIELD(out, Rm);
+    ADD_FIELD(out, Ra);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
 
-    const char *T = "16b";
+    const char *instr_s = NULL;
+    int instr_id = NONE;
 
-    if(Op0 == 2)
+    const char *T = NULL;
+
+    if(Op0 == 0){
+        instr_s = "eor3";
+        instr_id = AD_INSTR_EOR3;
+
+        T = "16b";
+    }
+    else if(Op0 == 1){
+        instr_s = "bcax";
+        instr_id = AD_INSTR_BCAX;
+
+        T = "16b";
+    }
+    else{
+        instr_s = "sm3ss1";
+        instr_id = AD_INSTR_SM3SS1;
+
         T = "4s";
-
-    disassembled = malloc(128);
-
-    sprintf(disassembled, "%s %s.%s, %s.%s, %s.%s, %s.%s", instr, ARM64_VectorRegisters[Rd], T, ARM64_VectorRegisters[Rn], T, ARM64_VectorRegisters[Rm], T, ARM64_VectorRegisters[Ra], T);
-
-    return disassembled;
-}
-
-char *DisassembleXARInstr(struct instruction *instruction){
-    char *disassembled = NULL;
-
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int imm6 = getbitsinrange(instruction->opcode, 10, 6);
-    unsigned int Rm = getbitsinrange(instruction->opcode, 16, 5);
-
-    disassembled = malloc(128);
-
-    sprintf(disassembled, "xar %s.2d, %s.2d, %s.2d, #%#x", ARM64_VectorRegisters[Rd], ARM64_VectorRegisters[Rn], ARM64_VectorRegisters[Rm], imm6);
-
-    return disassembled;
-}
-
-char *DisassembleCryptographicTwoRegisterSHA512Instr(struct instruction *instruction){
-    char *disassembled = NULL;
-
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int opcode = getbitsinrange(instruction->opcode, 10, 2);
-
-    disassembled = malloc(128);
-
-    if(opcode == 0)
-        sprintf(disassembled, "sha512su0 %s.2d, %s.2d", ARM64_VectorRegisters[Rd], ARM64_VectorRegisters[Rn]);
-    else if(opcode == 1)
-        sprintf(disassembled, "sm4e %s.4s, %s.4s", ARM64_VectorRegisters[Rd], ARM64_VectorRegisters[Rn]);
-    else{
-        free(disassembled);
-        return strdup(".undefined");
     }
 
-    return disassembled;
+    const char *Rd_s = GET_FP_REG(AD_RTBL_FP_V_128, Rd);
+    const char *Rn_s = GET_FP_REG(AD_RTBL_FP_V_128, Rn);
+    const char *Rm_s = GET_FP_REG(AD_RTBL_FP_V_128, Rm);
+    const char *Ra_s = GET_FP_REG(AD_RTBL_FP_V_128, Ra);
+    
+    ADD_REG_OPERAND(out, Rd, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_FP_V_128));
+    ADD_REG_OPERAND(out, Rn, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_FP_V_128));
+    ADD_REG_OPERAND(out, Rm, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_FP_V_128));
+    ADD_REG_OPERAND(out, Ra, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_FP_V_128));
+
+    concat(&DECODE_STR(out), "%s %s.%s, %s.%s, %s.%s, %s.%s", instr_s, Rd_s, T,
+            Rn_s, T, Rm_s, T, Ra_s, T);
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-char *DisassembleConversionBetweenFloatingPointAndFixedPointInstr(struct instruction *instruction){
-    char *disassembled = NULL;
+static int DisassembleXARInstr(struct instruction *i, struct ad_insn *out){
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned imm6 = bits(i->opcode, 10, 15);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
 
-    unsigned int Rd = getbitsinrange(instruction->opcode, 0, 5);
-    unsigned int Rn = getbitsinrange(instruction->opcode, 5, 5);
-    unsigned int scale = getbitsinrange(instruction->opcode, 10, 6);
-    unsigned int opcode = getbitsinrange(instruction->opcode, 16, 3);
-    unsigned int rmode = getbitsinrange(instruction->opcode, 19, 2);
-    unsigned int type = getbitsinrange(instruction->opcode, 22, 2);
-    unsigned int S = getbitsinrange(instruction->opcode, 29, 1);
-    unsigned int sf = getbitsinrange(instruction->opcode, 31, 1);
+    ADD_FIELD(out, Rm);
+    ADD_FIELD(out, imm6);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
 
-    const char *instr_tbl[] = {"fcvtzs", "fcvtzu", "scvtf", "ucvtf"};
-    if(!check_bounds(opcode, ARRAY_SIZE(instr_tbl)))
-        return strdup(".undefined");
+    const char *Rd_s = GET_FP_REG(AD_RTBL_FP_V_128, Rd);
+    const char *Rn_s = GET_FP_REG(AD_RTBL_FP_V_128, Rn);
+    const char *Rm_s = GET_FP_REG(AD_RTBL_FP_V_128, Rm);
 
-    const char *instr = instr_tbl[opcode];
+    ADD_REG_OPERAND(out, Rd, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_FP_V_128));
+    ADD_REG_OPERAND(out, Rn, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_FP_V_128));
+    ADD_REG_OPERAND(out, Rm, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_FP_V_128));
 
-    unsigned int fbits = 64 - scale;
+    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&imm6);
 
-    char *_Rd = malloc(24);
-    char *_Rn = malloc(24);
+    concat(&DECODE_STR(out), "xar %s.2d, %s.2d, %s.2d, #"S_X"", Rd_s, Rn_s,
+            Rm_s, S_A(imm6));
 
-    if(strcmp(instr, "scvtf") == 0 || strcmp(instr, "ucvtf") == 0){
-        if(type == 3)
-            sprintf(_Rd, "h%d", Rd);
-        else if(type == 0)
-            sprintf(_Rd, "s%d", Rd);
-        else if(type == 1)
-            sprintf(_Rd, "d%d", Rd);
-        else{
-            free(_Rd);
-            free(_Rn);
-            return strdup(".undefined");
-        }
+    SET_INSTR_ID(out, AD_INSTR_XAR);
 
-        if(sf == 0)
-            sprintf(_Rn, "w%d", Rn);
-        else
-            sprintf(_Rn, "x%d", Rn);
+    return 0;
+}
+
+static int DisassembleCryptographicTwoRegisterSHA512Instr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned opcode = bits(i->opcode, 10, 11);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
+
+    if(opcode > 1)
+        return 1;
+
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
+
+    const char *instr_s = NULL;
+    int instr_id = NONE;
+    const char *T = NULL;
+
+    if(opcode == 0){
+        instr_s = "sha512su0";
+        instr_id = AD_INSTR_SHA512SU0;
+
+        T = "2d";
     }
     else{
-        if(type == 3)
-            sprintf(_Rn, "h%d", Rn);
-        else if(type == 0)
-            sprintf(_Rn, "s%d", Rn);
-        else if(type == 1)
-            sprintf(_Rn, "d%d", Rn);
-        else{
-            free(_Rd);
-            free(_Rn);
-            return strdup(".undefined");
-        }
+        instr_s = "sm4e";
+        instr_id = AD_INSTR_SM4E;
 
-        if(sf == 0)
-            sprintf(_Rd, "w%d", Rd);
-        else
-            sprintf(_Rd, "x%d", Rd);
+        T = "4s";
     }
 
-    disassembled = malloc(128);
+    const char *Rd_s = GET_FP_REG(AD_RTBL_FP_V_128, Rd);
+    const char *Rn_s = GET_FP_REG(AD_RTBL_FP_V_128, Rn);
 
-    sprintf(disassembled, "%s %s, %s, #%#x", instr, _Rd, _Rn, fbits);
+    ADD_REG_OPERAND(out, Rd, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_FP_V_128));
+    ADD_REG_OPERAND(out, Rn, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(NONE), _RTBL(AD_RTBL_FP_V_128));
 
-    return disassembled;
+    concat(&DECODE_STR(out), "%s %s.%s, %s.%s", instr_s, Rd_s, T, Rn_s, T);
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
+static int DisassembleConversionBetweenFloatingAndFixedPointInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned sf = bits(i->opcode, 31, 31);
+    unsigned S = bits(i->opcode, 29, 29);
+    unsigned ptype = bits(i->opcode, 22, 23);
+    unsigned rmode = bits(i->opcode, 19, 20);
+    unsigned opcode = bits(i->opcode, 16, 18);
+    unsigned scale = bits(i->opcode, 10, 15);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rd = bits(i->opcode, 0, 4);
+
+    if(opcode > 3)
+        return 1;
+
+    ADD_FIELD(out, sf);
+    ADD_FIELD(out, S);
+    ADD_FIELD(out, ptype);
+    ADD_FIELD(out, rmode);
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, scale);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rd);
+
+    const char *instr_s = NULL;
+    int instr_id = NONE;
+
+    if(opcode == 0){
+        instr_s = "fcvtzs";
+        instr_id = AD_INSTR_FCVTZS;
+    }
+    else if(opcode == 1){
+        instr_s = "fcvtzu";
+        instr_id = AD_INSTR_FCVTZU;
+    }
+    else if(opcode == 2){
+        instr_s = "scvtf";
+        instr_id = AD_INSTR_SCVTF;
+    }
+    else if(opcode == 3){
+        instr_s = "ucvtf";
+        instr_id = AD_INSTR_UCVTF;
+    }
+
+    const char **Rd_Rtbl = NULL;
+    const char **Rn_Rtbl = NULL;
+
+    unsigned Rd_sz = 0;
+    unsigned Rn_sz = 0;
+
+    unsigned ftype = ptype;
+
+    if(ftype == 2)
+        return 1;
+
+    if(instr_id == AD_INSTR_FCVTZS || instr_id == AD_INSTR_FCVTZU){
+        Rd_Rtbl = sf == 0 ? AD_RTBL_GEN_32 : AD_RTBL_GEN_64;
+        Rd_sz = sf == 0 ? _32_BIT : _64_BIT;
+
+        if(ftype == 0){
+            Rn_Rtbl = AD_RTBL_FP_32;
+            Rn_sz = _32_BIT;
+        }
+        else if(ftype == 1){
+            Rn_Rtbl = AD_RTBL_FP_64;
+            Rn_sz = _64_BIT;
+        }
+        else{
+            Rn_Rtbl = AD_RTBL_FP_16;
+            Rn_sz = _16_BIT;
+        }
+    }
+    else{
+        Rn_Rtbl = sf == 0 ? AD_RTBL_GEN_32 : AD_RTBL_GEN_64;
+        Rn_sz = sf == 0 ? _32_BIT : _64_BIT;
+
+        if(ftype == 0){
+            Rd_Rtbl = AD_RTBL_FP_32;
+            Rd_sz = _32_BIT;
+        }
+        else if(ftype == 1){
+            Rd_Rtbl = AD_RTBL_FP_64;
+            Rd_sz = _64_BIT;
+        }
+        else{
+            Rd_Rtbl = AD_RTBL_FP_16;
+            Rd_sz = _16_BIT;
+        }
+    }
+
+    if(!Rd_Rtbl || !Rn_Rtbl)
+        return 1;
+
+    const char *Rd_s = NULL;
+    const char *Rn_s = NULL;
+
+    if(instr_id == AD_INSTR_FCVTZS || instr_id == AD_INSTR_FCVTZU){
+        Rd_s = GET_GEN_REG(Rd_Rtbl, Rd, PREFER_ZR);
+        Rn_s = GET_FP_REG(Rn_Rtbl, Rn);
+    }
+    else{
+        Rd_s = GET_FP_REG(Rd_Rtbl, Rd);
+        Rn_s = GET_GEN_REG(Rn_Rtbl, Rn, PREFER_ZR);
+    }
+
+    ADD_REG_OPERAND(out, Rd, Rd_sz, PREFER_ZR, _SYSREG(NONE), Rd_Rtbl);
+    ADD_REG_OPERAND(out, Rn, Rn_sz, PREFER_ZR, _SYSREG(NONE), Rn_Rtbl);
+
+    unsigned fbits = 64 - scale;
+
+    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&fbits);
+
+    concat(&DECODE_STR(out), "%s %s, %s, #%#x", instr_s, Rd_s, Rn_s, fbits);
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
+}
+
+/*
 char *DisassembleConversionBetweenFloatingPointAndIntegerInstr(struct instruction *instruction){
     char *disassembled = NULL;
 
@@ -4958,6 +5120,18 @@ int DataProcessingFloatingPointDisassemble(struct instruction *i,
         result = DisassembleAdvancedSIMDExtractInstr(i, out);
     else if((op0 & ~6) == 0 && (op1 & ~1) == 0 && (op2 & ~8) == 6 && (op3 & ~0x7c) == 2)
         result = DisassembleAdvancedSIMDAcrossLanesInstr(i, out);
+    else if(op0 == 12 && op1 == 0 && (op2 & ~3) == 8 && (op3 & ~0x1cf) == 0x20)
+        result = DisassembleCryptographicThreeRegisterImm2Instr(i, out);
+    else if(op0 == 12 && op1 == 0 && (op2 & ~3) == 12 && (op3 & ~0x1d3) == 0x20)
+        result = DisassembleCryptographicThreeRegisterSHA512Instr(i, out);
+    else if(op0 == 12 && op1 == 0 && (op3 & ~0x1df) == 0)
+        result = DisassembleCryptographicFourRegisterInstr(i, out);
+    else if(op0 == 12 && op1 == 1 && (op2 & ~3) == 0)
+        result = DisassembleXARInstr(i, out);
+    else if(op0 == 12 && op1 == 1 && op2 == 8 && (op3 & ~3) == 0x20)
+        result = DisassembleCryptographicTwoRegisterSHA512Instr(i, out);
+    else if((op0 & ~10) == 1 && (op1 & ~1) == 0 && (op2 & ~11) == 0)
+        result = DisassembleConversionBetweenFloatingAndFixedPointInstr(i, out);
     else
         result = 1;
 
