@@ -1,3 +1,4 @@
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -75,27 +76,24 @@ int DecodeBitMasks(unsigned int N, unsigned int imms, unsigned int immr,
     unsigned int R = immr & levels;
     unsigned int esize = 1 << len;
 
-    *out = Replicate(RORZeroExtendOnes(S + 1, esize, R), esize);
+    *out = replicate(RORZeroExtendOnes(S + 1, esize, R), sizeof(unsigned long) * CHAR_BIT, esize);
 
     return 0;
 }
 
-/* Thanks https://github.com/xerub/macho/blob/master/patchfinder64.c */
-unsigned long Replicate(unsigned long val, unsigned int bits){
-    unsigned long ret = val;
-
-    for(unsigned int shift = bits; shift < 32; shift += bits)
-        ret |= (val << shift);
-
-    return ret;
-}
-
-unsigned long _Replicate(unsigned int num, int num_bits, int num_times){
+/*
+ * num: the number to replicate
+ * nbits: how many bits make up this number
+ * cnt: how many times to replicate
+ */
+unsigned long replicate(unsigned long num, int nbits, int cnt){
     unsigned long result = 0;
-    for(int i=0; i<num_times; i++){
-        result <<= num_bits;
+
+    for(int i=0; i<cnt; i++){
+        result <<= nbits;
         result |= num;
     }
+
     return result;
 }
 

@@ -1280,7 +1280,7 @@ static const char *AD_IMM_TYPE_TABLE[] = {
 };
 
 static const char *AD_GROUP_TABLE[] = {
-    "AD_G_DataProcessingImmediate", "AD_G_BranchExcSys", "AD_G_LoadsAndStores",
+    "AD_G_Reserved", "AD_G_DataProcessingImmediate", "AD_G_BranchExcSys", "AD_G_LoadsAndStores",
     "AD_G_DataProcessingRegister", "AD_G_DataProcessingFloatingPoint"
 };
 
@@ -1351,7 +1351,7 @@ static void disp_operand(struct ad_operand operand){
     printf("\t\tThis operand is of type %s\n", AD_TYPE_TABLE[operand.type]);
 
     if(operand.type == AD_OP_REG){
-        if(operand.op_reg.sysreg != NONE){
+        if(operand.op_reg.sysreg != AD_NONE){
             printf("\t\t\tSystem register: %s\n",
                     AD_GET_SYSREG_STRING(operand.op_reg.sysreg));
         }
@@ -1414,7 +1414,7 @@ static void disp_operand(struct ad_operand operand){
 static void disp_insn(struct ad_insn *insn){
     printf("Disassembled: %s\n", insn->decoded);
 
-    if(insn->group == NONE)
+    if(insn->group == AD_NONE)
         return;
 
     printf("\tThis instruction is %s and is part of group %s\n",
@@ -1432,7 +1432,7 @@ static void disp_insn(struct ad_insn *insn){
     for(int i=0; i<insn->num_operands; i++)
         disp_operand(insn->operands[i]);
 
-    if(insn->cc != NONE){
+    if(insn->cc != AD_NONE){
         char *cc = decode_cond(insn->cc);
         printf("\tCode condition: %s\n", cc);
         free(cc);
@@ -1891,19 +1891,37 @@ int main(int argc, char **argv, const char **envp){
     addinstr("xpaci x9", 0xdac143e9, 0);
     addinstr("autdza x22", 0xdac13bf6, 0);
     */
-    /*
-    addinstr("and w2, w3, w1", 0x0A010062, 0);
-    addinstr("bic x3, x13, x1, lsr #5", 0x8A6115A3, 0);
-    addinstr("orr x3, x2, x1, ror #4", 0xAAC11043, 0);
-    addinstr("orr x15, xzr, x3", 0xAA0303EF, 0);
-    addinstr("orn w13, wzr, w4", 0x2A2403ED, 0);
-    addinstr("eor x4, x2, x9", 0xCA090044, 0);
-    addinstr("eon w4, w5, w6, asr #2", 0x4AA608A4, 0);
-    addinstr("ands x4, x1, x2", 0xEA020024, 0);
-    addinstr("ands wzr, w13, w21", 0x6A1501BF, 0);
-    addinstr("bics x15, x13, x9", 0xEA2901AF, 0);
-    addinstr("orn x2, xzr, x14, asr #43", 0xAAAEAFE2, 0);
-    */
+    /* addinstr("and w2, w3, w1", 0x0A010062, 0); */
+    /* addinstr("bic x3, x13, x1, lsr #5", 0x8A6115A3, 0); */
+    /* addinstr("orr x3, x2, x1, ror #4", 0xAAC11043, 0); */
+    /* addinstr("orr x15, xzr, x3", 0xAA0303EF, 0); */
+    /* addinstr("orn w13, wzr, w4", 0x2A2403ED, 0); */
+    /* addinstr("eor x4, x2, x9", 0xCA090044, 0); */
+    /* addinstr("eon w4, w5, w6, asr #2", 0x4AA608A4, 0); */
+    /* addinstr("ands x4, x1, x2", 0xEA020024, 0); */
+    /* addinstr("ands wzr, w13, w21", 0x6A1501BF, 0); */
+    /* addinstr("bics x15, x13, x9", 0xEA2901AF, 0); */
+    /* addinstr("orn x2, xzr, x14, asr #43", 0xAAAEAFE2, 0); */
+    /* addinstr("and x0, x2, #4", 0x927E0040, 0); */
+    /* addinstr("and x6, x18, #-16", 0x927CEE46, 0); */
+    /* addinstr("and x25, x22, #8388608", 0x926902D9, 0); */
+    /* addinstr("and x25, x22, #-4194304", 0x926AA6D9, 0); */
+    /* addinstr("and w8, w14, #1", 0x120001C8, 0); */
+    /* addinstr("and w18, w1, #-16", 0x121C6C32, 0); */
+
+    /* addinstr("orr x9, x3, #30", 0xB27F0C69, 0); */
+    /* addinstr("orr w20, w0, #-16", 0x321C6C14, 0); */
+    /* addinstr("orr w16, w4, #-0x800000", 0x32092090, 0); */
+    /* addinstr("orr w4, w31, #0x80000003", 0x32010BE1, 0); */
+    /* addinstr("orr x8, xzr, xzr", 0xAA1F03E8, 0); */
+
+
+
+    /* addinstr("eor wsp, w3, #0x80000003", 0x5201087F, 0); */
+    /* addinstr("eor x6, x3, #0xffff", 0xD2403C66, 0); */
+    /* addinstr("eor x24, x8, #-0x400000", 0xD26AA518, 0); */
+    /* addinstr("ands x0, x1, #0x6", 0xF27F0420, 0); */
+    /* addinstr("ands w5, w4, #-0x4", 0x721E7485, 0); */
 
     /*
     addinstr("add x4, x2, x1", 0x8B010044, 0);
@@ -2477,23 +2495,26 @@ int main(int argc, char **argv, const char **envp){
     /* addinstr("fmov	d9, #-0.29687500", 0x1e7a7009, 0); */
     /* addinstr("fmov	s9, #0.96875000", 0x1e2df009, 0); */
 
-    /* addinstr("fccmpe d5, d6, 0x4, ne", 0x1e6614b4, 0); */
-    /* addinstr("fccmp s0, s1, 0x0, le", 0x1e21d400, 0); */
-    /* addinstr("fccmp	h5, h10, #0x4, hi", 0x1eea84a4, 0); */
+    addinstr("fccmpe d5, d6, 0x4, ne", 0x1e6614b4, 0);
+    addinstr("fccmp s0, s1, 0x0, le", 0x1e21d400, 0);
+    addinstr("fccmp	h5, h10, #0x4, hi", 0x1eea84a4, 0);
 
-    /* addinstr("fmul s5, s3, s2", 0x1E220865, 0); */
-    /* addinstr("fminnm d5, d4, d3", 0x1e637885, 0); */
-    /* addinstr("fsub s9, s4, s14", 0x1e2e3889, 0); */
-    /* addinstr("fmax	h4, h2, h11", 0x1eeb4844, 0); */
-    /* addinstr("fnmul	h9, h4, h5", 0x1ee58889, 0); */
+    addinstr("fmul s5, s3, s2", 0x1E220865, 0);
+    addinstr("fminnm d5, d4, d3", 0x1e637885, 0);
+    addinstr("fsub s9, s4, s14", 0x1e2e3889, 0);
+    addinstr("fmax	h4, h2, h11", 0x1eeb4844, 0);
+    addinstr("fnmul	h9, h4, h5", 0x1ee58889, 0);
 
-    /* addinstr("fcsel d5, d14, d3, ne", 0x1e631dc5, 0); */
-    /* addinstr("fcsel	h11, h10, h9, al", 0x1ee9ed4b, 0); */
+    addinstr("fcsel d5, d14, d3, ne", 0x1e631dc5, 0);
+    addinstr("fcsel	h11, h10, h9, al", 0x1ee9ed4b, 0);
 
     addinstr("fmsub d4, d23, d9, d2", 0x1f498ae4, 0);
     addinstr("fnmsub	h4, h5, h6, h22", 0x1fe6d8a4, 0);
     addinstr("fmadd	s1, s0, s2, s3", 0x1f020c01, 0);
 
+    //addinstr("udf	#0x2b", 0x0000002b, 0);
+
+    addinstr("bad", 0x41414141, 0);
 
 
 
@@ -2506,10 +2527,13 @@ int main(int argc, char **argv, const char **envp){
 
         struct ad_insn *insn = NULL;
 
-        if(ArmadilloDisassembleNew(ti->opcode, ti->PC, &insn))
-            printf("Error during disassembly\n");
-        else
-            disp_insn(insn);
+
+        ArmadilloDisassembleNew(ti->opcode, ti->PC, &insn);
+        disp_insn(insn);
+        /* if(ArmadilloDisassembleNew(ti->opcode, ti->PC, &insn)) */
+        /*     printf("Error during disassembly\n"); */
+        /* else */
+        /*     disp_insn(insn); */
 
         printf("\n");
 

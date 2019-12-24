@@ -15,7 +15,6 @@ struct itab {
 #define S_A(x) ((int)x) < 0 ? "-" : "", ((int)x) < 0 ? -((int)x) : ((int)x)
 #define S_LA(x) ((long)x) < 0 ? "-" : "", ((long)x) < 0 ? -((long)x) : ((long)x)
 
-#define NONE (-1)
 #define _128_BIT (128)
 #define _64_BIT (64)
 #define _32_BIT (32)
@@ -101,7 +100,7 @@ struct itab {
         i->operands[i->num_operands - 1].op_mem.off = off_; \
     } while (0)
 
-#define DECODE_STR(x) (x->decoded)
+#define DECODE_STR(x) ((x)->decoded)
 
 #define SET_INSTR_ID(i, id_) \
     do { \

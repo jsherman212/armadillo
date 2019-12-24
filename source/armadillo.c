@@ -15,21 +15,35 @@
 #include "DataProcessingRegister.h"
 #include "LoadsAndStores.h"
 
-unsigned long getbitsinrange(unsigned int number, int start, int amount){
-    unsigned int mask = ((1 << amount) - 1) << start;
-    return (number & mask) >> start;
-}
-
 static int _ArmadilloDisassembleNew(struct instruction *i,
         struct ad_insn **_out){
     struct ad_insn *out = *_out;
 
     unsigned op0 = bits(i->opcode, 25, 28);
 
-//    printf("%s: op0 %d op0>>1 %d\n", __func__, op0, op0>>1);
+    if(op0 == 0){
+        out->group = AD_G_Reserved;
 
-    if(op0 <= 3){
-        concat(&DECODE_STR(out), ".long #%#x (op0<=3)", i->opcode);
+        unsigned op1 = bits(i->opcode, 16, 24);
+
+        if(op1 != 0)
+            return 1;
+
+        unsigned imm16 = bits(i->opcode, 0, 15);
+
+        ADD_FIELD(out, op0);
+        ADD_FIELD(out, op1);
+        ADD_FIELD(out, imm16);
+
+        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&imm16);
+
+        concat(&DECODE_STR(out), "udf #%#x", imm16);
+
+        SET_INSTR_ID(out, AD_INSTR_UDF);
+
+        return 0;
+    }
+    else if(op0 > 0 && op0 <= 3){
         return 0;
     }
     else if((op0 >> 1) == 4){
@@ -53,7 +67,6 @@ static int _ArmadilloDisassembleNew(struct instruction *i,
         return DataProcessingFloatingPointDisassemble(i, out);
     }
     else{
-        concat(&DECODE_STR(out), ".long #%#x (else)", i->opcode);
         return 0;
     }
 
@@ -62,16 +75,15 @@ static int _ArmadilloDisassembleNew(struct instruction *i,
 
 int ArmadilloDisassembleNew(unsigned int opcode, unsigned long PC,
         struct ad_insn **out){
-    // XXX *out must be NULL
     if(!out || (out && *out))
-        return AD_ERR;
+        return 1;
 
     *out = malloc(sizeof(struct ad_insn));
 
     (*out)->decoded = NULL;
 
-    (*out)->group = NONE;
-    (*out)->instr_id = NONE;
+    (*out)->group = AD_NONE;
+    (*out)->instr_id = AD_NONE;
 
     (*out)->fields = NULL;
     (*out)->num_fields = 0;
@@ -79,11 +91,17 @@ int ArmadilloDisassembleNew(unsigned int opcode, unsigned long PC,
     (*out)->operands = NULL;
     (*out)->num_operands = 0;
 
-    (*out)->cc = NONE;
+    (*out)->cc = AD_NONE;
 
     struct instruction *i = instruction_new(opcode, PC);
 
     int result = _ArmadilloDisassembleNew(i, out);
+
+    if(result){
+        free(DECODE_STR(*out));
+        DECODE_STR(*out) = NULL;
+        concat(&DECODE_STR(*out), ".long %#x", i->opcode);
+    }
 
     free(i);
 
@@ -92,10 +110,17 @@ int ArmadilloDisassembleNew(unsigned int opcode, unsigned long PC,
 
 int ArmadilloDone(struct ad_insn **_insn){
     if(!_insn)
-        return AD_ERR;
+        return 1;
 
-    // XXX todo as I go along
+    struct ad_insn *insn = *_insn;
 
+    free(insn->decoded);
+    free(insn->fields);
+    free(insn->operands);
 
-    return AD_OK;
+    free(insn);
+
+    *_insn = NULL;
+
+    return 0;
 }

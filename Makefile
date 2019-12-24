@@ -1,5 +1,5 @@
 CC=clang
-CFLAGS=-fsanitize=address -g
+CFLAGS=-g
 SRCDIR=source
 
 SOURCE_FILES = $(SRCDIR)/armadillo.c \
