@@ -2435,6 +2435,66 @@ int main(int argc, char **argv, const char **envp){
     /* addinstr("fjcvtzs w10, d4", 0x1e7e008a, 0); */
     /* addinstr("fcvtzu x19, h6", 0x9ef900d3, 0); */
 
+    /* addinstr("fsqrt s4, s5", 0x1e21c0a4, 0); */
+    /* addinstr("fabs d10, d0", 0x1e60c00a, 0); */
+    /* addinstr("fcvt h9, s2", 0x1e23c049, 0); */
+    /* addinstr("frintp d5, d4", 0x1e64c085, 0); */
+    /* addinstr("fcvt s10, h3", 0x1ee2406a, 0); */
+    /* addinstr("frinti h9, h8", 0x1ee7c109, 0); */
+    /* addinstr("fcvt	s0, h0", 0x1ee24000, 0); */
+    /* addinstr("fcvt	d0, h0", 0x1ee2c000, 0); */
+    /* addinstr("fcvt	h0, s0", 0x1e23c000, 0); */
+    /* addinstr("fcvt	d0, s0", 0x1e22c000, 0); */
+    /* addinstr("fcvt	h0, d0", 0x1e63c000, 0); */
+    /* addinstr("fcvt	s0, d0", 0x1e624000, 0); */
+    /* addinstr("frinti	s0, s0", 0x1e27c000, 0); */
+    /* addinstr("frinti	d0, d0", 0x1e67c000, 0); */
+    /* addinstr("frinti	h0, h0", 0x1ee7c000, 0); */
+
+    /* addinstr("fcmp h9, h1", 0x1ee12120, 0); */
+    /* addinstr("fcmp s5, 0.0", 0x1e2020a8, 0); */
+    /* addinstr("fcmp d10, d2", 0x1e622140, 0); */
+    /* addinstr("fcmpe s10, s9", 0x1e292150, 0); */
+    /* addinstr("fcmpe d0, 0.0", 0x1e602018, 0); */
+    /* addinstr("fcmpe h6, 0.0", 0x1ee020d8, 0); */
+    /* addinstr("fcmpe	h0, h1", 0x1ee12010, 0); */
+    /* addinstr("fcmp	h0, h2", 0x1ee22000, 0); */
+    /* addinstr("fcmp	s10, #0.0", 0x1e202148, 0); */
+
+    /* addinstr("fmov s0, #5.0", 0x1E229000, 0); */
+    /* addinstr("fmov s4, #-1.0", 0x1E3E1004, 0); */
+    /* addinstr("fmov s20, #0.5", 0x1E2C1014, 0); */
+    /* addinstr("fmov s7, #-0.5", 0x1E3C1007, 0); */
+    /* addinstr("fmov s18, #31.0", 0x1E27F012, 0); */
+    /* addinstr("fmov s12, #-26.0", 0x1E37500C, 0); */
+    /* addinstr("fmov h4, #5.0", 0x1ee29004, 0); */
+    /* addinstr("fmov h20, #14.0", 0x1ee59014, 0); */
+    /* addinstr("fmov h6, #-9.0", 0x1ef45006, 0); */
+    /* addinstr("fmov d4, #25.0", 0x1E673004, 0); */
+    /* addinstr("fmov d10, #-9.0", 0x1E74500A, 0); */
+    /* addinstr("fmov d10, #31.0", 0x1E67F00A, 0); */
+    /* addinstr("fmov d7, #-19.0", 0x1E767007, 0); */
+    /* addinstr("fmov	d9, #-0.29687500", 0x1e7a7009, 0); */
+    /* addinstr("fmov	s9, #0.96875000", 0x1e2df009, 0); */
+
+    /* addinstr("fccmpe d5, d6, 0x4, ne", 0x1e6614b4, 0); */
+    /* addinstr("fccmp s0, s1, 0x0, le", 0x1e21d400, 0); */
+    /* addinstr("fccmp	h5, h10, #0x4, hi", 0x1eea84a4, 0); */
+
+    /* addinstr("fmul s5, s3, s2", 0x1E220865, 0); */
+    /* addinstr("fminnm d5, d4, d3", 0x1e637885, 0); */
+    /* addinstr("fsub s9, s4, s14", 0x1e2e3889, 0); */
+    /* addinstr("fmax	h4, h2, h11", 0x1eeb4844, 0); */
+    /* addinstr("fnmul	h9, h4, h5", 0x1ee58889, 0); */
+
+    /* addinstr("fcsel d5, d14, d3, ne", 0x1e631dc5, 0); */
+    /* addinstr("fcsel	h11, h10, h9, al", 0x1ee9ed4b, 0); */
+
+    addinstr("fmsub d4, d23, d9, d2", 0x1f498ae4, 0);
+    addinstr("fnmsub	h4, h5, h6, h22", 0x1fe6d8a4, 0);
+    addinstr("fmadd	s1, s0, s2, s3", 0x1f020c01, 0);
+
+
 
 
     for(struct node *current = instructions->front;
