@@ -2495,28 +2495,33 @@ int main(int argc, char **argv, const char **envp){
     /* addinstr("fmov	d9, #-0.29687500", 0x1e7a7009, 0); */
     /* addinstr("fmov	s9, #0.96875000", 0x1e2df009, 0); */
 
-    addinstr("fccmpe d5, d6, 0x4, ne", 0x1e6614b4, 0);
-    addinstr("fccmp s0, s1, 0x0, le", 0x1e21d400, 0);
-    addinstr("fccmp	h5, h10, #0x4, hi", 0x1eea84a4, 0);
+    /* addinstr("fccmpe d5, d6, 0x4, ne", 0x1e6614b4, 0); */
+    /* addinstr("fccmp s0, s1, 0x0, le", 0x1e21d400, 0); */
+    /* addinstr("fccmp	h5, h10, #0x4, hi", 0x1eea84a4, 0); */
 
-    addinstr("fmul s5, s3, s2", 0x1E220865, 0);
-    addinstr("fminnm d5, d4, d3", 0x1e637885, 0);
-    addinstr("fsub s9, s4, s14", 0x1e2e3889, 0);
-    addinstr("fmax	h4, h2, h11", 0x1eeb4844, 0);
-    addinstr("fnmul	h9, h4, h5", 0x1ee58889, 0);
+    /* addinstr("fmul s5, s3, s2", 0x1E220865, 0); */
+    /* addinstr("fminnm d5, d4, d3", 0x1e637885, 0); */
+    /* addinstr("fsub s9, s4, s14", 0x1e2e3889, 0); */
+    /* addinstr("fmax	h4, h2, h11", 0x1eeb4844, 0); */
+    /* addinstr("fnmul	h9, h4, h5", 0x1ee58889, 0); */
 
-    addinstr("fcsel d5, d14, d3, ne", 0x1e631dc5, 0);
-    addinstr("fcsel	h11, h10, h9, al", 0x1ee9ed4b, 0);
+    /* addinstr("fcsel d5, d14, d3, ne", 0x1e631dc5, 0); */
+    /* addinstr("fcsel	h11, h10, h9, al", 0x1ee9ed4b, 0); */
 
-    addinstr("fmsub d4, d23, d9, d2", 0x1f498ae4, 0);
-    addinstr("fnmsub	h4, h5, h6, h22", 0x1fe6d8a4, 0);
-    addinstr("fmadd	s1, s0, s2, s3", 0x1f020c01, 0);
+    /* addinstr("fmsub d4, d23, d9, d2", 0x1f498ae4, 0); */
+    /* addinstr("fnmsub	h4, h5, h6, h22", 0x1fe6d8a4, 0); */
+    /* addinstr("fmadd	s1, s0, s2, s3", 0x1f020c01, 0); */
 
-    //addinstr("udf	#0x2b", 0x0000002b, 0);
+    /* //addinstr("udf	#0x2b", 0x0000002b, 0); */
 
-    addinstr("bad", 0x41414141, 0);
+    /* addinstr("bad", 0x41414141, 0); */
 
-
+    addinstr("crash", 0x7f569f55, 0);
+    addinstr("crash", 0xf8dd7894, 0);
+    addinstr("crash", 0xd80f15fb, 0);
+    addinstr("crash", 0xd50040df, 0);
+    addinstr("crash", 0xd50321ff, 0);
+    addinstr("crash", 0xfca00800, 0);
 
     for(struct node *current = instructions->front;
             current;
@@ -2528,7 +2533,7 @@ int main(int argc, char **argv, const char **envp){
         struct ad_insn *insn = NULL;
 
 
-        ArmadilloDisassembleNew(ti->opcode, ti->PC, &insn);
+        ArmadilloDisassemble(ti->opcode, ti->PC, &insn);
         disp_insn(insn);
         /* if(ArmadilloDisassembleNew(ti->opcode, ti->PC, &insn)) */
         /*     printf("Error during disassembly\n"); */

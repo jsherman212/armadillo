@@ -988,8 +988,12 @@ static int DisassembleLoadAndStoreLiteralInstr(struct instruction *i,
 
         ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&Rt);
 
-        concat(&DECODE_STR(out), "%s %s%s%s, #"S_LX"", instr_s, types[type],
-                targets[target], policies[policy], S_LA(imm));
+        if(OOB(type, types) || OOB(target, targets) || OOB(policy, policies))
+            concat(&DECODE_STR(out), "%s #%#x, #"S_LX"", instr_s, Rt, S_LA(imm));
+        else{
+            concat(&DECODE_STR(out), "%s %s%s%s, #"S_LX"", instr_s, types[type],
+                    targets[target], policies[policy], S_LA(imm));
+        }
     }
     else{
         const char *Rt_s = NULL;
@@ -1208,15 +1212,30 @@ static int DisassembleLoadAndStoreRegisterInstr(struct instruction *i,
     ADD_REG_OPERAND(out, Rt, sz, PREFER_ZR, _SYSREG(AD_NONE), registers);
 
     unsigned instr_idx = (size << 3) | (V << 2) | opc;
-    struct itab *instr_tab = unscaled_instr_tbl;
+    struct itab *instr_tab = NULL;
 
     if(kind == UNSIGNED_IMMEDIATE || kind == IMMEDIATE_POST_INDEXED ||
             kind == IMMEDIATE_PRE_INDEXED){
+        if(OOB(instr_idx, pre_post_unsigned_register_idx_instr_tbl))
+            return 1;
+
         instr_tab = pre_post_unsigned_register_idx_instr_tbl;
     }
     else if(kind == UNPRIVILEGED){
+        if(OOB(instr_idx, unprivileged_instr_tbl))
+            return 1;
+
         instr_tab = unprivileged_instr_tbl;
     }
+    else if(kind == UNSCALED_IMMEDIATE){
+        if(OOB(instr_idx, unscaled_instr_tbl))
+            return 1;
+
+        instr_tab = unscaled_instr_tbl;
+    }
+
+    if(!instr_tab)
+        return 1;
 
     const char *instr_s = instr_tab[instr_idx].instr_s;
     instr_id = instr_tab[instr_idx].instr_id;
@@ -1240,8 +1259,12 @@ static int DisassembleLoadAndStoreRegisterInstr(struct instruction *i,
 
         ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imm9);
 
-        concat(&DECODE_STR(out), "%s%s%s, ", types[type], targets[target],
-                policies[policy]);
+        if(OOB(type, types) || OOB(target, targets) || OOB(policy, policies))
+            concat(&DECODE_STR(out), "#%#x, ", Rt);
+        else{
+            concat(&DECODE_STR(out), "%s%s%s, ", types[type], targets[target],
+                    policies[policy]);
+        }
     }
     else{
         concat(&DECODE_STR(out), "%s, [%s", Rt_s, Rn_s);
@@ -2480,6 +2503,10 @@ static int DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *i,
     }
 
     unsigned instr_idx = (size << 3) | (V << 2) |  opc;
+
+    if(OOB(instr_idx, pre_post_unsigned_register_idx_instr_tbl))
+        return 1;
+
     struct itab instr = pre_post_unsigned_register_idx_instr_tbl[instr_idx];
 
     instr_id = instr.instr_id;
@@ -2505,8 +2532,14 @@ static int DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *i,
         const char *targets[] = { "L1", "L2", "L3" };
         const char *policies[] = { "KEEP", "STRM" };
 
-        concat(&DECODE_STR(out), "%s %s%s%s, [%s, %s", instr.instr_s, types[type],
-                targets[target], policies[policy], Rn_s, Rm_s);
+        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&Rt);
+
+        if(OOB(type, types) || OOB(target, targets) || OOB(policy, policies))
+            concat(&DECODE_STR(out), "%s #%#x, [%s, %s", instr.instr_s, Rt, Rn_s, Rm_s);
+        else{
+            concat(&DECODE_STR(out), "%s %s%s%s, [%s, %s", instr.instr_s, types[type],
+                    targets[target], policies[policy], Rn_s, Rm_s);
+        }
 
         if(option == 3 && !S)
             concat(&DECODE_STR(out), "]");

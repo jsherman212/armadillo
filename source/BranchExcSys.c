@@ -150,17 +150,6 @@ static int DisassembleHintInstr(struct instruction *i, struct ad_insn *out){
         { "autibsp", AD_INSTR_AUTIBSP }
     };
 
-    struct itab *tab = NULL;
-
-    if(CRm == 0)
-        tab = first;
-    else if(CRm == 1)
-        tab = second;
-    else if(CRm == 2)
-        tab = third;
-    else if(CRm == 3)
-        tab = fourth;
-    
     if(CRm == 6 && (op2 << 2) == 0){
         instr_id = AD_INSTR_BTI;
 
@@ -171,12 +160,44 @@ static int DisassembleHintInstr(struct instruction *i, struct ad_insn *out){
         concat(&DECODE_STR(out), "bti%s", tbl[indirection]);
     }
     else{
+        struct itab *tab = NULL;
+
+        if(CRm == 0){
+            if(OOB(op2, first))
+                return 1;
+
+            tab = first;
+        }
+        else if(CRm == 1){
+            if(OOB(op2, second))
+                return 1;
+
+            tab = second;
+        }
+        else if(CRm == 2){
+            if(OOB(op2, third))
+                return 1;
+
+            tab = third;
+        }
+        else if(CRm == 3){
+            if(OOB(op2, fourth))
+                return 1;
+
+            tab = fourth;
+        }
+
         if(!tab)
+            return 1;
+
+        const char *instr_s = tab[op2].instr_s;
+
+        if(!instr_s)
             return 1;
 
         instr_id = tab[op2].instr_id;
 
-        concat(&DECODE_STR(out), "%s", tab[op2].instr_s);
+        concat(&DECODE_STR(out), "%s", instr_s);
     }
 
     SET_INSTR_ID(out, instr_id);
@@ -298,6 +319,9 @@ static int DisassemblePSTATEInstr(struct instruction *i, struct ad_insn *out){
             { "axflag", AD_INSTR_AXFLAG }
         };
 
+        if(OOB(op2, tab))
+            return 1;
+
         instr_id = tab[op2].instr_id;
 
         concat(&DECODE_STR(out), "%s", tab[op2].instr_s);
@@ -314,12 +338,18 @@ static int DisassemblePSTATEInstr(struct instruction *i, struct ad_insn *out){
         if(op1 == 0){
             const char *ptbl[] = { NULL, NULL, NULL, "UAO", "PAN", "SPSel" };
 
+            if(OOB(op2, ptbl))
+                return 1;
+
             concat(&DECODE_STR(out), "msr %s", ptbl[op2]);
         }
         else{
             const char *ptbl[] = { NULL, "SSBS", "DIT", NULL, "TCO", NULL,
                 "DAIFSet", "DAIFClr"
             };
+
+            if(OOB(op2, ptbl))
+                return 1;
 
             concat(&DECODE_STR(out), "msr %s", ptbl[op2]);
         }

@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include "adefs.h"
 #include "bits.h"
@@ -15,7 +14,7 @@
 #include "DataProcessingRegister.h"
 #include "LoadsAndStores.h"
 
-static int _ArmadilloDisassembleNew(struct instruction *i,
+static int _ArmadilloDisassemble(struct instruction *i,
         struct ad_insn **_out){
     struct ad_insn *out = *_out;
 
@@ -44,7 +43,7 @@ static int _ArmadilloDisassembleNew(struct instruction *i,
         return 0;
     }
     else if(op0 > 0 && op0 <= 3){
-        return 0;
+        return 1;
     }
     else if((op0 >> 1) == 4){
         out->group = AD_G_DataProcessingImmediate;
@@ -66,14 +65,11 @@ static int _ArmadilloDisassembleNew(struct instruction *i,
         out->group = AD_G_DataProcessingFloatingPoint;
         return DataProcessingFloatingPointDisassemble(i, out);
     }
-    else{
-        return 0;
-    }
 
     return 0;
 }
 
-int ArmadilloDisassembleNew(unsigned int opcode, unsigned long PC,
+int ArmadilloDisassemble(unsigned int opcode, unsigned long PC,
         struct ad_insn **out){
     if(!out || (out && *out))
         return 1;
@@ -95,7 +91,7 @@ int ArmadilloDisassembleNew(unsigned int opcode, unsigned long PC,
 
     struct instruction *i = instruction_new(opcode, PC);
 
-    int result = _ArmadilloDisassembleNew(i, out);
+    int result = _ArmadilloDisassemble(i, out);
 
     if(result){
         free(DECODE_STR(*out));

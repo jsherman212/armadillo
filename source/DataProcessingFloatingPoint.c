@@ -3115,6 +3115,11 @@ static int DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *i,
 
             shift = (2 * (8 << hsb)) - ((immh << 3) | immb);
 
+            if(OOB(hsb, rtbls) || OOB(hsb, sizes) || OOB(hsb + 1, rtbls) ||
+                    OOB(hsb + 1, sizes)){
+                return 1;
+            }
+
             Rd_Rtbl = rtbls[hsb];
             Rn_Rtbl = rtbls[hsb + 1];
 
