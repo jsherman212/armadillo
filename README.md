@@ -77,6 +77,7 @@ int ArmadilloDone(struct ad_insn **insn);
 ```
 
 `ArmadilloDisassemble` takes in a **little endian** `opcode`, and an optional `PC` value. `out`, the address of a pointer to an `ad_insn` struct, will be filled with details about the instruction upon return. This function returns non-zero on error. You must always pass the returned `ad_insn` struct to `ArmadilloDone`, even on error, to free memory which could have been allocated before said error.
+
 `ArmadilloDone` takes the address of a pointer to an `ad_insn` structure and deallocates memory. It is always safe to reuse an `ad_insn` structure after ArmadilloDone has returned, even upon error. Returns non-zero on error.
 
 `example.c` showcases some of the information you get back from the `ad_insn` structure:
