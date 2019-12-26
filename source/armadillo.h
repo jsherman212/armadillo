@@ -1,10 +1,9 @@
 #ifndef _ARMADILLO_H_
 #define _ARMADILLO_H_
 
-// call this when your instruction is in little endian
-char *ArmadilloDisassemble(unsigned int hex, unsigned long PC);
+#include "adefs.h"
 
-// call this when your instruction is in big endian
-char *ArmadilloDisassembleB(unsigned int hex, unsigned long PC);
+int ArmadilloDisassemble(unsigned int opcode, unsigned long PC, struct ad_insn **out);
+int ArmadilloDone(struct ad_insn **insn);
 
 #endif

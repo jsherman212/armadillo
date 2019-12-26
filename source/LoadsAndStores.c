@@ -1,1401 +1,2790 @@
-#include "LoadsAndStores.h"
+#include <stdio.h>
+#include <stdlib.h>
 
-int get_post_idx_immediate_offset(int regamount, unsigned int Q){
-	if(regamount == 1)
-		return Q == 0 ? 8 : 16;
-	if(regamount == 2)
-		return Q == 0 ? 16 : 32;
-	if(regamount == 3)
-		return Q == 0 ? 24 : 48;
-	if(regamount == 4)
-		return Q == 0 ? 32 : 64;
+#include "adefs.h"
+#include "bits.h"
+#include "common.h"
+#include "instruction.h"
+#include "utils.h"
+#include "strext.h"
 
-	// should never reach
-	return -1;
+#define NO_ALLOCATE 0
+#define POST_INDEXED 1
+#define OFFSET 2
+#define PRE_INDEXED 3
+
+#define UNSIGNED_IMMEDIATE -1
+
+#define UNSCALED_IMMEDIATE 0
+#define IMMEDIATE_POST_INDEXED 1
+#define UNPRIVILEGED 2
+#define IMMEDIATE_PRE_INDEXED 3
+
+static struct itab unscaled_instr_tbl[] = {
+    { "sturb", AD_INSTR_STURB },
+    { "ldurb", AD_INSTR_LDURB },
+    { "ldursb", AD_INSTR_LDURSB },
+    { "ldursb", AD_INSTR_LDURSB },
+    { "stur", AD_INSTR_STUR },
+    { "ldur", AD_INSTR_LDUR },
+    { "stur", AD_INSTR_STUR },
+    { "ldur", AD_INSTR_LDUR },
+    { "sturh", AD_INSTR_STURH },
+    { "ldurh", AD_INSTR_LDURH },
+    { "ldursh", AD_INSTR_LDURSH },
+    { "ldursh", AD_INSTR_LDURSH },
+    { "stur", AD_INSTR_STUR },
+    { "ldur", AD_INSTR_LDUR },
+    { NULL, AD_NONE },
+    { NULL, AD_NONE },
+    { "stur", AD_INSTR_STUR },
+    { "ldur", AD_INSTR_LDUR },
+    { "ldursw", AD_INSTR_LDURSW },
+    { NULL, AD_NONE },
+    { "stur", AD_INSTR_STUR },
+    { "ldur", AD_INSTR_LDUR },
+    { NULL, AD_NONE },
+    { NULL, AD_NONE },
+    { "stur", AD_INSTR_STUR },
+    { "ldur", AD_INSTR_LDUR },
+    { "prfum", AD_INSTR_PRFUM },
+    { NULL, AD_NONE },
+    { "stur", AD_INSTR_STUR },
+    { "ldur", AD_INSTR_LDUR }
+};
+
+static struct itab pre_post_unsigned_register_idx_instr_tbl[] = {
+    { "strb", AD_INSTR_STRB },
+    { "ldrb", AD_INSTR_LDRB },
+    { "ldrsb", AD_INSTR_LDRSB },
+    { "ldrsb", AD_INSTR_LDRSB },
+    { "str", AD_INSTR_STR },
+    { "ldr", AD_INSTR_LDR },
+    { "str", AD_INSTR_STR },
+    { "ldr", AD_INSTR_LDR },
+    { "strh", AD_INSTR_STRH },
+    { "ldrh", AD_INSTR_LDRH },
+    { "ldrsh", AD_INSTR_LDRSH },
+    { "ldrsh", AD_INSTR_LDRSH },
+    { "str", AD_INSTR_STR },
+    { "ldr", AD_INSTR_LDR },
+    { NULL, AD_NONE },
+    { NULL, AD_NONE },
+    { "str", AD_INSTR_STR },
+    { "ldr", AD_INSTR_LDR },
+    { "ldrsw", AD_INSTR_LDRSW },
+    { NULL, AD_NONE },
+    { "str", AD_INSTR_STR },
+    { "ldr", AD_INSTR_LDR },
+    { NULL, AD_NONE },
+    { NULL, AD_NONE },
+    { "str", AD_INSTR_STR },
+    { "ldr", AD_INSTR_LDR },
+    { "prfm", AD_INSTR_PRFM },
+    { NULL, AD_NONE },
+    { "str", AD_INSTR_STR },
+    { "ldr", AD_INSTR_LDR }
+};
+
+static struct itab unprivileged_instr_tbl[] = {
+    { "sttrb", AD_INSTR_STTRB },
+    { "ldtrb", AD_INSTR_LDTRB },
+    { "ldtrsb", AD_INSTR_LDTRSB },
+    { "ldtrsb", AD_INSTR_LDTRSB },
+    { NULL, AD_NONE },
+    { NULL, AD_NONE },
+    { NULL, AD_NONE },
+    { NULL, AD_NONE },
+    { "sttrh", AD_INSTR_STTRH },
+    { "ldtrh", AD_INSTR_LDTRH },
+    { "ldtrsh", AD_INSTR_LDTRSH },
+    { "ldtrsh", AD_INSTR_LDTRSH },
+    { NULL, AD_NONE },
+    { NULL, AD_NONE },
+    { NULL, AD_NONE },
+    { NULL, AD_NONE },
+    { "sttr", AD_INSTR_STTR },
+    { "ldtr", AD_INSTR_LDTR },
+    { "ldtrsw", AD_INSTR_LDTRSW },
+    { NULL, AD_NONE },
+    { NULL, AD_NONE },
+    { NULL, AD_NONE },
+    { NULL, AD_NONE },
+    { NULL, AD_NONE },
+    { "sttr", AD_INSTR_STTR },
+    { "ldtr", AD_INSTR_LDTR },
+    { NULL, AD_NONE }
+};
+
+static int get_post_idx_immediate_offset(int regamount, unsigned int Q){
+    if(regamount == 1)
+        return Q == 0 ? 8 : 16;
+    if(regamount == 2)
+        return Q == 0 ? 16 : 32;
+    if(regamount == 3)
+        return Q == 0 ? 24 : 48;
+    if(regamount == 4)
+        return Q == 0 ? 32 : 64;
+
+    return -1;
 }
 
-char *DisassembleLoadStoreMultStructuresInstr(struct instruction *instruction, int postidx){
-	char *disassembled = NULL;
+static int DisassembleLoadStoreMultStructuresInstr(struct instruction *i,
+        struct ad_insn *out, int postidxed){
+    unsigned Q = bits(i->opcode, 30, 30);
+    unsigned L = bits(i->opcode, 22, 22);
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned opcode = bits(i->opcode, 12, 15);
+    unsigned size = bits(i->opcode, 10, 11);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rt = bits(i->opcode, 0, 4);
 
-	unsigned int Vt = getbitsinrange(instruction->hex, 0, 5);
-	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
-	unsigned int size = getbitsinrange(instruction->hex, 10, 2);
-	unsigned int opcode = getbitsinrange(instruction->hex, 12, 4);
-	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
-	unsigned int L = getbitsinrange(instruction->hex, 22, 1);
-	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
+    const char *T = get_arrangement(size, Q);
 
-	const char *T = get_arrangement(size, Q);
+    if(!T)
+        return 1;
 
-	if(!T)
-		return strdup(".undefined");
+    ADD_FIELD(out, Q);
+    ADD_FIELD(out, L);
 
-	// figure out the register where storing or loading data at/from
-	const char *Xn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+    if(postidxed)
+        ADD_FIELD(out, Rm);
 
-	// we need to figure out if this is LDx or STx
-	const char *prefix = NULL;
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rt);
 
-	if(L == 1)
-		prefix = "ld";
-	else if(L == 0)
-		prefix = "st";
-	else
-		return strdup(".unknown");
+    const char *instr_s = NULL;
+    int instr_id = AD_NONE;
 
-	unsigned int selem = 0, regcount = 0;
+    if(L == 0)
+        instr_s = "st";
+    else
+        instr_s = "ld";
 
-	// LD4 or ST4 (4 registers)
-	if(opcode == 0){
-		selem = 4;
-		regcount = 4;
-	}
-	// LD1 or ST1 (4 registers)
-	else if(opcode == 2){
-		selem = 1;
-		regcount = 4;
-	}
-	// LD3 or ST3 (3 registers)
-	else if(opcode == 4){
-		selem = 3;
-		regcount = 3;
-	}
-	// LD1 or ST1 (3 registers)
-	else if(opcode == 6){
-		selem = 1;
-		regcount = 3;
-	}
-	// LD1 or ST1 (1 register)
-	else if(opcode == 7){
-		selem = 1;
-		regcount = 1;
-	}
-	// LD2 or ST2 (2 registers)
-	else if(opcode == 8){
-		selem = 2;
-		regcount = 2;
-	}
-	// LD1 or ST1 (2 registers)
-	else if(opcode == 0xa){
-		selem = 1;
-		regcount = 2;
-	}
-	else
-		return strdup(".unknown");
+    unsigned regcnt, selem;
 
-	char *instrtype = malloc(8);
-	sprintf(instrtype, "%s%d", prefix, selem);
+    switch(opcode){
+        case 0: regcnt = 4; selem = 4; break;
+        case 0x2: regcnt = 4; selem = 1; break;
+        case 0x4: regcnt = 3; selem = 3; break;
+        case 0x6: regcnt = 3; selem = 1; break;
+        case 0x7: regcnt = 1; selem = 1; break;
+        case 0x8: regcnt = 2; selem = 2; break;
+        case 0xa: regcnt = 2; selem = 1; break;
+        default: return 1;
+    };
 
-	// now we can finally start to build the instruction
-	disassembled = malloc(256);
-	sprintf(disassembled, "%s {", instrtype);
+    if(L == 0)
+        instr_id = (AD_INSTR_ST1 - 1) + selem;
+    else
+        /* the way the AD_INSTR_* enum is set up makes this more complicated */
+        instr_id = (AD_INSTR_LD1 - 1) + ((selem * 2) - 1);
 
-	free(instrtype);
+    concat(&DECODE_STR(out), "%s%d { ", instr_s, selem);
 
-	for(int i=Vt; i<(regcount+Vt); i++)
-		sprintf(disassembled, "%s%s.%s, ", disassembled, ARM64_VectorRegisters[i], T);
+    for(int i=Rt; i<(Rt+regcnt)-1; i++){
+        ADD_REG_OPERAND(out, i, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE), _RTBL(AD_RTBL_FP_V_128));
+        const char *Ri_s = GET_FP_REG(AD_RTBL_FP_V_128, i);
 
-	// cut off the extra space from the end of the loop
-	disassembled[strlen(disassembled) - 2] = '\0';
-	
-	// append the rest of the instruction
-	sprintf(disassembled, "%s}, [%s]", disassembled, Xn);
+        concat(&DECODE_STR(out), "%s.%s, ", Ri_s, T);
+    }
 
-	// if this is a post-index varient, tack on the
-	// post-index register or immediate
-	if(postidx){
-		// if Rm is not 0x1f, we have a post-index register
-		if(Rm != 0x1f)
-			sprintf(disassembled, "%s, %s", disassembled, ARM64_GeneralRegisters[Rm]);
-		// otherwise, we have a post-index immediate
-		else{
-			int imm = get_post_idx_immediate_offset(regcount, Q);
+    ADD_REG_OPERAND(out, (Rt+regcnt)-1, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+            _RTBL(AD_RTBL_FP_V_128));
+    const char *last_Rt_s = GET_FP_REG(AD_RTBL_FP_V_128, (Rt+regcnt)-1);
 
-			if(imm == -1)
-				return strdup(".unknown");
+    ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE), _RTBL(AD_RTBL_GEN_64));
+    const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
 
-			sprintf(disassembled, "%s, #%d", disassembled, imm);
-		}
-	}
-	
-	if(!disassembled)
-		return strdup(".unknown");
+    concat(&DECODE_STR(out), "%s.%s }, [%s]", last_Rt_s, T, Rn_s);
 
-	return disassembled;
+    if(postidxed){
+        if(Rm != 0x1f){
+            ADD_REG_OPERAND(out, Rm, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+                    _RTBL(AD_RTBL_GEN_64));
+            const char *Rm_s = GET_GEN_REG(AD_RTBL_GEN_64, Rm, NO_PREFER_ZR);
+
+            concat(&DECODE_STR(out), ", %s", Rm_s);
+        }
+        else{
+            int imm = get_post_idx_immediate_offset(regcnt, Q);
+
+            if(imm == -1)
+                return 1;
+
+            /* imm is unsigned, that fxn returns -1 for error checking */
+            ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&imm);
+
+            concat(&DECODE_STR(out), ", #%#x", (unsigned)imm);
+        }
+    }
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-char *DisassembleLoadStoreSingleStructuresInstr(struct instruction *instruction, int postidx){
-	char *disassembled = NULL;
+static int DisassembleLoadStoreSingleStructuresInstr(struct instruction *i,
+        struct ad_insn *out, int postidxed){
+    unsigned Q = bits(i->opcode, 30, 30);
+    unsigned L = bits(i->opcode, 22, 22);
+    unsigned R = bits(i->opcode, 21, 21);
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned opcode = bits(i->opcode, 13, 15);
+    unsigned S = bits(i->opcode, 12, 12);
+    unsigned size = bits(i->opcode, 10, 11);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rt = bits(i->opcode, 0, 4);
 
-	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
-	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
-	unsigned int size = getbitsinrange(instruction->hex, 10, 2);
-	unsigned int S = getbitsinrange(instruction->hex, 12, 1);
-	unsigned int opcode = getbitsinrange(instruction->hex, 13, 3);
-	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
-	unsigned int R = getbitsinrange(instruction->hex, 21, 1);
-	unsigned int L = getbitsinrange(instruction->hex, 22, 1);
-	unsigned int Q = getbitsinrange(instruction->hex, 30, 1);
-	
-	int scale = getbitsinrange(opcode, 1, 2);
-	int selem = (((opcode & 1) << 1) | R) + 1;
-	
-	char *instr = NULL;
-	const char *suffix = NULL;
-	
-	int index = 0;
+    ADD_FIELD(out, Q);
+    ADD_FIELD(out, L);
+    ADD_FIELD(out, R);
 
-	switch(scale){
-		case 3:
-		{
-			// load and replicate
-			if(L == 0 && S == 1){
-				free(instr);
-				return strdup(".undefined");
-			}
-			
-			scale = size;
-			
-			if(!instr){
-				instr = malloc(8);
-				sprintf(instr, "ld%dr", selem);
-			}
+    if(postidxed)
+        ADD_FIELD(out, Rm);
 
-			break;
-		}
-		case 0: // B[0-15]
-			index = (Q << 3) | (S << 2) | size;
-			suffix = "b";
-			//printf("index: %d\n", index);
-			break;
-		case 1: // H[0-7]
-			if((size & 1) == 1)
-				return strdup(".undefined");
+    ADD_FIELD(out, opcode);
+    ADD_FIELD(out, S);
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rt);
 
-			index = (Q << 2) | (S << 1) | (size >> 1);
-			suffix = "h";
-			break;
-		case 2:
-		{
-			if(((size << 1) & 1) == 1)
-				return strdup(".undefined");
-			
-			// S[0-3]
-			if((size & 1) == 0){
-				index = (Q << 1) | S;
-				suffix = "s";
-			}
-			// D[0-1]
-			else{
-				if(S == 1)
-					return strdup(".undefined");
+    const char *instr_s = NULL;
+    int instr_id = AD_NONE;
 
-				index = Q;
-				suffix = "d";
-				scale = 3;
-			}
+    if(L == 0)
+        instr_s = "st";
+    else
+        instr_s = "ld";
 
-			break;
-		}
-	};
+    const char *suffix = NULL;
 
-	disassembled = malloc(256);
+    unsigned scale = opcode >> 1;
+    unsigned selem = (((opcode & 1) << 1) | R) + 1;
+    unsigned index = 0;
 
-	// we can get the post index immediate
-	// by multipling whatever index
-	// corresponds with our suffix by selem
-	int ldstimms[] = {1, 2, 4, 8};
-	
-	// figure out instruction type
-	// if it hasn't been initialized yet, it's not
-	// a load and replicate
-	if(!instr){
-		instr = malloc(8);
+    int replicate = 0;
 
-		if(L == 0)
-			sprintf(instr, "st%d", selem);
-		else
-			sprintf(instr, "ld%d", selem);
+    switch(scale){
+        case 3: replicate = 1; break;
+        case 0:
+            {
+                index = (Q << 3) | (S << 2) | size;
+                suffix = "b";
+                break;
+            }
+        case 1:
+            {
+                index = (Q << 2) | (S << 1) | (size >> 1);
+                suffix = "h";
+                break;
+            }
+        case 2:
+            {
+                if((size & 1) == 0){
+                    index = (Q << 1) | S;
+                    suffix = "s";
+                }
+                else{
+                    index = Q;
+                    suffix = "d";
+                }
 
-		sprintf(disassembled, "%s {", instr);
-		free(instr);
-		
-		for(int i=Rt; i<(Rt+selem); i++)
-			sprintf(disassembled, "%s%s.%s, ", disassembled, ARM64_VectorRegisters[i], suffix);
-		
-		// remove the extra space at the end
-		disassembled[strlen(disassembled) - 2] = '\0';
-		
-		const char *Xn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+                break;
+            }
+        default: return 1;
+    };
 
-		// build the rest of the instruction
-		sprintf(disassembled, "%s}[%d], [%s]", disassembled, index, Xn);
-		
-		// check for any post-index stuff
-		if(postidx){
-			// if Rm is not 0x1f, we have a post index register
-			if(Rm != 0x1f)
-				sprintf(disassembled, "%s, %s", disassembled, ARM64_GeneralRegisters[Rm]);
-			else{
-				// assume we have an 8 bit varient
-				int immidx = 0;
+    if(replicate)
+        instr_id = (AD_INSTR_LD1R - 1) + ((selem * 2) - 1);
+    else if(L == 0)
+        instr_id = (AD_INSTR_ST1 - 1) + selem;
+    else if(L == 1)
+        instr_id = (AD_INSTR_LD1 - 1) + ((selem * 2) - 1);
 
-				if(strcmp(suffix, "h") == 0)
-					immidx = 1;
-				else if(strcmp(suffix, "s") == 0)
-					immidx = 2;
-				else if(strcmp(suffix, "d") == 0)
-					immidx = 3;
+    concat(&DECODE_STR(out), "%s%d%s { ", instr_s, selem, replicate ? "r" : "");
 
-				sprintf(disassembled, "%s, #%d", disassembled, ldstimms[immidx] * selem);
-			}
-		}
-	}
-	// it's a load and replicate
-	else{
-		const char *T = get_arrangement(size, Q);
+    for(int i=Rt; i<(Rt+selem)-1; i++){
+        ADD_REG_OPERAND(out, i, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(AD_RTBL_FP_V_128));
+        const char *Ri_s = GET_FP_REG(AD_RTBL_FP_V_128, i);
 
-		if(!T){
-			free(disassembled);
-			free(instr);
-			return strdup(".undefined");
-		}
+        concat(&DECODE_STR(out), "%s", Ri_s);
 
-		sprintf(disassembled, "%s {", instr);
-		free(instr);
-	
-		for(int i=Rt; i<(Rt+selem); i++)
-			sprintf(disassembled, "%s%s.%s, ", disassembled, ARM64_VectorRegisters[i], T);
+        if(replicate){
+            const char *T = get_arrangement(size, Q);
 
-		disassembled[strlen(disassembled) - 2] = '\0';
+            if(!T)
+                return 1;
 
-		const char *Xn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+            concat(&DECODE_STR(out), ".%s", T);
+        }
+        else{
+            concat(&DECODE_STR(out), ".%s", suffix);
+        }
 
-		sprintf(disassembled, "%s}, [%s]", disassembled, Xn);
+        concat(&DECODE_STR(out), ", ");
+    }
 
-		if(postidx){
-			if(Rm != 0x1f)
-				sprintf(disassembled, "%s, %s", disassembled, ARM64_GeneralRegisters[Rm]);
-			else
-				sprintf(disassembled, "%s, #%d", disassembled, ldstimms[selem] * selem);
-		}
-	}
-	
-	return disassembled;
+    ADD_REG_OPERAND(out, (Rt+selem)-1, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+            _RTBL(AD_RTBL_FP_V_128));
+    const char *last_Rt_s = GET_FP_REG(AD_RTBL_FP_V_128, (Rt+selem)-1);
+
+    concat(&DECODE_STR(out), "%s", last_Rt_s);
+
+    if(replicate){
+        const char *T = get_arrangement(size, Q);
+
+        if(!T)
+            return 1;
+
+        concat(&DECODE_STR(out), ".%s", T);
+    }
+    else{
+        concat(&DECODE_STR(out), ".%s", suffix);
+    }
+
+    concat(&DECODE_STR(out), " }");
+
+    if(!replicate){
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&index);
+        concat(&DECODE_STR(out), "[%d]", index);
+    }
+
+    ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE), _RTBL(AD_RTBL_GEN_64));
+    const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+    concat(&DECODE_STR(out), ", [%s]", Rn_s);
+
+    int rimms[] = { 1, 2, 4, 8 };
+
+    if(postidxed){
+        if(replicate){
+            if(Rm != 0x1f){
+                ADD_REG_OPERAND(out, Rm, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+                        _RTBL(AD_RTBL_GEN_64));
+                const char *Rm_s = GET_GEN_REG(AD_RTBL_GEN_64, Rm, NO_PREFER_ZR);
+
+                concat(&DECODE_STR(out), ", %s", Rm_s);
+            }
+            else{
+                unsigned imm = rimms[size] * selem;
+                ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&imm);
+
+                concat(&DECODE_STR(out), ", #%#x", imm);
+            }
+        }
+        else{
+            if(Rm != 0x1f){
+                ADD_REG_OPERAND(out, Rm, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+                        _RTBL(AD_RTBL_GEN_64));
+                const char *Rm_s = GET_GEN_REG(AD_RTBL_GEN_64, Rm, NO_PREFER_ZR);
+
+                concat(&DECODE_STR(out), ", %s", Rm_s);
+            }
+            else{
+                int idx = 0;
+
+                if(*suffix == 'h')
+                    idx = 1;
+                else if(*suffix == 's')
+                    idx = 2;
+                else if(*suffix == 'd')
+                    idx = 3;
+
+                unsigned imm = rimms[idx] * selem;
+                ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&imm);
+
+                concat(&DECODE_STR(out), ", #%#x", imm);
+            }
+        }
+    }
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-/***********************
+static int DisassembleLoadStoreMemoryTagsInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned opc = bits(i->opcode, 22, 23);
+    unsigned imm9 = bits(i->opcode, 12, 20);
+    unsigned op2 = bits(i->opcode, 10, 11);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rt = bits(i->opcode, 0, 4);
+
+    if((opc == 2 || opc == 3) && imm9 != 0 && op2 == 0)
+        return 1;
+
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, imm9);
+    ADD_FIELD(out, op2);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rt);
+
+    int instr_id = AD_NONE;
+
+    const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+    const char *Rt_s = GET_GEN_REG(AD_RTBL_GEN_64, Rt, NO_PREFER_ZR);
+
+    if((opc == 0 || opc == 2 || opc == 3) && imm9 == 0 && op2 == 0){
+        const char *instr_s = NULL;
+
+        if(opc == 0){
+            instr_s = "stzgm";
+            instr_id = AD_INSTR_STZGM;
+        }
+        else if(opc == 2){
+            instr_s = "stgm";
+            instr_id = AD_INSTR_STGM;
+        }
+        else{
+            instr_s = "ldgm";
+            instr_id = AD_INSTR_LDGM;
+        }
+
+        ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(AD_RTBL_GEN_64));
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(AD_RTBL_GEN_64));
+
+        concat(&DECODE_STR(out), "%s %s, [%s]", instr_s, Rt_s, Rn_s);
+    }
+    else if(opc == 1 && op2 == 0){
+        instr_id = AD_INSTR_LDG;
+
+        ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(AD_RTBL_GEN_64));
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(AD_RTBL_GEN_64));
+
+        concat(&DECODE_STR(out), "ldg %s, [%s", Rt_s, Rn_s);
+
+        if(imm9 != 0){
+            signed simm = sign_extend(imm9, 9) << 4;
+
+            ADD_IMM_OPERAND(out, AD_IMM_INT, *(int *)&simm);
+
+            concat(&DECODE_STR(out), ", #"S_X"", S_A(simm));
+        }
+
+        concat(&DECODE_STR(out), "]");
+    }
+    else if(op2 > 0){
+        enum {
+            post = 1, signed_ = 2, pre
+        };
+
+        const char *instr_s = NULL;
+
+        if(opc == 0){
+            instr_s = "stg";
+            instr_id = AD_INSTR_STG;
+        }
+        else if(opc == 1){
+            instr_s = "stzg";
+            instr_id = AD_INSTR_STZG;
+        }
+        else if(opc == 2){
+            instr_s = "st2g";
+            instr_id = AD_INSTR_ST2G;
+        }
+        else if(opc == 3){
+            instr_s = "stz2g";
+            instr_id = AD_INSTR_STZ2G;
+        }
+
+        ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(AD_RTBL_GEN_64));
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(AD_RTBL_GEN_64));
+
+        concat(&DECODE_STR(out), "%s %s, [%s", instr_s, Rt_s, Rn_s);
+
+        if(imm9 == 0)
+            concat(&DECODE_STR(out), "]");
+        else{
+            signed simm = sign_extend(imm9, 9) << 4;
+
+            ADD_IMM_OPERAND(out, AD_IMM_INT, *(int *)&simm);
 
-00:0:0:0:0:-
-STXRB <Ws>, <Wt>, [<Xn|SP>{,#0}] 
+            if(op2 == post)
+                concat(&DECODE_STR(out), "], #"S_X"", S_A(simm));
+            else{
+                concat(&DECODE_STR(out), ", #"S_X"]", S_A(simm));
 
-01:0:0:0:0:-
-STXRH <Ws>, <Wt>, [<Xn|SP>{,#0}] 
+                if(op2 == pre)
+                    concat(&DECODE_STR(out), "!");
+            }
+        }
+    }
 
-10:0:0:0:0:-
-STXR <Ws>, <Wt>, [<Xn|SP>{,#0}] 
+    SET_INSTR_ID(out, instr_id);
 
-11:0:0:0:0:-
-STXR <Ws>, <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-
-00:0:0:0:1:-
-STLXRB <Ws>, <Wt>, [<Xn|SP>{,#0}] 
-
-01:0:0:0:1:-
-STLXRH <Ws>, <Wt>, [<Xn|SP>{,#0}] 
-
-10:0:0:0:1:-
-STLXR <Ws>, <Wt>, [<Xn|SP>{,#0}] 
-
-11:0:0:0:1-
-STLXR <Ws>, <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-
-10:0:0:1:0:-
-STXP <Ws>, <Wt1>, <Wt2>, [<Xn|SP>{,#0}] 
-
-11:0:0:1:0:-
-STXP <Ws>, <Xt1>, <Xt2>, [<Xn|SP>{,#0}] 
-
------------------------
-
-10:0:0:1:1:-
-STLXP <Ws>, <Wt1>, <Wt2>, [<Xn|SP>{,#0}] 
-
-11:0:0:1:1:-
-STLXP <Ws>, <Xt1>, <Xt2>, [<Xn|SP>{,#0}] 
-
------------------------
-
-00:0:1:0:0:-
-LDXRB <Wt>, [<Xn|SP>{,#0}] 
-
-01:0:1:0:0:-
-LDXRH <Wt>, [<Xn|SP>{,#0}]
-
-10:0:1:0:0:-
-LDXR <Wt>, [<Xn|SP>{,#0}] 
-
-11:0:1:0:0:-
-LDXR <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-
-00:0:1:0:1:-
-LDAXRB <Wt>, [<Xn|SP>{,#0}] 
-
-01:0:1:0:1:-
-LDAXRH <Wt>, [<Xn|SP>{,#0}] 
-
-10:0:1:0:1:-
-LDAXR <Wt>, [<Xn|SP>{,#0}] 
-
-11:0:1:0:1:-
-LDAXR <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-
-10:0:1:1:0:-
-LDXP <Wt1>, <Wt2>, [<Xn|SP>{,#0}]
-
-11:0:1:1:0:-
-LDXP <Xt1>, <Xt2>, [<Xn|SP>{,#0}] 
-
------------------------
-
-10:0:1:1:1:-
-LDAXP <Wt1>, <Wt2>, [<Xn|SP>{,#0}] 
-
-11:0:1:1:1:-
-LDAXP <Xt1>, <Xt2>, [<Xn|SP>{,#0}] 
-
------------------------
-
-00:1:0:0:0:-
-STLLRB <Wt>, [<Xn|SP>{,#0}] 
-
-01:1:0:0:0:-
-STLLRH <Wt>, [<Xn|SP>{,#0}] 
-
-10:1:0:0:0:-
-STLLR <Wt>, [<Xn|SP>{,#0}] 
-
-11:1:0:0:0:-
-STLLR <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-
-00:1:0:0:1:-
-STLRB <Wt>, [<Xn|SP>{,#0}] 
-
-01:1:0:0:1:-
-STLRH <Wt>, [<Xn|SP>{,#0}] 
-
-10:1:0:0:1:-
-STLR <Wt>, [<Xn|SP>{,#0}] 
-
-11:1:0:0:1-
-STLR <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-
-00:1:1:0:0:-
-LDLARB <Wt>, [<Xn|SP>{,#0}] 
-
-01:1:1:0:0:-
-LDLARH <Wt>, [<Xn|SP>{,#0}] 
-
-10:1:1:0:0:-
-LDLAR <Wt>, [<Xn|SP>{,#0}] 
-
-11:1:1:0:0:-
-LDLAR <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-
-00:1:1:0:1:-
-LDARB <Wt>, [<Xn|SP>{,#0}] 
-
-01:1:1:0:1:-
-LDARH <Wt>, [<Xn|SP>{,#0}] 
-
-10:1:1:0:1:-
-LDAR <Wt>, [<Xn|SP>{,#0}] 
-
-11:1:1:0:1-
-LDAR <Xt>, [<Xn|SP>{,#0}] 
-
------------------------
-***********************/
-
-char *DisassembleLoadAndStoreExclusiveInstr(struct instruction *instruction){
-	char *disassembled = NULL;
-
-	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
-	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
-	unsigned int Rt2 = getbitsinrange(instruction->hex, 10, 5);
-	unsigned int o0 = getbitsinrange(instruction->hex, 15, 1);
-	unsigned int Rs = getbitsinrange(instruction->hex, 16, 5);
-	unsigned int o1 = getbitsinrange(instruction->hex, 21, 1);
-	unsigned int L = getbitsinrange(instruction->hex, 22, 1);
-	unsigned int o2 = getbitsinrange(instruction->hex, 23, 1);
-	unsigned int size = getbitsinrange(instruction->hex, 30, 2);
-	unsigned int sz = getbitsinrange(instruction->hex, 30, 1);
-
-	unsigned int encoding = (o2 << 3) | (L << 2) | (o1 << 1) | o0;
-
-	const char **registers = ARM64_32BitGeneralRegisters;
-
-	if(size == 3)
-		registers = ARM64_GeneralRegisters;
-	
-	disassembled = malloc(128);
-	sprintf(disassembled, ".unknown");
-	
-	if(encoding == 0){
-		// another stxr in case it is the 64 bit version
-		const char *instr_tbl[] = {"stxrb", "stxrh", "stxr", "stxr"};
-		
-		const char *_Rs = ARM64_32BitGeneralRegisters[Rs];
-		const char *_Rt = registers[Rt];
-		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-		sprintf(disassembled, "%s %s, %s, [%s]", instr_tbl[size], _Rs, _Rt, _Rn);
-	}
-	else if(encoding == 1){
-		const char *instr_tbl[] = {"stlxrb", "stlxrh", "stlxr", "stlxr"};
-
-		const char *_Rs = ARM64_32BitGeneralRegisters[Rs];
-		const char *_Rt = registers[Rt];
-		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-		sprintf(disassembled, "%s %s, %s, [%s]", instr_tbl[size], _Rs, _Rt, _Rn);
-	}
-	else if(encoding == 2 || encoding == 3){
-		const char *_Rs = ARM64_32BitGeneralRegisters[Rs];
-		const char *_Rt1 = registers[Rt];
-		const char *_Rt2 = registers[Rt2];
-		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-		sprintf(disassembled, "%s %s, %s, %s, [%s]", encoding == 2 ? "stxp" : "stlxp", _Rs, _Rt1, _Rt2, _Rn);
-	}
-	else if(encoding == 4){
-		const char *instr_tbl[] = {"ldxrb", "ldxrh", "ldxr", "ldxr"};
-		
-		const char *_Rt = registers[Rt];
-		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-		sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
-	}
-	else if(encoding == 5){
-		const char *instr_tbl[] = {"ldaxrb", "ldaxrh", "ldaxr", "ldaxr"};
-		
-		const char *_Rt = registers[Rt];
-		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-		sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
-	}
-	else if(encoding == 6 || encoding == 7){
-		if(Rt2 == 0x1f){
-			if(sz == 1)
-				registers = ARM64_GeneralRegisters;
-
-			const char *_Rs = registers[Rs];
-			const char *_Rs2 = registers[Rs + 1];
-			const char *_Rt = registers[Rt];
-			const char *_Rt2 = registers[Rt + 1];
-			const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-			sprintf(disassembled, "%s %s, %s, %s, %s, [%s]", encoding == 6 ? "caspa" : "caspal", _Rs, _Rs2, _Rt, _Rt2, _Rn);
-		}
-		else{
-			const char *_Rt1 = registers[Rt];
-			const char *_Rt2 = registers[Rt2];
-			const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-			
-			sprintf(disassembled, "%s %s, %s, [%s]", encoding == 6 ? "ldxp" : "ldaxp", _Rt1, _Rt2, _Rn);
-		}
-	}
-	else if(encoding == 8){
-		const char *instr_tbl[] = {"stllrb", "stllrh", "stllr", "stllr"};
-
-		const char *_Rt = registers[Rt];
-		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-		sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
-	}
-	else if(encoding == 9){
-		const char *instr_tbl[] = {"stlrb", "stlrh", "stlr", "stlr"};
-
-		const char *_Rt = registers[Rt];
-		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-		sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
-	}
-	else if((encoding == 10 || encoding == 11 || encoding == 14 || encoding == 15) && Rt2 == 0x1f){
-		const char **registers = ARM64_32BitGeneralRegisters;
-
-		if(size == 3)
-			registers = ARM64_GeneralRegisters;
-		
-		const char *_Rs = registers[Rs];
-		const char *_Rt = registers[Rt];
-		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-		const char *instr = size == 1 ? "cash" : "cas";
-
-		if(encoding == 11)
-			instr = (size == 2 || size == 3) ? "casl" : "caslh";
-		else if(encoding == 14)
-			instr = (size == 2 || size == 3) ? "casa" : "casah";
-		else if(encoding == 15)
-			instr = (size == 2 || size == 3) ? "casal" : "casalh";
-
-		sprintf(disassembled, "%s %s, %s, [%s]", instr, _Rs, _Rt, _Rn);
-	}
-	else if(encoding == 12){
-		const char *instr_tbl[] = {"ldlarb", "ldlarh", "ldlar", "ldlar"};
-
-		const char *_Rt = registers[Rt];
-		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-		sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
-	}
-	else if(encoding == 13){
-		const char *instr_tbl[] = {"ldarb", "ldarh", "ldar", "ldar"};
-
-		const char *_Rt = registers[Rt];
-		const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-
-		sprintf(disassembled, "%s %s, [%s]", instr_tbl[size], _Rt, _Rn);
-	}
-
-	return disassembled;
+    return 0;
 }
 
-char *DisassembleLoadAndStoreLiteralInstr(struct instruction *instruction){
-	char *disassembled = NULL;
+static int DisassembleLoadAndStoreExclusiveInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned size = bits(i->opcode, 30, 31);
+    unsigned o2 = bits(i->opcode, 23, 23);
+    unsigned L = bits(i->opcode, 22, 22);
+    unsigned o1 = bits(i->opcode, 21, 21);
+    unsigned Rs = bits(i->opcode, 16, 20);
+    unsigned o0 = bits(i->opcode, 15, 15);
+    unsigned Rt2 = bits(i->opcode, 10, 14);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rt = bits(i->opcode, 0, 4);
 
-	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
-	unsigned int imm19 = getbitsinrange(instruction->hex, 5, 19);
-	unsigned int V = getbitsinrange(instruction->hex, 26, 1);
-	unsigned int opc = getbitsinrange(instruction->hex, 30, 2);
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, o2);
+    ADD_FIELD(out, L);
+    ADD_FIELD(out, o1);
+    ADD_FIELD(out, Rs);
+    ADD_FIELD(out, o0);
+    ADD_FIELD(out, Rt2);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rt);
 
-	if(opc == 3 && V == 1)
-		return strdup(".undefined");
+    unsigned encoding = (o2 << 3) | (L << 2) | (o1 << 1) | o0;
+    int instr_id = AD_NONE;
 
-	const char **general_registers = ARM64_GeneralRegisters;
-	const char **flt_registers = ARM64_VectorQRegisters;
+    if((size == 0 || size == 1) && (encoding == 2 || encoding == 3 ||
+                encoding == 6 || encoding == 7)){
+        unsigned sz = size & 1;
+        const char **registers = AD_RTBL_GEN_32;
 
-	if(opc == 0){
-		general_registers = ARM64_32BitGeneralRegisters;
-		flt_registers = ARM64_VectorSinglePrecisionRegisters;
-	}
-	else if(opc == 1)
-		flt_registers = ARM64_VectorDoublePrecisionRegisters;
-	
-	if(opc == 3 && V == 0){
-		disassembled = malloc(128);
+        if(sz == 1)
+            registers = AD_RTBL_GEN_64;
 
-		const char *types[] = {"PLD", "PLI", "PST"};
-		const char *targets[] = {"L1", "L2", "L3"};
-		const char *policies[] = {"KEEP", "STRM"};
+        int rsz = (registers == AD_RTBL_GEN_64 ? _64_BIT : _32_BIT);
 
-		unsigned int type = getbitsinrange(Rt, 3, 1);
-		unsigned int target = getbitsinrange(Rt, 1, 1);
-		unsigned int policy = Rt & 1;
+        const char *Rs_s = GET_GEN_REG(registers, Rs, PREFER_ZR);
+        const char *Rs1_s = GET_GEN_REG(registers, Rs + 1, PREFER_ZR);
+        const char *Rt_s = GET_GEN_REG(registers, Rt, PREFER_ZR);
+        const char *Rt1_s = GET_GEN_REG(registers, Rt + 1, PREFER_ZR);
 
-		imm19 = sign_extend(imm19, 19);
+        /* always 64 bit */
+        const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
 
-		if(type > 2 || target > 2 || policy > 1)
-			sprintf(disassembled, "prfm #%#x, #%#lx", Rt, (signed int)imm19 + instruction->PC);
-		else
-			sprintf(disassembled, "prfm %s%s%s, #%#lx", types[type], targets[target], policies[policy], (signed int)imm19 + instruction->PC);
-	}
-	else{
-		const char *instr = "ldr";
+        ADD_REG_OPERAND(out, Rs, rsz, PREFER_ZR, _SYSREG(AD_NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rs + 1, rsz, PREFER_ZR, _SYSREG(AD_NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rt, rsz, PREFER_ZR, _SYSREG(AD_NONE), _RTBL(registers));
+        ADD_REG_OPERAND(out, Rt + 1, rsz, PREFER_ZR, _SYSREG(AD_NONE), _RTBL(registers));
 
-		if(opc == 2 && V == 0)
-			instr = "ldrsw";
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(AD_RTBL_GEN_64));
 
-		if(V == 0){
-			disassembled = malloc(128);
+        const char *instr_s = NULL;
 
-			imm19 = sign_extend((imm19 << 2), 21);
-			
-			sprintf(disassembled, "%s %s, #%#lx", instr, general_registers[Rt], (signed int)imm19 + instruction->PC);
-		}
-		else{
-			disassembled = malloc(128);
+        if(encoding == 2){
+            instr_s = "casp";
+            instr_id = AD_INSTR_CASP;
+        }
+        else if(encoding == 3){
+            instr_s = "caspl";
+            instr_id = AD_INSTR_CASPL;
+        }
+        else if(encoding == 6){
+            instr_s = "caspa";
+            instr_id = AD_INSTR_CASPA;
+        }
+        else{
+            instr_s = "caspal";
+            instr_id = AD_INSTR_CASPAL;
+        }
 
-			imm19 = sign_extend((imm19 << 2), 21);
-			
-			sprintf(disassembled, "%s %s, #%#lx", instr, flt_registers[Rt], (signed int)imm19 + instruction->PC);
-		}
-	}
+        concat(&DECODE_STR(out), "%s %s, %s, %s, %s, [%s]", instr_s,
+                Rs_s, Rs1_s, Rt_s, Rt1_s, Rn_s);
+    }
+    else if((size == 0 || size == 1 || size == 2 || size == 3) &&
+            (encoding == 10 || encoding == 11 || encoding == 14 || encoding == 15)){
+        const char **Rs_Rt_Rtbl = AD_RTBL_GEN_32;
+        unsigned Rs_Rt_Sz = _32_BIT;
 
-	if(!disassembled)
-		return strdup(".unknown");
+        if(size == 3){
+            Rs_Rt_Rtbl = AD_RTBL_GEN_64;
+            Rs_Rt_Sz = _64_BIT;
+        }
 
-	return disassembled;
+        const char *Rs_s = GET_GEN_REG(Rs_Rt_Rtbl, Rs, PREFER_ZR);
+        const char *Rt_s = GET_GEN_REG(Rs_Rt_Rtbl, Rt, PREFER_ZR);
+        const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+        ADD_REG_OPERAND(out, Rs, Rs_Rt_Sz, PREFER_ZR, _SYSREG(AD_NONE), Rs_Rt_Rtbl);
+        ADD_REG_OPERAND(out, Rt, Rs_Rt_Sz, PREFER_ZR, _SYSREG(AD_NONE), Rs_Rt_Rtbl);
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(AD_RTBL_GEN_64));
+
+        const char *instr_s = NULL;
+
+        /* we'll figure out the suffixes and adjust insn ID later */
+        if(encoding == 10){
+            instr_s = "cas";
+            instr_id = AD_INSTR_CASB;
+        }
+        else if(encoding == 11){
+            instr_s = "casl";
+            instr_id = AD_INSTR_CASLB;
+        }
+        else if(encoding == 14){
+            instr_s = "casa";
+            instr_id = AD_INSTR_CASAB;
+        }
+        else{
+            instr_s = "casal";
+            instr_id = AD_INSTR_CASALB;
+        }
+
+        const char *suffix = NULL; 
+
+        if(size == 0)
+            suffix = "b";
+        else if(size == 1){
+            instr_id += 4;
+            suffix = "h";
+        }
+        else{
+            if(encoding == 10)
+                instr_id += 10;
+            else if(encoding == 11)
+                instr_id += 12;
+            else
+                instr_id += 13;
+
+            suffix = "";
+        }
+
+        concat(&DECODE_STR(out), "%s%s %s, %s, [%s]", instr_s, suffix,
+                Rs_s, Rt_s, Rn_s);
+    }
+    else if(size == 0 || size == 1){
+        /* We'll figure out if this deals with bytes or halfwords later.
+         * For now, set the instruction id to the instruction which deals with
+         * bytes, and if we find out this instruction actually deals
+         * with halfwords, we increment the instruction ID. Additionally,
+         * we'll add the last character to the instruction string later on.
+         */
+        struct itab tab[] = {
+            { "stxr", AD_INSTR_STXRB },
+            { "stlxr", AD_INSTR_STLXRB },
+            { NULL, AD_NONE },
+            { NULL, AD_NONE },
+            { "ldxr", AD_INSTR_LDXRB },
+            { "ldaxr", AD_INSTR_LDAXRB },
+            { NULL, AD_NONE },
+            { NULL, AD_NONE },
+            { "stllr", AD_INSTR_STLLRB },
+            { "stlr", AD_INSTR_STLRB },
+            { NULL, AD_NONE },
+            { NULL, AD_NONE },
+            { "ldlar", AD_INSTR_LDLARB },
+            { "ldar", AD_INSTR_LDARB },
+        };
+
+        const char *instr_s = tab[encoding].instr_s;
+
+        if(!instr_s)
+            return 1;
+
+        instr_id = tab[encoding].instr_id;
+
+        /* insn deals with bytes */
+        if(size == 0)
+            concat(&DECODE_STR(out), "%sb ", instr_s);
+        else{
+            concat(&DECODE_STR(out), "%sh ", instr_s);
+
+            instr_id++;
+        }
+
+        if(instr_id == AD_INSTR_STXRB || instr_id == AD_INSTR_STLXRB ||
+                instr_id == AD_INSTR_STXRH || instr_id == AD_INSTR_STLXRH){
+            const char *Rs_s = GET_GEN_REG(AD_RTBL_GEN_32, Rs, PREFER_ZR);
+
+            ADD_REG_OPERAND(out, Rs, _SZ(_32_BIT), PREFER_ZR, _SYSREG(AD_NONE),
+                    _RTBL(AD_RTBL_GEN_32));
+
+            concat(&DECODE_STR(out), "%s, ", Rs_s);
+        }
+
+        const char *Rt_s = GET_GEN_REG(AD_RTBL_GEN_32, Rt, PREFER_ZR);
+        const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+        ADD_REG_OPERAND(out, Rt, _SZ(_32_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(AD_RTBL_GEN_32));
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(AD_RTBL_GEN_64));
+
+        concat(&DECODE_STR(out), "%s, [%s]", Rt_s, Rn_s);
+    }
+    else if(size == 2 || size == 3){
+        struct itab tab[] = {
+            { "stxr", AD_INSTR_STXR },
+            { "stlxr", AD_INSTR_STLXR },
+            { "stxp", AD_INSTR_STXP },
+            { "stlxp", AD_INSTR_STLXP },
+            { "ldxr", AD_INSTR_LDXR },
+            { "ldaxr", AD_INSTR_LDAXR },
+            { "ldxp", AD_INSTR_LDXP },
+            { "ldaxp", AD_INSTR_LDAXP },
+            { "stllr", AD_INSTR_STLLR },
+            { "stlr", AD_INSTR_STLR },
+            { NULL, AD_NONE },
+            { NULL, AD_NONE },
+            { "ldlar", AD_INSTR_LDLAR },
+            { "ldar", AD_INSTR_LDAR },
+        };
+
+        const char *instr_s = tab[encoding].instr_s;
+
+        if(!instr_s)
+            return 1;
+
+        instr_id = tab[encoding].instr_id;
+
+        const char *Rs_s = GET_GEN_REG(AD_RTBL_GEN_32, Rs, PREFER_ZR);
+        
+        const char **Rt_Rtbl = AD_RTBL_GEN_32;
+        unsigned Rt_Sz = _32_BIT;
+
+        unsigned Rt1 = Rt;
+        const char **Rt1_Rtbl = AD_RTBL_GEN_32;
+        unsigned Rt1_Sz = _32_BIT;
+
+        const char **Rt2_Rtbl = AD_RTBL_GEN_32;
+        unsigned Rt2_Sz = _32_BIT;
+
+        if(size == 3){
+            Rt_Rtbl = AD_RTBL_GEN_64;
+            Rt_Sz = _64_BIT;
+
+            Rt1_Rtbl = AD_RTBL_GEN_64;
+            Rt1_Sz = _64_BIT;
+
+            Rt2_Rtbl = AD_RTBL_GEN_64;
+            Rt2_Sz = _64_BIT;
+        }
+
+        const char *Rt_s = GET_GEN_REG(Rt_Rtbl, Rt, PREFER_ZR);
+        const char *Rt1_s = Rt_s;
+        const char *Rt2_s = GET_GEN_REG(Rt2_Rtbl, Rt2, PREFER_ZR);
+        const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+        concat(&DECODE_STR(out), "%s ", instr_s);
+
+        if(instr_id == AD_INSTR_STXR || instr_id == AD_INSTR_STLXR){
+            ADD_REG_OPERAND(out, Rs, _SZ(_32_BIT), PREFER_ZR, _SYSREG(AD_NONE),
+                    _RTBL(AD_RTBL_GEN_32));
+            ADD_REG_OPERAND(out, Rt, Rt_Sz, PREFER_ZR, _SYSREG(AD_NONE), Rt_Rtbl);
+
+            concat(&DECODE_STR(out), "%s, %s", Rs_s, Rt_s);
+        }
+        else if(instr_id == AD_INSTR_STXP || instr_id == AD_INSTR_STLXP){
+            ADD_REG_OPERAND(out, Rs, _SZ(_32_BIT), PREFER_ZR, _SYSREG(AD_NONE),
+                    _RTBL(AD_RTBL_GEN_32));
+            ADD_REG_OPERAND(out, Rt1, Rt1_Sz, PREFER_ZR, _SYSREG(AD_NONE), Rt1_Rtbl);
+            ADD_REG_OPERAND(out, Rt2, Rt2_Sz, PREFER_ZR, _SYSREG(AD_NONE), Rt2_Rtbl);
+
+            concat(&DECODE_STR(out), "%s, %s, %s", Rs_s, Rt1_s, Rt2_s);
+        }
+        else if(instr_id == AD_INSTR_LDXP || instr_id == AD_INSTR_LDAXP){
+            ADD_REG_OPERAND(out, Rt1, Rt1_Sz, PREFER_ZR, _SYSREG(AD_NONE), Rt1_Rtbl);
+            ADD_REG_OPERAND(out, Rt2, Rt2_Sz, PREFER_ZR, _SYSREG(AD_NONE), Rt2_Rtbl);
+
+            concat(&DECODE_STR(out), "%s, %s", Rt1_s, Rt2_s);
+        }
+        else{
+            ADD_REG_OPERAND(out, Rt, Rt_Sz, PREFER_ZR, _SYSREG(AD_NONE), Rt_Rtbl);
+
+            concat(&DECODE_STR(out), "%s", Rt_s);
+        }
+
+        ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(AD_RTBL_GEN_64));
+
+        concat(&DECODE_STR(out), ", [%s]", Rn_s);
+    }
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-char *DisassembleLoadAndStoreRegisterPairInstr(struct instruction *instruction, int kind){
-	char *disassembled = NULL;
+static int DisassembleLDAPR_STLRInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned size = bits(i->opcode, 30, 31);
+    unsigned opc = bits(i->opcode, 22, 23);
+    unsigned imm9 = bits(i->opcode, 12, 20);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rt = bits(i->opcode, 0, 4);
 
-	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
-	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
-	unsigned int Rt2 = getbitsinrange(instruction->hex, 10, 5);
-	int imm7 = getbitsinrange(instruction->hex, 15, 7);
-	unsigned int L = getbitsinrange(instruction->hex, 22, 1);
-	unsigned int V = getbitsinrange(instruction->hex, 26, 1);
-	unsigned int opc = getbitsinrange(instruction->hex, 30, 2);
-	
-	const char **registers = ARM64_32BitGeneralRegisters;
+    if(size == 2 && opc == 3)
+        return 1;
 
-	if(opc == 0)
-		registers = V == 0 ? registers : ARM64_VectorSinglePrecisionRegisters;
-	else if(opc == 1)
-		registers = V == 0 ? ARM64_GeneralRegisters : ARM64_VectorDoublePrecisionRegisters;
-	else if(opc == 2)
-		registers = V == 0 ? ARM64_GeneralRegisters : ARM64_VectorQRegisters;
+    if(size == 3 && (opc == 2 || opc == 3))
+        return 1;
 
-	disassembled = malloc(128);
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, imm9);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rt);
 
-	int scale = 0;
+    const char *instr_s = NULL;
+    int instr_id = AD_NONE;
 
-	// if V is 0, we're not dealing with floating point registers
-	if(V == 0)
-		scale = 2 + (opc >> 1);
-	else
-		scale = 2 + opc;
+    imm9 = sign_extend(imm9, 9);
 
-	imm7 = sign_extend(imm7, 7) << scale;
-	
-	char *instr = malloc(8);
-	sprintf(instr, "st");
+    const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
 
-	if(L == 1)
-		sprintf(instr, "%s", (V == 0 && opc == 1) ? "ldpsw" : "ld");
+    if(size == 0){
+        if(opc == 0){
+            instr_s = "stlurb";
+            instr_id = AD_INSTR_STLURB;
+        }
+        else if(opc == 1){
+            instr_s = "ldapurb";
+            instr_id = AD_INSTR_LDAPURB;
+        }
+        else{
+            instr_s = "ldapursb";
+            instr_id = AD_INSTR_LDAPURSB;
+        }
 
-	if(strcmp(instr, "ldpsw") != 0)
-		sprintf(instr, "%s%sp", instr, kind == NO_ALLOCATE ? "n" : "");
+        const char *Rt_s = opc == 2 ?
+            GET_GEN_REG(AD_RTBL_GEN_64, Rt, PREFER_ZR) :
+            GET_GEN_REG(AD_RTBL_GEN_32, Rt, PREFER_ZR);
 
-	const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+        ADD_REG_OPERAND(out, Rt, _SZ(opc == 2 ? _64_BIT : _32_BIT),
+                PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(opc == 2 ? AD_RTBL_GEN_64 : AD_RTBL_GEN_32));
 
-	sprintf(disassembled, "%s %s, %s, [%s", instr, registers[Rt], registers[Rt2], _Rn);
-	free(instr);
+        concat(&DECODE_STR(out), "%s %s", instr_s, Rt_s);
+    }
+    else if(size == 1){
+        if(opc == 0){
+            instr_s = "stlurh";
+            instr_id = AD_INSTR_STLURH;
+        }
+        else if(opc == 1){
+            instr_s = "ldapurh";
+            instr_id = AD_INSTR_LDAPURH;
+        }
+        else{
+            instr_s = "ldapursh";
+            instr_id = AD_INSTR_LDAPURSH;
+        }
 
-	// check whether or not we need to append an immediate
-	if(imm7 == 0)
-		sprintf(disassembled, "%s]", disassembled);
-	else if(kind == POST_INDEXED)
-		sprintf(disassembled, "%s], #%s%#x", disassembled, imm7 < 0 ? "-" : "", imm7 < 0 ? -imm7 : imm7);
-	else if(kind == OFFSET || kind == NO_ALLOCATE)
-		sprintf(disassembled, "%s, #%s%#x]", disassembled, imm7 < 0 ? "-" : "", imm7 < 0 ? -imm7 : imm7);
-	else if(kind == PRE_INDEXED)
-		sprintf(disassembled, "%s, #%s%#x]!", disassembled, imm7 < 0 ? "-" : "", imm7 < 0 ? -imm7 : imm7);
-	
-	return disassembled;
+        const char *Rt_s = opc == 2 ?
+            GET_GEN_REG(AD_RTBL_GEN_64, Rt, PREFER_ZR) :
+            GET_GEN_REG(AD_RTBL_GEN_32, Rt, PREFER_ZR);
+
+        ADD_REG_OPERAND(out, Rt, _SZ(opc == 2 ? _64_BIT : _32_BIT),
+                PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(opc == 2 ? AD_RTBL_GEN_64 : AD_RTBL_GEN_32));
+
+        concat(&DECODE_STR(out), "%s %s", instr_s, Rt_s);
+    }
+    else if(size == 2){
+        struct itab tab[] = {
+            { "stlur", AD_INSTR_STLUR },
+            { "ldapur", AD_INSTR_LDAPUR },
+            { "ldapursw", AD_INSTR_LDAPURSW },
+        };
+
+        instr_s = tab[opc].instr_s;
+        instr_id = tab[opc].instr_id;
+
+        const char *Rt_s = opc > 1 ?
+            GET_GEN_REG(AD_RTBL_GEN_64, Rt, PREFER_ZR) :
+            GET_GEN_REG(AD_RTBL_GEN_32, Rt, PREFER_ZR);
+
+        ADD_REG_OPERAND(out, Rt, _SZ(opc > 1 ? _64_BIT : _32_BIT),
+                PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(opc > 1 ? AD_RTBL_GEN_64 : AD_RTBL_GEN_32));
+
+        concat(&DECODE_STR(out), "%s %s", instr_s, Rt_s);
+    }
+    else{
+        struct itab tab[] = {
+            { "stlur", AD_INSTR_STLUR },
+            { "ldapur", AD_INSTR_LDAPUR },
+        };
+
+        instr_s = tab[opc].instr_s;
+        instr_id = tab[opc].instr_id;
+
+        const char *Rt_s = GET_GEN_REG(AD_RTBL_GEN_64, Rt, PREFER_ZR);
+
+        ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), PREFER_ZR, _SYSREG(AD_NONE),
+                _RTBL(AD_RTBL_GEN_64));
+
+        concat(&DECODE_STR(out), "%s %s", instr_s, Rt_s);
+    }
+    
+    ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+            _RTBL(AD_RTBL_GEN_64));
+
+    concat(&DECODE_STR(out), ", [%s", Rn_s);
+
+    if(imm9 == 0)
+        concat(&DECODE_STR(out), "]");
+    else{
+        ADD_IMM_OPERAND(out, AD_IMM_INT, *(int *)&imm9);
+
+        concat(&DECODE_STR(out), ", #"S_X"]", S_A(imm9));
+    }
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-char *DisassembleLoadAndStoreRegisterInstr(struct instruction *instruction, int kind){
-	char *disassembled = NULL;
+static int DisassembleLoadAndStoreLiteralInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned opc = bits(i->opcode, 30, 31);
+    unsigned V = bits(i->opcode, 26, 26);
+    unsigned imm19 = bits(i->opcode, 5, 23);
+    unsigned Rt = bits(i->opcode, 0, 4);
 
-	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
-	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
-	int imm12 = getbitsinrange(instruction->hex, 10, 12);
-	int imm9 = imm12 >> 2;
-	unsigned int opc = getbitsinrange(instruction->hex, 22, 2);
-	unsigned int V = getbitsinrange(instruction->hex, 26, 1);
-	unsigned int size = getbitsinrange(instruction->hex, 30, 2);
+    if(opc == 3 && V == 1)
+        return 1;
 
-	const char **registers = ARM64_32BitGeneralRegisters;
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, V);
+    ADD_FIELD(out, imm19);
+    ADD_FIELD(out, Rt);
 
-	if(V == 0 && (opc == 2 || size == 3))
-		registers = ARM64_GeneralRegisters;
-	else if(V == 1){
-		if(size == 0 && (opc == 0 || opc == 1))
-			registers = ARM64_VectorBRegisters;
-		else if(size == 0 && (opc == 2 || opc == 3))
-			registers = ARM64_VectorQRegisters;
-		else if(size == 1 && (opc == 0 || opc == 1))
-			registers = ARM64_VectorHalfPrecisionRegisters;
-		else if(size == 2 && (opc == 0 || opc == 1))
-			registers = ARM64_VectorSinglePrecisionRegisters;
-		else if(size == 3 && (opc == 0 || opc == 1))
-			registers = ARM64_VectorDoublePrecisionRegisters;
-	}
+    const char *instr_s = "ldr";
+    int instr_id = AD_INSTR_LDR;
 
-	unsigned int instr_idx = (size << 3) | (V << 2) | opc;
+    imm19 = sign_extend((imm19 << 2), 21);
 
-	const char **instr_tbl = unscaled_instr_tbl;
+    long imm = (signed)imm19 + i->PC;
 
-	if(kind == UNSIGNED_IMMEDIATE || kind == IMMEDIATE_POST_INDEXED || kind == IMMEDIATE_PRE_INDEXED){
-		if(!check_bounds(instr_idx, ARRAY_SIZE(pre_post_unsigned_register_idx_instr_tbl)))
-			return strdup(".undefined");
+    if(opc == 2 && V == 0){
+        instr_s = "ldrsw";
+        instr_id = AD_INSTR_LDRSW;
 
-		instr_tbl = pre_post_unsigned_register_idx_instr_tbl;
-	}
-	else if(kind == UNPRIVILEGED){
-		if(!check_bounds(instr_idx, ARRAY_SIZE(unprivileged_instr_tbl)))
-			return strdup(".undefined");
-		instr_tbl = unprivileged_instr_tbl;
-	}
-	else{
-		if(!check_bounds(instr_idx, ARRAY_SIZE(unscaled_instr_tbl)))
-			return strdup(".undefined");
-	}
+        const char *Rt_s = GET_GEN_REG(AD_RTBL_GEN_64, Rt, NO_PREFER_ZR);
+        ADD_REG_OPERAND(out, Rt, _64_BIT, NO_PREFER_ZR, _SYSREG(AD_NONE), AD_RTBL_GEN_64);
 
-	const char *instr = instr_tbl[instr_idx];
+        concat(&DECODE_STR(out), "%s %s, #"S_LX"", instr_s, Rt_s, S_LA(imm));
+    }
+    else if(opc == 3 && V == 0){
+        instr_s = "prfm";
+        instr_id = AD_INSTR_PRFM;
 
-	if(!instr)
-		return strdup(".undefined");
+        unsigned type = bits(Rt, 3, 4);
+        unsigned target = bits(Rt, 1, 2);
+        unsigned policy = Rt & 1;
 
-	imm9 = sign_extend(imm9, 9);
+        const char *types[] = { "PLD", "PLI", "PST" };
+        const char *targets[] = { "L1", "L2", "L3" };
+        const char *policies[] = { "KEEP", "STRM" };
 
-	disassembled = malloc(128);
-	
-	const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&Rt);
 
-	if(strcmp(instr, "prfm") == 0){
-		const char *types[] = {"PLD", "PLI", "PST"};
-		const char *targets[] = {"L1", "L2", "L3"};
-		const char *policies[] = {"KEEP", "STRM"};
+        if(OOB(type, types) || OOB(target, targets) || OOB(policy, policies))
+            concat(&DECODE_STR(out), "%s #%#x, #"S_LX"", instr_s, Rt, S_LA(imm));
+        else{
+            concat(&DECODE_STR(out), "%s %s%s%s, #"S_LX"", instr_s, types[type],
+                    targets[target], policies[policy], S_LA(imm));
+        }
+    }
+    else{
+        const char *Rt_s = NULL;
 
-		unsigned int type = getbitsinrange(Rt, 3, 1);
-		unsigned int target = getbitsinrange(Rt, 1, 1);
-		unsigned int policy = Rt & 1;
+        if(V == 0){
+            const char **registers = AD_RTBL_GEN_32;
+            unsigned sz = _32_BIT;
 
-		if(type > 2 || target > 2 || policy > 1)
-			sprintf(disassembled, "%s #%#x, #%#lx", instr, Rt, imm9 + instruction->PC);
-		else
-			sprintf(disassembled, "%s %s%s%s, #%#lx", instr, types[type], targets[target], policies[policy], imm9 + instruction->PC);
+            if(opc > 0){
+                registers = AD_RTBL_GEN_64;
+                sz = _64_BIT;
+            }
 
-		return disassembled;
-	}
+            Rt_s = GET_GEN_REG(registers, Rt, NO_PREFER_ZR);
+            ADD_REG_OPERAND(out, Rt, sz, NO_PREFER_ZR, _SYSREG(AD_NONE), registers);
+        }
+        else{
+            const char **registers_a[] = {
+                AD_RTBL_FP_32, AD_RTBL_FP_64, AD_RTBL_FP_128
+            };
+            unsigned szs[] = { _32_BIT, _64_BIT, _128_BIT };
 
-	sprintf(disassembled, "%s %s, [%s", instr, registers[Rt], _Rn);
+            const char **registers = registers_a[opc];
+            unsigned sz = szs[opc];
 
-	if(kind == UNSCALED_IMMEDIATE || kind == UNPRIVILEGED){
-		if(imm9 == 0)
-			sprintf(disassembled, "%s]", disassembled);
-		else
-			sprintf(disassembled, "%s, #%s%#x]", disassembled, imm9 < 0 ? "-" : "", imm9 < 0 ? -imm9 : imm9);
-	}
-	else if(kind == UNSIGNED_IMMEDIATE){
-		imm12 = sign_extend(imm12, 12);
+            Rt_s = GET_FP_REG(registers, Rt);
+            ADD_REG_OPERAND(out, Rt, sz, NO_PREFER_ZR, _SYSREG(AD_NONE), registers);
+        }
 
-		if(imm12 == 0)
-			sprintf(disassembled, "%s]", disassembled);
-		else{
-			if((opc >> 1) == 0)
-				imm12 <<= ((opc >> 1) | size);
-			
-			sprintf(disassembled, "%s, #%s%#x]", disassembled, imm12 < 0 ? "-" : "", imm12 < 0 ? -imm12 : imm12);
-		}
-	}
-	else if(kind == IMMEDIATE_POST_INDEXED)
-		sprintf(disassembled, "%s], #%s%#x", disassembled, imm9 < 0 ? "-" : "", imm9 < 0 ? -imm9 : imm9);
-	else if(kind == IMMEDIATE_PRE_INDEXED)
-		sprintf(disassembled, "%s, #%s%#x]!", disassembled, imm9 < 0 ? "-" : "", imm9 < 0 ? -imm9 : imm9);
-	
-	return disassembled;
+        concat(&DECODE_STR(out), "%s %s, #"S_LX"", instr_s, Rt_s, S_LA(imm));
+    }
+
+    ADD_IMM_OPERAND(out, AD_IMM_LONG, *(long *)&imm);
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-char *get_atomic_memory_instr(unsigned int size, unsigned int V, unsigned int A, unsigned int R, unsigned int o3, unsigned int opc){
-	unsigned int encoding = size << 7;
-	encoding |= V << 6;
-	encoding |= A << 5;
-	encoding |= R << 4;
-	encoding |= o3 << 3;
-	encoding |= opc;
+static int DisassembleLoadAndStoreRegisterPairInstr(struct instruction *i,
+        struct ad_insn *out, int kind){
+    unsigned opc = bits(i->opcode, 30, 31);
+    unsigned V = bits(i->opcode, 26, 26);
+    unsigned L = bits(i->opcode, 22, 22);
+    unsigned imm7 = bits(i->opcode, 15, 21);
+    unsigned Rt2 = bits(i->opcode, 10, 14);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rt = bits(i->opcode, 0, 4);
 
-	// auto generated
-	// [a-zA-Z0-9]+(?=\s?variant)
-	switch(encoding){
-	case 0x0:
-		return "ldaddb";
-	case 0x1:
-		return "ldclrb";
-	case 0x2:
-		return "ldeorb";
-	case 0x3:
-		return "ldsetb";
-	case 0x4:
-		return "ldsmaxb";
-	case 0x5:
-		return "ldsminb";
-	case 0x6:
-		return "ldumaxb";
-	case 0x7:
-		return "lduminb";
-	case 0x8:
-		return "swpb";
-	case 0x10:
-		return "ldaddlb";
-	case 0x11:
-		return "ldclrlb";
-	case 0x12:
-		return "ldeorlb";
-	case 0x13:
-		return "ldsetlb";
-	case 0x14:
-		return "ldsmaxlb";
-	case 0x15:
-		return "ldsminlb";
-	case 0x16:
-		return "ldumaxlb";
-	case 0x17:
-		return "lduminlb";
-	case 0x18:
-		return "swplb";
-	case 0x20:
-		return "ldaddab";
-	case 0x21:
-		return "ldclrab";
-	case 0x22:
-		return "ldeorab";
-	case 0x23:
-		return "ldsetab";
-	case 0x24:
-		return "ldsmaxab";
-	case 0x25:
-		return "ldsminab";
-	case 0x26:
-		return "ldumaxab";
-	case 0x27:
-		return "lduminab";
-	case 0x28:
-		return "swpab";
-	case 0x2c:
-		return "ldaprb";
-	case 0x30:
-		return "ldaddalb";
-	case 0x31:
-		return "ldclralb";
-	case 0x32:
-		return "ldeoralb";
-	case 0x33:
-		return "ldsetalb";
-	case 0x34:
-		return "ldsmaxalb";
-	case 0x35:
-		return "ldsminalb";
-	case 0x36:
-		return "ldumaxalb";
-	case 0x37:
-		return "lduminalb";
-	case 0x38:
-		return "swpalb";
-	case 0x80:
-		return "ldaddh";
-	case 0x81:
-		return "ldclrh";
-	case 0x82:
-		return "ldeorh";
-	case 0x83:
-		return "ldseth";
-	case 0x84:
-		return "ldsmaxh";
-	case 0x85:
-		return "ldsminh";
-	case 0x86:
-		return "ldumaxh";
-	case 0x87:
-		return "lduminh";
-	case 0x88:
-		return "swph";
-	case 0x90:
-		return "ldaddlh";
-	case 0x91:
-		return "ldclrlh";
-	case 0x92:
-		return "ldeorlh";
-	case 0x93:
-		return "ldsetlh";
-	case 0x94:
-		return "ldsmaxlh";
-	case 0x95:
-		return "ldsminlh";
-	case 0x96:
-		return "ldumaxlh";
-	case 0x97:
-		return "lduminlh";
-	case 0x98:
-		return "swplh";
-	case 0xa0:
-		return "ldaddah";
-	case 0xa1:
-		return "ldclrah";
-	case 0xa2:
-		return "ldeorah";
-	case 0xa3:
-		return "ldsetah";
-	case 0xa4:
-		return "ldsmaxah";
-	case 0xa5:
-		return "ldsminah";
-	case 0xa6:
-		return "ldumaxah";
-	case 0xa7:
-		return "lduminah";
-	case 0xa8:
-		return "swpah";
-	case 0xac:
-		return "ldaprh";
-	case 0xb0:
-		return "ldaddalh";
-	case 0xb1:
-		return "ldclralh";
-	case 0xb2:
-		return "ldeoralh";
-	case 0xb3:
-		return "ldsetalh";
-	case 0xb4:
-		return "ldsmaxalh";
-	case 0xb5:
-		return "ldsminalh";
-	case 0xb6:
-		return "ldumaxalh";
-	case 0xb7:
-		return "lduminalh";
-	case 0xb8:
-		return "swpalh";
-	case 0x100:
-		return "ldadd";
-	case 0x101:
-		return "ldclr";
-	case 0x102:
-		return "ldeor";
-	case 0x103:
-		return "ldset";
-	case 0x104:
-		return "ldsmax";
-	case 0x105:
-		return "ldsmin";
-	case 0x106:
-		return "ldumax";
-	case 0x107:
-		return "ldumin";
-	case 0x108:
-		return "swp";
-	case 0x110:
-		return "ldaddl";
-	case 0x111:
-		return "ldclrl";
-	case 0x112:
-		return "ldeorl";
-	case 0x113:
-		return "ldsetl";
-	case 0x114:
-		return "ldsmaxl";
-	case 0x115:
-		return "ldsminl";
-	case 0x116:
-		return "ldumaxl";
-	case 0x117:
-		return "lduminl";
-	case 0x118:
-		return "swpl";
-	case 0x120:
-		return "ldadda";
-	case 0x121:
-		return "ldclra";
-	case 0x122:
-		return "ldeora";
-	case 0x123:
-		return "ldseta";
-	case 0x124:
-		return "ldsmaxa";
-	case 0x125:
-		return "ldsmina";
-	case 0x126:
-		return "ldumaxa";
-	case 0x127:
-		return "ldumina";
-	case 0x128:
-		return "swpa";
-	case 0x12c:
-		return "ldapr";
-	case 0x130:
-		return "ldaddal";
-	case 0x131:
-		return "ldclral";
-	case 0x132:
-		return "ldeoral";
-	case 0x133:
-		return "ldsetal";
-	case 0x134:
-		return "ldsmaxal";
-	case 0x135:
-		return "ldsminal";
-	case 0x136:
-		return "ldumaxal";
-	case 0x137:
-		return "lduminal";
-	case 0x138:
-		return "swpal";
-	case 0x180:
-		return "ldadd";
-	case 0x181:
-		return "ldclr";
-	case 0x182:
-		return "ldeor";
-	case 0x183:
-		return "ldset";
-	case 0x184:
-		return "ldsmax";
-	case 0x185:
-		return "ldsmin";
-	case 0x186:
-		return "ldumax";
-	case 0x187:
-		return "ldumin";
-	case 0x188:
-		return "swp";
-	case 0x190:
-		return "ldaddl";
-	case 0x191:
-		return "ldclrl";
-	case 0x192:
-		return "ldeorl";
-	case 0x193:
-		return "ldsetl";
-	case 0x194:
-		return "ldsmaxl";
-	case 0x195:
-		return "ldsminl";
-	case 0x196:
-		return "ldumaxl";
-	case 0x197:
-		return "lduminl";
-	case 0x198:
-		return "swpl";
-	case 0x1a0:
-		return "ldadda";
-	case 0x1a1:
-		return "ldclra";
-	case 0x1a2:
-		return "ldeora";
-	case 0x1a3:
-		return "ldseta";
-	case 0x1a4:
-		return "ldsmaxa";
-	case 0x1a5:
-		return "ldsmina";
-	case 0x1a6:
-		return "ldumaxa";
-	case 0x1a7:
-		return "ldumina";
-	case 0x1a8:
-		return "swpa";
-	case 0x1ac:
-		return "ldapr";
-	case 0x1b0:
-		return "ldaddal";
-	case 0x1b1:
-		return "ldclral";
-	case 0x1b2:
-		return "ldeoral";
-	case 0x1b3:
-		return "ldsetal";
-	case 0x1b4:
-		return "ldsmaxal";
-	case 0x1b5:
-		return "ldsminal";
-	case 0x1b6:
-		return "ldumaxal";
-	case 0x1b7:
-		return "lduminal";
-	case 0x1b8:
-		return "swpal";
-	default:
-		return NULL;
-	};
+    if(opc == 3)
+        return 1;
+
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, V);
+    ADD_FIELD(out, L);
+    ADD_FIELD(out, imm7);
+    ADD_FIELD(out, Rt2);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rt);
+
+    int instr_id = AD_NONE;
+
+    const char *Rt2_s = NULL, *Rn_s = NULL, *Rt_s = NULL;
+
+    const char **registers = NULL;
+    unsigned sz = 0;
+
+    if(opc == 0){
+        registers = V == 0 ? AD_RTBL_GEN_32 : AD_RTBL_FP_32;
+        sz = _32_BIT;
+    }
+    else if(opc == 1){
+        registers = V == 0 ? AD_RTBL_GEN_64 : AD_RTBL_FP_64;
+        sz = _64_BIT;
+    }
+    else{
+        registers = V == 0 ? AD_RTBL_GEN_64 : AD_RTBL_FP_128;
+        sz = V == 0 ? _64_BIT : _128_BIT;
+    }
+
+    unsigned scale;
+
+    if(V == 0){
+        Rt2_s = GET_FP_REG(registers, Rt2);
+        Rt_s = GET_FP_REG(registers, Rt);
+
+        scale = 2 + (opc >> 1);
+    }
+    else{
+        Rt2_s = GET_GEN_REG(registers, Rt2, NO_PREFER_ZR);
+        Rt_s = GET_GEN_REG(registers, Rt, NO_PREFER_ZR);
+
+        scale = 2 + opc;
+    }
+
+    Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+    ADD_REG_OPERAND(out, Rt, sz, NO_PREFER_ZR, _SYSREG(AD_NONE), registers);
+    ADD_REG_OPERAND(out, Rt2, sz, NO_PREFER_ZR, _SYSREG(AD_NONE), registers);
+    ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+            AD_RTBL_GEN_64);
+
+    unsigned opco = (opc << 2) | (V << 1) | L;
+
+    /* start at AD_INSTR_(STP|LDP) and adjust as needed */
+
+    if(L == 0){
+        instr_id = AD_INSTR_STP;
+        
+        concat(&DECODE_STR(out), "st");
+    }
+    else{
+        instr_id = AD_INSTR_LDP;
+
+        concat(&DECODE_STR(out), "ld");
+    }
+
+    if(kind == NO_ALLOCATE){
+        instr_id--;
+        concat(&DECODE_STR(out), "n");
+    }
+    else{
+        if(opco == 4){
+            instr_id -= 15;
+
+            concat(&DECODE_STR(out), "g");
+
+            scale = 4;
+        }
+    }
+
+    concat(&DECODE_STR(out), "p");
+
+    if(kind != NO_ALLOCATE && opco == 5){
+        instr_id++;
+
+        concat(&DECODE_STR(out), "sw");
+    }
+
+    concat(&DECODE_STR(out), " %s, %s, [%s", Rt_s, Rt2_s, Rn_s);
+
+    imm7 = sign_extend(imm7, 7) << scale;
+
+    if(imm7 == 0)
+        concat(&DECODE_STR(out), "]");
+    else{
+        if(kind == POST_INDEXED)
+            concat(&DECODE_STR(out), "], #"S_X"", S_A(imm7));
+        else if(kind == OFFSET || kind == NO_ALLOCATE)
+            concat(&DECODE_STR(out), ", #"S_X"]", S_A(imm7));
+        else
+            concat(&DECODE_STR(out), ", #"S_X"]!", S_A(imm7));
+
+        ADD_IMM_OPERAND(out, AD_IMM_INT, *(int *)&imm7);
+    }
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-char *DisassembleAtomicMemoryInstr(struct instruction *instruction){
-	char *disassembled = NULL;
+static int DisassembleLoadAndStoreRegisterInstr(struct instruction *i,
+        struct ad_insn *out, int kind){
+    unsigned size = bits(i->opcode, 30, 31);
+    unsigned V = bits(i->opcode, 26, 26);
+    unsigned opc = bits(i->opcode, 22, 23);
+    unsigned imm9 = bits(i->opcode, 12, 20);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rt = bits(i->opcode, 0, 4);
 
-	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
-	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
-	unsigned int opc = getbitsinrange(instruction->hex, 12, 3);
-	unsigned int o3 = getbitsinrange(instruction->hex, 15, 1);
-	unsigned int Rs = getbitsinrange(instruction->hex, 16, 5);
-	unsigned int R = getbitsinrange(instruction->hex, 22, 1);
-	unsigned int A = getbitsinrange(instruction->hex, 23, 1);
-	unsigned int V = getbitsinrange(instruction->hex, 26, 1);
-	unsigned int size = getbitsinrange(instruction->hex, 30, 2);
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, V);
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, imm9);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rt);
 
-	const char *instr = get_atomic_memory_instr(size, V, A, R, o3, opc);
-	
-	if(!instr)
-		return strdup(".undefined");
-	
-	const char **registers = ARM64_32BitGeneralRegisters;
+    int instr_id = AD_NONE;
 
-	if(size == 3)
-		registers = ARM64_GeneralRegisters;
+    const char **registers = AD_RTBL_GEN_32;
+    unsigned sz = _32_BIT;
 
-	const char *_Rs = registers[Rs];
-	const char *_Rt = registers[Rt];
-	const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-	
-	disassembled = malloc(128);
+    const char *Rt_s = GET_GEN_REG(registers, Rt, PREFER_ZR);
 
-	if(strcmp(instr, "ldapr") != 0 && strcmp(instr, "ldaprb") != 0 && strcmp(instr, "ldaprh") != 0)
-		sprintf(disassembled, "%s %s, %s, [%s]", instr, _Rs, _Rt, _Rn);
-	else
-		sprintf(disassembled, "%s %s, [%s]", instr, _Rt, _Rn);
-	
-	return disassembled;
+    if(V == 0 && (opc == 2 || size == 3)){
+        registers = AD_RTBL_GEN_64;
+        sz = _64_BIT;
+
+        Rt_s = GET_GEN_REG(registers, Rt, PREFER_ZR);
+    }
+    else if(V == 1){
+        if(size == 0 && (opc == 0 || opc == 1)){
+            registers = AD_RTBL_FP_8;
+            sz = _8_BIT;
+        }
+        else if(size == 0 && (opc == 2 || opc == 3)){
+            registers = AD_RTBL_FP_128;
+            sz = _128_BIT;
+        }
+        else if(size == 1 && (opc == 0 || opc == 1)){
+            registers = AD_RTBL_FP_16;
+            sz = _16_BIT;
+        }
+        else if(size == 2 && (opc == 0 || opc == 1)){
+            registers = AD_RTBL_FP_32;
+            sz = _32_BIT;
+        }
+        else if(size == 3 && (opc == 0 || opc == 1)){
+            registers = AD_RTBL_FP_64;
+            sz = _64_BIT;
+        }
+
+        Rt_s = GET_FP_REG(registers, Rt);
+    }
+
+    ADD_REG_OPERAND(out, Rt, sz, PREFER_ZR, _SYSREG(AD_NONE), registers);
+
+    unsigned instr_idx = (size << 3) | (V << 2) | opc;
+    struct itab *instr_tab = NULL;
+
+    if(kind == UNSIGNED_IMMEDIATE || kind == IMMEDIATE_POST_INDEXED ||
+            kind == IMMEDIATE_PRE_INDEXED){
+        if(OOB(instr_idx, pre_post_unsigned_register_idx_instr_tbl))
+            return 1;
+
+        instr_tab = pre_post_unsigned_register_idx_instr_tbl;
+    }
+    else if(kind == UNPRIVILEGED){
+        if(OOB(instr_idx, unprivileged_instr_tbl))
+            return 1;
+
+        instr_tab = unprivileged_instr_tbl;
+    }
+    else if(kind == UNSCALED_IMMEDIATE){
+        if(OOB(instr_idx, unscaled_instr_tbl))
+            return 1;
+
+        instr_tab = unscaled_instr_tbl;
+    }
+
+    if(!instr_tab)
+        return 1;
+
+    const char *instr_s = instr_tab[instr_idx].instr_s;
+    instr_id = instr_tab[instr_idx].instr_id;
+
+    const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+    ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE),
+            AD_RTBL_GEN_64);
+
+    concat(&DECODE_STR(out), "%s ", instr_s);
+
+    imm9 = sign_extend(imm9, 9);
+
+    if(instr_id == AD_INSTR_PRFUM){
+        unsigned type = bits(Rt, 3, 4);
+        unsigned target = bits(Rt, 1, 2);
+        unsigned policy = Rt & 1;
+
+        const char *types[] = { "PLD", "PLI", "PST" };
+        const char *targets[] = { "L1", "L2", "L3" };
+        const char *policies[] = { "KEEP", "STRM" };
+
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&imm9);
+
+        if(OOB(type, types) || OOB(target, targets) || OOB(policy, policies))
+            concat(&DECODE_STR(out), "#%#x, ", Rt);
+        else{
+            concat(&DECODE_STR(out), "%s%s%s, ", types[type], targets[target],
+                    policies[policy]);
+        }
+    }
+    else{
+        concat(&DECODE_STR(out), "%s, [%s", Rt_s, Rn_s);
+
+        if(kind == UNSCALED_IMMEDIATE || kind == UNPRIVILEGED){
+            if(imm9 == 0)
+                concat(&DECODE_STR(out), "]");
+            else
+                concat(&DECODE_STR(out), ", #"S_X"]", S_A(imm9));
+        }
+        else if(kind == UNSIGNED_IMMEDIATE){
+            unsigned imm12 = bits(i->opcode, 10, 21);
+
+            int fp = V == 1;
+            int shift = 0;
+
+            if(fp)
+                shift = ((opc >> 1) << 2) | size;
+            else if(instr_id == AD_INSTR_LDRH || instr_id == AD_INSTR_STRH ||
+                    instr_id == AD_INSTR_LDRSH){
+                shift = 1;
+            }
+            else if(instr_id == AD_INSTR_LDRSW){
+                shift = 2;
+            }
+            else if(instr_id == AD_INSTR_STR || instr_id == AD_INSTR_LDR){
+                shift = size;
+            }
+
+            unsigned long pimm = imm12 << shift;
+
+            if(pimm != 0){
+                ADD_IMM_OPERAND(out, AD_IMM_ULONG, *(unsigned long *)&pimm);
+
+                concat(&DECODE_STR(out), ", #"S_LX"", S_LA(pimm));
+            }
+
+            concat(&DECODE_STR(out), "]");
+        }
+        else if(kind == IMMEDIATE_POST_INDEXED){
+            concat(&DECODE_STR(out), "], #"S_X"", S_A(imm9));
+        }
+        else if(kind == IMMEDIATE_PRE_INDEXED){
+            concat(&DECODE_STR(out), ", #"S_X"]!", S_A(imm9));
+        }
+    }
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-char *DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *instruction){
-	char *disassembled = NULL;
+/* returns 1 if the alias is meant to be used */
+static int get_atomic_memory_op(unsigned size, unsigned V, unsigned A,
+        unsigned R, unsigned o3, unsigned opc, unsigned Rt, struct itab *instr,
+        struct itab *alias){
+    unsigned encoding = size << 7;
+    encoding |= V << 6;
+    encoding |= A << 5;
+    encoding |= R << 4;
+    encoding |= o3 << 3;
+    encoding |= opc;
 
-	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
-	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
-	unsigned int S = getbitsinrange(instruction->hex, 12, 1);
-	unsigned int option = getbitsinrange(instruction->hex, 13, 3);
-	unsigned int Rm = getbitsinrange(instruction->hex, 16, 5);
-	unsigned int opc = getbitsinrange(instruction->hex, 22, 2);
-	unsigned int V = getbitsinrange(instruction->hex, 26, 1);
-	unsigned int size = getbitsinrange(instruction->hex, 30, 2);
+    int use_alias = (A == 0 && Rt == 0x1f);
 
-	const char **general_registers = ARM64_32BitGeneralRegisters;
-	const char **flt_registers = ARM64_VectorQRegisters;
-	
-	int _64bit = 0;
-	int amount = 0;
-	
-	// default to 128 bit
-	int flt_amount = S == 0 ? 0 : 4;
+    switch(encoding){
+        case 0x184:
+            {
+                instr->instr_s = "ldsmax";
+                instr->instr_id = AD_INSTR_LDSMAX;
+                alias->instr_s = "stsmax";
+                alias->instr_id = AD_INSTR_STSMAX;
+                break;
+            }
+        case 0x110:
+            {
+                instr->instr_s = "ldaddl";
+                instr->instr_id = AD_INSTR_LDADDL;
+                alias->instr_s = "staddl";
+                alias->instr_id = AD_INSTR_STADDL;
+                break;
+            }
+        case 0x1b4:
+            {
+                instr->instr_s = "ldsmaxal";
+                instr->instr_id = AD_INSTR_LDSMAXAL;
+                break;
+            }
+        case 0x120:
+            {
+                instr->instr_s = "ldadda";
+                instr->instr_id = AD_INSTR_LDADDA;
+                break;
+            }
+        case 0xac:
+            {
+                instr->instr_s = "ldaprh";
+                instr->instr_id = AD_INSTR_LDAPRH;
+                break;
+            }
+        case 0x38:
+            {
+                instr->instr_s = "swpalb";
+                instr->instr_id = AD_INSTR_SWPALB;
+                break;
+            }
+        case 0x8:
+            {
+                instr->instr_s = "swpb";
+                instr->instr_id = AD_INSTR_SWPB;
+                break;
+            }
+        case 0xa1:
+            {
+                instr->instr_s = "ldclrah";
+                instr->instr_id = AD_INSTR_LDCLRAH;
+                break;
+            }
+        case 0x35:
+            {
+                instr->instr_s = "ldsminalb";
+                instr->instr_id = AD_INSTR_LDSMINALB;
+                break;
+            }
+        case 0x91:
+            {
+                instr->instr_s = "ldclrlh";
+                instr->instr_id = AD_INSTR_LDCLRLH;
+                alias->instr_s = "stclrlh";
+                alias->instr_id = AD_INSTR_STCLRLH;
+                break;
+            }
+        case 0x5:
+            {
+                instr->instr_s = "ldsminb";
+                instr->instr_id = AD_INSTR_LDSMINB;
+                alias->instr_s = "stsminb";
+                alias->instr_id = AD_INSTR_STSMINB;
+                break;
+            }
+        case 0x97:
+            {
+                instr->instr_s = "lduminlh";
+                instr->instr_id = AD_INSTR_LDUMINLH;
+                alias->instr_s = "stuminlh";
+                alias->instr_id = AD_INSTR_STUMINLH;
+                break;
+            }
+        case 0x3:
+            {
+                instr->instr_s = "ldsetb";
+                instr->instr_id = AD_INSTR_LDSETB;
+                alias->instr_s = "stsetb";
+                alias->instr_id = AD_INSTR_STSETB;
+                break;
+            }
+        case 0xa7:
+            {
+                instr->instr_s = "lduminah";
+                instr->instr_id = AD_INSTR_LDUMINAH;
+                break;
+            }
+        case 0x33:
+            {
+                instr->instr_s = "ldsetalb";
+                instr->instr_id = AD_INSTR_LDSETALB;
+                break;
+            }
+        case 0x1b2:
+            {
+                instr->instr_s = "ldeoral";
+                instr->instr_id = AD_INSTR_LDEORAL;
+                break;
+            }
+        case 0x126:
+            {
+                instr->instr_s = "ldumaxa";
+                instr->instr_id = AD_INSTR_LDUMAXA;
+                break;
+            }
+        case 0x182:
+            {
+                instr->instr_s = "ldeor";
+                instr->instr_id = AD_INSTR_LDEOR;
+                alias->instr_s = "steor";
+                alias->instr_id = AD_INSTR_STEOR;
+                break;
+            }
+        case 0x116:
+            {
+                instr->instr_s = "ldumaxl";
+                instr->instr_id = AD_INSTR_LDUMAXL;
+                alias->instr_s = "stumaxl";
+                alias->instr_id = AD_INSTR_STUMAXL;
+                break;
+            }
+        case 0x105:
+            {
+                instr->instr_s = "ldsmin";
+                instr->instr_id = AD_INSTR_LDSMIN;
+                alias->instr_s = "stsmin";
+                alias->instr_id = AD_INSTR_STSMIN;
+                break;
+            }
+        case 0x191:
+            {
+                instr->instr_s = "ldclrl";
+                instr->instr_id = AD_INSTR_LDCLRL;
+                alias->instr_s = "stclrl";
+                alias->instr_id = AD_INSTR_STCLRL;
+                break;
+            }
+        case 0x135:
+            {
+                instr->instr_s = "ldsminal";
+                instr->instr_id = AD_INSTR_LDSMINAL;
+                break;
+            }
+        case 0x1a1:
+            {
+                instr->instr_s = "ldclra";
+                instr->instr_id = AD_INSTR_LDCLRA;
+                break;
+            }
+        case 0x108:
+            {
+                instr->instr_s = "swp";
+                instr->instr_id = AD_INSTR_SWP;
+                break;
+            }
+        case 0x138:
+            {
+                instr->instr_s = "swpal";
+                instr->instr_id = AD_INSTR_SWPAL;
+                break;
+            }
+        case 0x1ac:
+            {
+                instr->instr_s = "ldaddal";
+                instr->instr_id = AD_INSTR_LDADDAL;
+                break;
+            }
+        case 0x20:
+            {
+                instr->instr_s = "ldaddab";
+                instr->instr_id = AD_INSTR_LDADDAB;
+                break;
+            }
+        case 0xb4:
+            {
+                instr->instr_s = "ldsmaxalh";
+                instr->instr_id = AD_INSTR_LDSMAXALH;
+                break;
+            }
+        case 0x10:
+            {
+                instr->instr_s = "ldaddlb";
+                instr->instr_id = AD_INSTR_LDADDLB;
+                alias->instr_s = "staddlb";
+                alias->instr_id = AD_INSTR_STADDLB;
+                break;
+            }
+        case 0x84:
+            {
+                instr->instr_s = "ldsmaxh";
+                instr->instr_id = AD_INSTR_LDSMAXH;
+                alias->instr_s = "stsmaxh";
+                alias->instr_id = AD_INSTR_STSMAXH;
+                break;
+            }
+        case 0x16:
+            {
+                instr->instr_s = "ldumaxlb";
+                instr->instr_id = AD_INSTR_LDUMAXLB;
+                alias->instr_s = "stumaxlb";
+                alias->instr_id = AD_INSTR_STUMAXLB;
+                break;
+            }
+        case 0x82:
+            {
+                instr->instr_s = "ldeorh";
+                instr->instr_id = AD_INSTR_LDEORH;
+                alias->instr_s = "steorh";
+                alias->instr_id = AD_INSTR_STEORH;
+                break;
+            }
+        case 0x26:
+            {
+                instr->instr_s = "ldumaxab";
+                instr->instr_id = AD_INSTR_LDUMAXAB;
+                break;
+            }
+        case 0xb2:
+            {
+                instr->instr_s = "ldeoralh";
+                instr->instr_id = AD_INSTR_LDEORALH;
+                break;
+            }
+        case 0x133:
+            {
+                instr->instr_s = "ldsetal";
+                instr->instr_id = AD_INSTR_LDSETAL;
+                break;
+            }
+        case 0x1a7:
+            {
+                instr->instr_s = "ldumina";
+                instr->instr_id = AD_INSTR_LDUMINA;
+                break;
+            }
+        case 0x103:
+            {
+                instr->instr_s = "ldset";
+                instr->instr_id = AD_INSTR_LDSET;
+                alias->instr_s = "stset";
+                alias->instr_id = AD_INSTR_STSET;
+                break;
+            }
+        case 0x197:
+            {
+                instr->instr_s = "lduminl";
+                instr->instr_id = AD_INSTR_LDUMINL;
+                alias->instr_s = "stuminl";
+                alias->instr_id = AD_INSTR_STUMINL;
+                break;
+            }
+        case 0x180:
+            {
+                instr->instr_s = "ldadd";
+                instr->instr_id = AD_INSTR_LDADD;
+                alias->instr_s = "stadd";
+                alias->instr_id = AD_INSTR_STADD;
+                break;
+            }
+        case 0x114:
+            {
+                instr->instr_s = "ldsmaxl";
+                instr->instr_id = AD_INSTR_LDSMAXL;
+                alias->instr_s = "stsmaxl";
+                alias->instr_id = AD_INSTR_STSMAXL;
+                break;
+            }
+        case 0x124:
+            {
+                instr->instr_s = "ldsmaxa";
+                instr->instr_id = AD_INSTR_LDSMAXA;
+                break;
+            }
+        case 0xa8:
+            {
+                instr->instr_s = "swpah";
+                instr->instr_id = AD_INSTR_SWPAH;
+                break;
+            }
+        case 0x98:
+            {
+                instr->instr_s = "swplh";
+                instr->instr_id = AD_INSTR_SWPLH;
+                break;
+            }
+        case 0xa5:
+            {
+                instr->instr_s = "ldsminah";
+                instr->instr_id = AD_INSTR_LDSMINAH;
+                break;
+            }
+        case 0x31:
+            {
+                instr->instr_s = "ldclralb";
+                instr->instr_id = AD_INSTR_LDCLRALB;
+                break;
+            }
+        case 0x95:
+            {
+                instr->instr_s = "ldsminlh";
+                instr->instr_id = AD_INSTR_LDSMINLH;
+                alias->instr_s = "stsminlh";
+                alias->instr_id = AD_INSTR_STSMINLH;
+                break;
+            }
+        case 0x1:
+            {
+                instr->instr_s = "ldclrb";
+                instr->instr_id = AD_INSTR_LDCLRB;
+                alias->instr_s = "stclrb";
+                alias->instr_id = AD_INSTR_STCLRB;
+                break;
+            }
+        case 0x93:
+            {
+                instr->instr_s = "ldsetlh";
+                instr->instr_id = AD_INSTR_LDSETLH;
+                alias->instr_s = "stsetlh";
+                alias->instr_id = AD_INSTR_STSETLH;
+                break;
+            }
+        case 0x7:
+            {
+                instr->instr_s = "lduminb";
+                instr->instr_id = AD_INSTR_LDUMINB;
+                alias->instr_s = "stuminb";
+                alias->instr_id = AD_INSTR_STUMINB;
+                break;
+            }
+        case 0xa3:
+            {
+                instr->instr_s = "ldsetah";
+                instr->instr_id = AD_INSTR_LDSETAH;
+                break;
+            }
+        case 0x37:
+            {
+                instr->instr_s = "lduminalb";
+                instr->instr_id = AD_INSTR_LDUMINALB;
+                break;
+            }
+        case 0x1b6:
+            {
+                instr->instr_s = "ldumaxal";
+                instr->instr_id = AD_INSTR_LDUMAXAL;
+                break;
+            }
+        case 0x122:
+            {
+                instr->instr_s = "ldeora";
+                instr->instr_id = AD_INSTR_LDEORA;
+                break;
+            }
+        case 0x186:
+            {
+                instr->instr_s = "ldumax";
+                instr->instr_id = AD_INSTR_LDUMAX;
+                alias->instr_s = "stumax";
+                alias->instr_id = AD_INSTR_STUMAX;
+                break;
+            }
+        case 0x112:
+            {
+                instr->instr_s = "ldeorl";
+                instr->instr_id = AD_INSTR_LDEORL;
+                alias->instr_s = "steorl";
+                alias->instr_id = AD_INSTR_STEORL;
+                break;
+            }
+        case 0x101:
+            {
+                instr->instr_s = "ldclr";
+                instr->instr_id = AD_INSTR_LDCLR;
+                alias->instr_s = "stclr";
+                alias->instr_id = AD_INSTR_STCLR;
+                break;
+            }
+        case 0x195:
+            {
+                instr->instr_s = "ldsminl";
+                instr->instr_id = AD_INSTR_LDSMINL;
+                alias->instr_s = "stsminl";
+                alias->instr_id = AD_INSTR_STSMINL;
+                break;
+            }
+        case 0x131:
+            {
+                instr->instr_s = "ldclral";
+                instr->instr_id = AD_INSTR_LDCLRAL;
+                break;
+            }
+        case 0x1a5:
+            {
+                instr->instr_s = "ldsmina";
+                instr->instr_id = AD_INSTR_LDSMINA;
+                break;
+            }
+        case 0x198:
+            {
+                instr->instr_s = "swpl";
+                instr->instr_id = AD_INSTR_SWPL;
+                break;
+            }
+        case 0x1a8:
+            {
+                instr->instr_s = "swpa";
+                instr->instr_id = AD_INSTR_SWPA;
+                break;
+            }
+        case 0x24:
+            {
+                instr->instr_s = "ldsmaxab";
+                instr->instr_id = AD_INSTR_LDSMAXAB;
+                break;
+            }
+        case 0xb0:
+            {
+                instr->instr_s = "ldaddalh";
+                instr->instr_id = AD_INSTR_LDADDALH;
+                break;
+            }
+        case 0x14:
+            {
+                instr->instr_s = "ldsmaxlb";
+                instr->instr_id = AD_INSTR_LDSMAXLB;
+                alias->instr_s = "stsmaxlb";
+                alias->instr_id = AD_INSTR_STSMAXLB;
+                break;
+            }
+        case 0x80:
+            {
+                instr->instr_s = "ldaddh";
+                instr->instr_id = AD_INSTR_LDADDH;
+                alias->instr_s = "staddh";
+                alias->instr_id = AD_INSTR_STADDH;
+                break;
+            }
+        case 0x12:
+            {
+                instr->instr_s = "ldeorlb";
+                instr->instr_id = AD_INSTR_LDEORLB;
+                alias->instr_s = "steorlb";
+                alias->instr_id = AD_INSTR_STEORLB;
+                break;
+            }
+        case 0x86:
+            {
+                instr->instr_s = "ldumaxh";
+                instr->instr_id = AD_INSTR_LDUMAXH;
+                alias->instr_s = "stumaxh";
+                alias->instr_id = AD_INSTR_STUMAXH;
+                break;
+            }
+        case 0x22:
+            {
+                instr->instr_s = "ldeorab";
+                instr->instr_id = AD_INSTR_LDEORAB;
+                break;
+            }
+        case 0xb6:
+            {
+                instr->instr_s = "ldumaxalh";
+                instr->instr_id = AD_INSTR_LDUMAXALH;
+                break;
+            }
+        case 0x137:
+            {
+                instr->instr_s = "lduminal";
+                instr->instr_id = AD_INSTR_LDUMINAL;
+                break;
+            }
+        case 0x1a3:
+            {
+                instr->instr_s = "ldseta";
+                instr->instr_id = AD_INSTR_LDSETA;
+                break;
+            }
+        case 0x107:
+            {
+                instr->instr_s = "ldumin";
+                instr->instr_id = AD_INSTR_LDUMIN;
+                alias->instr_s = "stumin";
+                alias->instr_id = AD_INSTR_STUMIN;
+                break;
+            }
+        case 0x193:
+            {
+                instr->instr_s = "ldsetl";
+                instr->instr_id = AD_INSTR_LDSETL;
+                alias->instr_s = "stsetl";
+                alias->instr_id = AD_INSTR_STSETL;
+                break;
+            }
+        case 0x30:
+            {
+                instr->instr_s = "ldaddalb";
+                instr->instr_id = AD_INSTR_LDADDALB;
+                break;
+            }
+        case 0xa4:
+            {
+                instr->instr_s = "ldsmaxah";
+                instr->instr_id = AD_INSTR_LDSMAXAH;
+                break;
+            }
+        case 0x0:
+            {
+                instr->instr_s = "ldaddb";
+                instr->instr_id = AD_INSTR_LDADDB;
+                alias->instr_s = "staddb";
+                alias->instr_id = AD_INSTR_STADDB;
+                break;
+            }
+        case 0x94:
+            {
+                instr->instr_s = "ldsmaxlh";
+                instr->instr_id = AD_INSTR_LDSMAXLH;
+                alias->instr_s = "stsmaxlh";
+                alias->instr_id = AD_INSTR_STSMAXLH;
+                break;
+            }
+        case 0x115:
+            {
+                instr->instr_s = "ldsminl";
+                instr->instr_id = AD_INSTR_LDSMINL;
+                alias->instr_s = "stsminl";
+                alias->instr_id = AD_INSTR_STSMINL;
+                break;
+            }
+        case 0x181:
+            {
+                instr->instr_s = "ldclr";
+                instr->instr_id = AD_INSTR_LDCLR;
+                alias->instr_s = "stclr";
+                alias->instr_id = AD_INSTR_STCLR;
+                break;
+            }
+        case 0x125:
+            {
+                instr->instr_s = "ldsmina";
+                instr->instr_id = AD_INSTR_LDSMINA;
+                break;
+            }
+        case 0x1b1:
+            {
+                instr->instr_s = "ldclral";
+                instr->instr_id = AD_INSTR_LDCLRAL;
+                break;
+            }
+        case 0x118:
+            {
+                instr->instr_s = "swpl";
+                instr->instr_id = AD_INSTR_SWPL;
+                break;
+            }
+        case 0x128:
+            {
+                instr->instr_s = "swpa";
+                instr->instr_id = AD_INSTR_SWPA;
+                break;
+            }
+        case 0x123:
+            {
+                instr->instr_s = "ldseta";
+                instr->instr_id = AD_INSTR_LDSETA;
+                break;
+            }
+        case 0x1b7:
+            {
+                instr->instr_s = "lduminal";
+                instr->instr_id = AD_INSTR_LDUMINAL;
+                break;
+            }
+        case 0x113:
+            {
+                instr->instr_s = "ldsetl";
+                instr->instr_id = AD_INSTR_LDSETL;
+                alias->instr_s = "stsetl";
+                alias->instr_id = AD_INSTR_STSETL;
+                break;
+            }
+        case 0x187:
+            {
+                instr->instr_s = "ldumin";
+                instr->instr_id = AD_INSTR_LDUMIN;
+                alias->instr_s = "stumin";
+                alias->instr_id = AD_INSTR_STUMIN;
+                break;
+            }
+        case 0x6:
+            {
+                instr->instr_s = "ldumaxb";
+                instr->instr_id = AD_INSTR_LDUMAXB;
+                alias->instr_s = "stumaxb";
+                alias->instr_id = AD_INSTR_STUMAXB;
+                break;
+            }
+        case 0x92:
+            {
+                instr->instr_s = "ldeorlh";
+                instr->instr_id = AD_INSTR_LDEORLH;
+                alias->instr_s = "steorlh";
+                alias->instr_id = AD_INSTR_STEORLH;
+                break;
+            }
+        case 0x36:
+            {
+                instr->instr_s = "ldumaxalb";
+                instr->instr_id = AD_INSTR_LDUMAXALB;
+                break;
+            }
+        case 0xa2:
+            {
+                instr->instr_s = "ldeorah";
+                instr->instr_id = AD_INSTR_LDEORAH;
+                break;
+            }
+        case 0x28:
+            {
+                instr->instr_s = "swpab";
+                instr->instr_id = AD_INSTR_SWPAB;
+                break;
+            }
+        case 0x18:
+            {
+                instr->instr_s = "swplb";
+                instr->instr_id = AD_INSTR_SWPLB;
+                break;
+            }
+        case 0xb1:
+            {
+                instr->instr_s = "ldclralh";
+                instr->instr_id = AD_INSTR_LDCLRALH;
+                break;
+            }
+        case 0x25:
+            {
+                instr->instr_s = "ldsminab";
+                instr->instr_id = AD_INSTR_LDSMINAB;
+                break;
+            }
+        case 0x81:
+            {
+                instr->instr_s = "ldclrh";
+                instr->instr_id = AD_INSTR_LDCLRH;
+                alias->instr_s = "stclrh";
+                alias->instr_id = AD_INSTR_STCLRH;
+                break;
+            }
+        case 0x15:
+            {
+                instr->instr_s = "ldsminlb";
+                instr->instr_id = AD_INSTR_LDSMINLB;
+                alias->instr_s = "stsminlb";
+                alias->instr_id = AD_INSTR_STSMINLB;
+                break;
+            }
+        case 0x194:
+            {
+                instr->instr_s = "ldsmaxl";
+                instr->instr_id = AD_INSTR_LDSMAXL;
+                alias->instr_s = "stsmaxl";
+                alias->instr_id = AD_INSTR_STSMAXL;
+                break;
+            }
+        case 0x100:
+            {
+                instr->instr_s = "ldadd";
+                instr->instr_id = AD_INSTR_LDADD;
+                alias->instr_s = "stadd";
+                alias->instr_id = AD_INSTR_STADD;
+                break;
+            }
+        case 0x1a4:
+            {
+                instr->instr_s = "ldsmaxa";
+                instr->instr_id = AD_INSTR_LDSMAXA;
+                break;
+            }
+        case 0x1a2:
+            {
+                instr->instr_s = "ldeora";
+                instr->instr_id = AD_INSTR_LDEORA;
+                break;
+            }
+        case 0x136:
+            {
+                instr->instr_s = "ldumaxal";
+                instr->instr_id = AD_INSTR_LDUMAXAL;
+                break;
+            }
+        case 0x192:
+            {
+                instr->instr_s = "ldeorl";
+                instr->instr_id = AD_INSTR_LDEORL;
+                alias->instr_s = "steorl";
+                alias->instr_id = AD_INSTR_STEORL;
+                break;
+            }
+        case 0x106:
+            {
+                instr->instr_s = "ldumax";
+                instr->instr_id = AD_INSTR_LDUMAX;
+                alias->instr_s = "stumax";
+                alias->instr_id = AD_INSTR_STUMAX;
+                break;
+            }
+        case 0x87:
+            {
+                instr->instr_s = "lduminh";
+                instr->instr_id = AD_INSTR_LDUMINH;
+                alias->instr_s = "stuminh";
+                alias->instr_id = AD_INSTR_STUMINH;
+                break;
+            }
+        case 0x13:
+            {
+                instr->instr_s = "ldsetlb";
+                instr->instr_id = AD_INSTR_LDSETLB;
+                alias->instr_s = "stsetlb";
+                alias->instr_id = AD_INSTR_STSETLB;
+                break;
+            }
+        case 0xb7:
+            {
+                instr->instr_s = "lduminalh";
+                instr->instr_id = AD_INSTR_LDUMINALH;
+                break;
+            }
+        case 0x23:
+            {
+                instr->instr_s = "ldsetab";
+                instr->instr_id = AD_INSTR_LDSETAB;
+                break;
+            }
+        case 0x34:
+            {
+                instr->instr_s = "ldsmaxalb";
+                instr->instr_id = AD_INSTR_LDSMAXALB;
+                break;
+            }
+        case 0xa0:
+            {
+                instr->instr_s = "ldaddah";
+                instr->instr_id = AD_INSTR_LDADDAH;
+                break;
+            }
+        case 0x4:
+            {
+                instr->instr_s = "ldsmaxb";
+                instr->instr_id = AD_INSTR_LDSMAXB;
+                alias->instr_s = "stsmaxb";
+                alias->instr_id = AD_INSTR_STSMAXB;
+                break;
+            }
+        case 0x90:
+            {
+                instr->instr_s = "ldaddlh";
+                instr->instr_id = AD_INSTR_LDADDLH;
+                alias->instr_s = "staddlh";
+                alias->instr_id = AD_INSTR_STADDLH;
+                break;
+            }
+        case 0x111:
+            {
+                instr->instr_s = "ldclrl";
+                instr->instr_id = AD_INSTR_LDCLRL;
+                alias->instr_s = "stclrl";
+                alias->instr_id = AD_INSTR_STCLRL;
+                break;
+            }
+        case 0x185:
+            {
+                instr->instr_s = "ldsmin";
+                instr->instr_id = AD_INSTR_LDSMIN;
+                alias->instr_s = "stsmin";
+                alias->instr_id = AD_INSTR_STSMIN;
+                break;
+            }
+        case 0x121:
+            {
+                instr->instr_s = "ldclra";
+                instr->instr_id = AD_INSTR_LDCLRA;
+                break;
+            }
+        case 0x1b5:
+            {
+                instr->instr_s = "ldsminal";
+                instr->instr_id = AD_INSTR_LDSMINAL;
+                break;
+            }
+        case 0x188:
+            {
+                instr->instr_s = "swp";
+                instr->instr_id = AD_INSTR_SWP;
+                break;
+            }
+        case 0x130:
+            {
+                instr->instr_s = "ldaddal";
+                instr->instr_id = AD_INSTR_LDADDAL;
+                break;
+            }
+        case 0x1b8:
+            {
+                instr->instr_s = "swpal";
+                instr->instr_id = AD_INSTR_SWPAL;
+                break;
+            }
+        case 0x127:
+            {
+                instr->instr_s = "ldumina";
+                instr->instr_id = AD_INSTR_LDUMINA;
+                break;
+            }
+        case 0x1b3:
+            {
+                instr->instr_s = "ldsetal";
+                instr->instr_id = AD_INSTR_LDSETAL;
+                break;
+            }
+        case 0x117:
+            {
+                instr->instr_s = "lduminl";
+                instr->instr_id = AD_INSTR_LDUMINL;
+                alias->instr_s = "stuminl";
+                alias->instr_id = AD_INSTR_STUMINL;
+                break;
+            }
+        case 0x183:
+            {
+                instr->instr_s = "ldset";
+                instr->instr_id = AD_INSTR_LDSET;
+                alias->instr_s = "stset";
+                alias->instr_id = AD_INSTR_STSET;
+                break;
+            }
+        case 0x2:
+            {
+                instr->instr_s = "ldeorb";
+                instr->instr_id = AD_INSTR_LDEORB;
+                alias->instr_s = "steorb";
+                alias->instr_id = AD_INSTR_STEORB;
+                break;
+            }
+        case 0x96:
+            {
+                instr->instr_s = "ldumaxlh";
+                instr->instr_id = AD_INSTR_LDUMAXLH;
+                alias->instr_s = "stumaxlh";
+                alias->instr_id = AD_INSTR_STUMAXLH;
+                break;
+            }
+        case 0x32:
+            {
+                instr->instr_s = "ldeoralb";
+                instr->instr_id = AD_INSTR_LDEORALB;
+                break;
+            }
+        case 0xa6:
+            {
+                instr->instr_s = "ldumaxah";
+                instr->instr_id = AD_INSTR_LDUMAXAH;
+                break;
+            }
+        case 0xb8:
+            {
+                instr->instr_s = "swpalh";
+                instr->instr_id = AD_INSTR_SWPALH;
+                break;
+            }
+        case 0x2c:
+            {
+                instr->instr_s = "ldaprb";
+                instr->instr_id = AD_INSTR_LDAPRB;
+                break;
+            }
+        case 0x88:
+            {
+                instr->instr_s = "swph";
+                instr->instr_id = AD_INSTR_SWPH;
+                break;
+            }
+        case 0xb5:
+            {
+                instr->instr_s = "ldsminalh";
+                instr->instr_id = AD_INSTR_LDSMINALH;
+                break;
+            }
+        case 0x21:
+            {
+                instr->instr_s = "ldclrab";
+                instr->instr_id = AD_INSTR_LDCLRAB;
+                break;
+            }
+        case 0x85:
+            {
+                instr->instr_s = "ldsminh";
+                instr->instr_id = AD_INSTR_LDSMINH;
+                alias->instr_s = "stsminh";
+                alias->instr_id = AD_INSTR_STSMINH;
+                break;
+            }
+        case 0x11:
+            {
+                instr->instr_s = "ldclrlb";
+                instr->instr_id = AD_INSTR_LDCLRLB;
+                alias->instr_s = "stclrlb";
+                alias->instr_id = AD_INSTR_STCLRLB;
+                break;
+            }
+        case 0x190:
+            {
+                instr->instr_s = "ldaddl";
+                instr->instr_id = AD_INSTR_LDADDL;
+                alias->instr_s = "staddl";
+                alias->instr_id = AD_INSTR_STADDL;
+                break;
+            }
+        case 0x104:
+            {
+                instr->instr_s = "ldsmax";
+                instr->instr_id = AD_INSTR_LDSMAX;
+                alias->instr_s = "stsmax";
+                alias->instr_id = AD_INSTR_STSMAX;
+                break;
+            }
+        case 0x1a0:
+            {
+                instr->instr_s = "ldadda";
+                instr->instr_id = AD_INSTR_LDADDA;
+                break;
+            }
+        case 0x134:
+            {
+                instr->instr_s = "ldsmaxal";
+                instr->instr_id = AD_INSTR_LDSMAXAL;
+                break;
+            }
+        case 0x1a6:
+            {
+                instr->instr_s = "ldumaxa";
+                instr->instr_id = AD_INSTR_LDUMAXA;
+                break;
+            }
+        case 0x132:
+            {
+                instr->instr_s = "ldeoral";
+                instr->instr_id = AD_INSTR_LDEORAL;
+                break;
+            }
+        case 0x196:
+            {
+                instr->instr_s = "ldumaxl";
+                instr->instr_id = AD_INSTR_LDUMAXL;
+                alias->instr_s = "stumaxl";
+                alias->instr_id = AD_INSTR_STUMAXL;
+                break;
+            }
+        case 0x102:
+            {
+                instr->instr_s = "ldeor";
+                instr->instr_id = AD_INSTR_LDEOR;
+                alias->instr_s = "steor";
+                alias->instr_id = AD_INSTR_STEOR;
+                break;
+            }
+        case 0x83:
+            {
+                instr->instr_s = "ldseth";
+                instr->instr_id = AD_INSTR_LDSETH;
+                alias->instr_s = "stseth";
+                alias->instr_id = AD_INSTR_STSETH;
+                break;
+            }
+        case 0x17:
+            {
+                instr->instr_s = "lduminlb";
+                instr->instr_id = AD_INSTR_LDUMINLB;
+                alias->instr_s = "stuminlb";
+                alias->instr_id = AD_INSTR_STUMINLB;
+                break;
+            }
+        case 0xb3:
+            {
+                instr->instr_s = "ldsetalh";
+                instr->instr_id = AD_INSTR_LDSETALH;
+                break;
+            }
+        case 0x27:
+            {
+                instr->instr_s = "lduminab";
+                instr->instr_id = AD_INSTR_LDUMINAB;
+                break;
+            }
+        case 0x12c:
+            {
+                instr->instr_s = "ldapr";
+                instr->instr_id = AD_INSTR_LDAPR;
+                break;
+            }
+    };
 
-	if(V == 0 && (opc == 2 || size == 3)){
-		general_registers = ARM64_GeneralRegisters;
-		_64bit = 1;
-	}
-	else if(V == 1){
-		if(size == 0 && opc != 2){
-			flt_registers = ARM64_VectorBRegisters;
-			
-			// this doesn't matter here
-			flt_amount = -1;
-		}
-		else if(size == 1){
-			flt_registers = ARM64_VectorHalfPrecisionRegisters;
-			flt_amount = S == 0 ? 0 : 1;
-		}
-		else if(size == 2){
-			flt_registers = ARM64_VectorSinglePrecisionRegisters;
-			flt_amount = S == 0 ? 0 : 2;
-		}
-		else if(size == 3){
-			flt_registers = ARM64_VectorDoublePrecisionRegisters;
-			flt_amount = S == 0 ? 0 : 3;
-		}
-	}
-
-	const char *_Rt = NULL;
-
-	if(V == 1)
-		_Rt = flt_registers[Rt];
-	else
-		_Rt = general_registers[Rt];
-
-	const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
-	const char *_Rm = ARM64_32BitGeneralRegisters[Rm];
-
-	if((option & 1) == 1)
-		_Rm = ARM64_GeneralRegisters[Rm];
-	
-	int extended = option != 3 ? 1 : 0;
-	const char *extend = NULL;
-
-	if(extended)
-		extend = decode_reg_extend(option);
-	
-	const char **instr_tbl = pre_post_unsigned_register_idx_instr_tbl;
-	
-	unsigned int instr_idx = (size << 3) | (V << 2) | opc;
-	if(!check_bounds(instr_idx, ARRAY_SIZE(pre_post_unsigned_register_idx_instr_tbl)))
-		return strdup(".undefined");
-	const char *instr = instr_tbl[instr_idx];
-	
-	if(!instr)
-		return strdup(".undefined");
-	
-	int omit_amount = -1;
-
-	disassembled = malloc(128);
-	sprintf(disassembled, "%s %s, [%s, %s", instr, _Rt, _Rn, _Rm);
-	
-	omit_amount = S == 0 ? 1 : 0;
-	
-	if(V == 0){
-		amount = S;
-		
-		if(strcmp(instr, "strb") == 0 || strcmp(instr, "ldrb") == 0 || strcmp(instr, "ldrsb") == 0){
-			if(omit_amount){
-				if(extended)
-					sprintf(disassembled, "%s, %s]", disassembled, extend);
-				else
-					sprintf(disassembled, "%s]", disassembled);
-			}
-			else if(!omit_amount){
-				if(extended)
-					sprintf(disassembled, "%s, %s #%d]", disassembled, extend, amount);
-				else
-					sprintf(disassembled, "%s, lsl #0]", disassembled);
-			}
-
-			return disassembled;
-		}
-		else if(strcmp(instr, "str") == 0 || strcmp(instr, "ldr") == 0){
-			if(_64bit)
-				amount = S == 0 ? 0 : 3;
-			else
-				amount = S == 0 ? 0 : 2;
-		}
-		else if(strcmp(instr, "ldrsw") == 0)
-			amount = S == 0 ? 0 : 2;
-		
-		if(extended){
-			sprintf(disassembled, "%s, %s", disassembled, extend);
-			
-			if(amount != 0)
-				sprintf(disassembled, "%s #%d]", disassembled, amount);
-			else
-				sprintf(disassembled, "%s]", disassembled);
-		}
-		else{
-			if(amount != 0)
-				sprintf(disassembled, "%s, lsl #%d]", disassembled, amount);
-			else
-				sprintf(disassembled, "%s]", disassembled);
-		}
-
-		return disassembled;
-	}
-	else if(V == 1){
-		if(flt_amount == -1){
-			if(omit_amount){
-				if(extended)
-					sprintf(disassembled, "%s, %s]", disassembled, extend);
-				else
-					sprintf(disassembled, "%s]", disassembled);
-			}
-			else if(!omit_amount){
-				if(extended)
-					sprintf(disassembled, "%s, %s #%d]", disassembled, extend, flt_amount);
-				else
-					sprintf(disassembled, "%s, lsl #0]", disassembled);
-			}
-		}
-		else if(extended){
-			sprintf(disassembled, "%s, %s", disassembled, extend);
-
-			if(flt_amount != 0)
-				sprintf(disassembled, "%s #%d]", disassembled, flt_amount);
-			else
-				sprintf(disassembled, "%s]", disassembled);
-		}
-		else if(!extended){
-			if(flt_amount != 0)
-				sprintf(disassembled, "%s, lsl #%d]", disassembled, flt_amount);
-			else
-				sprintf(disassembled, "%s]", disassembled);
-		}
-
-		return disassembled;
-	}
-	
-	return disassembled;
+    return use_alias;
 }
 
-char *DisassembleLoadAndStorePACInstr(struct instruction *instruction){
-	char *disassembled = NULL;
+static int DisassembleAtomicMemoryInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned size = bits(i->opcode, 30, 31);
+    unsigned V = bits(i->opcode, 26, 26);
+    unsigned A = bits(i->opcode, 23, 23);
+    unsigned R = bits(i->opcode, 22, 22);
+    unsigned Rs = bits(i->opcode, 16, 20);
+    unsigned o3 = bits(i->opcode, 15, 15);
+    unsigned opc = bits(i->opcode, 12, 14);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rt = bits(i->opcode, 0, 4);
 
-	unsigned int Rt = getbitsinrange(instruction->hex, 0, 5);
-	unsigned int Rn = getbitsinrange(instruction->hex, 5, 5);
-	unsigned int W = getbitsinrange(instruction->hex, 11, 1);
-	unsigned int imm9 = getbitsinrange(instruction->hex, 12, 9);
-	unsigned int S = getbitsinrange(instruction->hex, 22, 1);
-	unsigned int M = getbitsinrange(instruction->hex, 23, 1);
-	unsigned int V = getbitsinrange(instruction->hex, 26, 1);
-	unsigned int size = getbitsinrange(instruction->hex, 30, 2);
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, V);
+    ADD_FIELD(out, A);
+    ADD_FIELD(out, R);
+    ADD_FIELD(out, Rs);
+    ADD_FIELD(out, o3);
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rt);
 
-	if(size != 3)
-		return strdup(".undefined");
+    if(V == 1)
+        return 1;
 
-	int use_key_A = M == 0;
-	int S10 = (S << 9) | imm9;
-	
-	S10 = sign_extend(S10, 10);
-	S10 <<= 3;
+    const char **registers = AD_RTBL_GEN_32;
+    size_t sz = AD_RTBL_GEN_32_SZ;
 
-	char *instr = malloc(8);
-	sprintf(instr, "ldra");
+    if(size > 2){
+        registers = AD_RTBL_GEN_64;
+        sz = AD_RTBL_GEN_64_SZ;
+    }
 
-	if(use_key_A)
-		strcat(instr, "a");
-	else
-		strcat(instr, "b");
+    const char *Rs_s = GET_GEN_REG(registers, Rs, PREFER_ZR);
+    const char *Rt_s = GET_GEN_REG(registers, Rt, PREFER_ZR);
+    const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
 
-	const char *_Rt = ARM64_GeneralRegisters[Rt];
-	const char *_Rn = Rn == 31 ? "sp" : ARM64_GeneralRegisters[Rn];
+    struct itab instr = {0}, alias = {0};
 
-	disassembled = malloc(128);
+    int use_alias = get_atomic_memory_op(size, V, A, R, o3, opc, Rt, &instr, &alias);
 
-	sprintf(disassembled, "%s %s, [%s, #%s%#x]%s", instr, _Rt, _Rn, S10 < 0 ? "-" : "", S10 < 0 ? -S10 : S10, W == 1 ? "!" : "");
+    int instr_id = AD_NONE;
 
-	free(instr);	
+    if(use_alias){
+        concat(&DECODE_STR(out), "%s ", alias.instr_s);
+        
+        instr_id = alias.instr_id;
+    }
+    else{
+        concat(&DECODE_STR(out), "%s ", instr.instr_s);
 
-	return disassembled;
+        instr_id = instr.instr_id;
+    }
+
+    if(instr_id == AD_INSTR_LDAPR || instr_id == AD_INSTR_LDAPRB || 
+            instr_id == AD_INSTR_LDAPRH){
+        ADD_REG_OPERAND(out, Rt, sz, PREFER_ZR, _SYSREG(AD_NONE), registers);
+
+        concat(&DECODE_STR(out), "%s, ", Rt_s);
+    }
+    else{
+        ADD_REG_OPERAND(out, Rs, sz, PREFER_ZR, _SYSREG(AD_NONE), registers);
+
+        concat(&DECODE_STR(out), "%s, ", Rs_s);
+
+        /* alias omits Rt */
+        if(!use_alias){
+            ADD_REG_OPERAND(out, Rt, sz, PREFER_ZR, _SYSREG(AD_NONE), registers);
+
+            concat(&DECODE_STR(out), "%s, ", Rt_s);
+        }
+    }
+
+    ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE), registers);
+
+    concat(&DECODE_STR(out), "[%s]", Rn_s);
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
 }
 
-char *LoadsAndStoresDisassemble(struct instruction *instruction){
-	char *disassembled = NULL;
+static int DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned size = bits(i->opcode, 30, 31);
+    unsigned V = bits(i->opcode, 26, 26);
+    unsigned opc = bits(i->opcode, 22, 23);
+    unsigned Rm = bits(i->opcode, 16, 20);
+    unsigned option = bits(i->opcode, 13, 15);
+    unsigned S = bits(i->opcode, 12, 12);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rt = bits(i->opcode, 0, 4);
 
-	unsigned int op0 = getbitsinrange(instruction->hex, 28, 4);
-	unsigned int op1 = getbitsinrange(instruction->hex, 26, 1);
-	unsigned int op2 = getbitsinrange(instruction->hex, 23, 2);
-	unsigned int op3 = getbitsinrange(instruction->hex, 16, 6);
-	unsigned int op4 = getbitsinrange(instruction->hex, 10, 2);
-	
-	if((op0 & ~0x4) == 0 && op1 == 0x1 && (op2 == 0 || op2 == 0x1) && (op3 & ~0x1f) == 0)
-		disassembled = DisassembleLoadStoreMultStructuresInstr(instruction, op2);
-	else if((op0 & ~0x4) == 0 && op1 == 0x1 && (op2 == 0x2 || op2 == 0x3))
-		disassembled = DisassembleLoadStoreSingleStructuresInstr(instruction, op2 == 0x2 ? 0 : 0x1);
-	else if((op0 & ~0xc) == 0 && op1 == 0 && (op2 >> 1) == 0)
-		disassembled = DisassembleLoadAndStoreExclusiveInstr(instruction);
-	else if((op0 & ~0xc) == 0x1 && (op2 >> 0x1) == 0)
-		disassembled = DisassembleLoadAndStoreLiteralInstr(instruction);
-	else if((op0 & ~0xc) == 0x2 && op2 <= 0x3)
-		disassembled = DisassembleLoadAndStoreRegisterPairInstr(instruction, op2);
-	else if((op0 & ~0xc) == 0x3 && (op2 >> 0x1) == 0){
-		if((op3 & ~0x1f) == 0)
-			disassembled = DisassembleLoadAndStoreRegisterInstr(instruction, op4);
-		else{
-			if(op4 == 0)
-				disassembled = DisassembleAtomicMemoryInstr(instruction);
-			else if(op4 == 0x2)
-				disassembled = DisassembleLoadAndStoreRegisterOffsetInstr(instruction);
-			else if((op4 & 0x1) == 0x1)
-				disassembled = DisassembleLoadAndStorePACInstr(instruction);
-			else
-				return strdup(".undefined");
-		}
-	}
-	else if(((op0 & ~0xc) == 0x3 && (op2 >> 0x1) == 0x1))
-		disassembled = DisassembleLoadAndStoreRegisterInstr(instruction, UNSIGNED_IMMEDIATE);
-	else
-		return strdup(".undefined");
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, V);
+    ADD_FIELD(out, opc);
+    ADD_FIELD(out, Rm);
+    ADD_FIELD(out, option);
+    ADD_FIELD(out, S);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rt);
 
-	return disassembled;
+    int instr_id = AD_NONE;
+
+    const char **registers = AD_RTBL_GEN_32;
+    size_t sz = _32_BIT;
+    
+    int fp = 0;
+
+    if(V == 0 && (opc == 2 || size == 3)){
+        registers = AD_RTBL_GEN_64;
+        sz = _64_BIT;
+    }
+    else if(V == 1){
+        fp = 1;
+
+        if(size == 0 && opc != 2){
+            registers = AD_RTBL_FP_8;
+            sz = _8_BIT;
+        }
+        else if(size == 0 && (opc == 2 || opc == 3)){
+            registers = AD_RTBL_FP_128;
+            sz = _128_BIT;
+        }
+        else if(size == 1){
+            registers = AD_RTBL_FP_16;
+            sz = _16_BIT;
+        }
+        else if(size == 2){
+            registers = AD_RTBL_FP_32;
+            sz = _32_BIT;
+        }
+        else if(size == 3){
+            registers = AD_RTBL_FP_64;
+            sz = _64_BIT;
+        }
+    }
+
+    const char *Rt_s = NULL;
+    const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+    const char *Rm_s = NULL;
+
+    if(fp)
+        Rt_s = GET_FP_REG(registers, Rt);
+    else
+        Rt_s = GET_GEN_REG(registers, Rt, NO_PREFER_ZR);
+
+    int Rm_sz = _64_BIT;
+
+    if(option & 1)
+        Rm_s = GET_GEN_REG(AD_RTBL_GEN_64, Rm, PREFER_ZR);
+    else{
+        Rm_s = GET_GEN_REG(AD_RTBL_GEN_32, Rm, PREFER_ZR);
+        Rm_sz = _32_BIT;
+    }
+
+    unsigned instr_idx = (size << 3) | (V << 2) |  opc;
+
+    if(OOB(instr_idx, pre_post_unsigned_register_idx_instr_tbl))
+        return 1;
+
+    struct itab instr = pre_post_unsigned_register_idx_instr_tbl[instr_idx];
+
+    instr_id = instr.instr_id;
+
+    SET_INSTR_ID(out, instr_id);
+
+    if(instr_id != AD_INSTR_PRFM)
+        ADD_REG_OPERAND(out, Rt, sz, NO_PREFER_ZR, _SYSREG(AD_NONE), registers);
+
+    ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(AD_NONE), AD_RTBL_GEN_64);
+    ADD_REG_OPERAND(out, Rm, Rm_sz, PREFER_ZR, _SYSREG(AD_NONE), Rm_sz == _32_BIT ?
+            AD_RTBL_GEN_32 : AD_RTBL_GEN_64);
+
+    int extended = option != 3;
+    const char *extend = decode_reg_extend(option);
+
+    if(instr_id == AD_INSTR_PRFM){
+        unsigned type = bits(Rt, 3, 4);
+        unsigned target = bits(Rt, 1, 2);
+        unsigned policy = Rt & 1;
+
+        const char *types[] = { "PLD", "PLI", "PST" };
+        const char *targets[] = { "L1", "L2", "L3" };
+        const char *policies[] = { "KEEP", "STRM" };
+
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&Rt);
+
+        if(OOB(type, types) || OOB(target, targets) || OOB(policy, policies))
+            concat(&DECODE_STR(out), "%s #%#x, [%s, %s", instr.instr_s, Rt, Rn_s, Rm_s);
+        else{
+            concat(&DECODE_STR(out), "%s %s%s%s, [%s, %s", instr.instr_s, types[type],
+                    targets[target], policies[policy], Rn_s, Rm_s);
+        }
+
+        if(option == 3 && !S)
+            concat(&DECODE_STR(out), "]");
+        else{
+            if(option == 3)
+                concat(&DECODE_STR(out), ", lsl");
+            else
+                concat(&DECODE_STR(out), ", %s", extend);
+
+            if(S){
+                ADD_IMM_OPERAND(out, AD_IMM_UINT, 3);
+                
+                concat(&DECODE_STR(out), " #3");
+            }
+
+            concat(&DECODE_STR(out), "]");
+        }
+
+        return 0;
+    }
+
+    concat(&DECODE_STR(out), "%s %s, [%s, %s", instr.instr_s, Rt_s, Rn_s, Rm_s);
+
+    if(V == 0){
+        int amount = 0;
+
+        if(instr_id == AD_INSTR_STRB || instr_id == AD_INSTR_LDRB ||
+                instr_id == AD_INSTR_LDRSB){
+            if(S == 0){
+                if(extended)
+                    concat(&DECODE_STR(out), ", %s", extend);
+            }
+            else{
+                if(extended){
+                    ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&S);
+                    concat(&DECODE_STR(out), ", %s #%d", extend, S);
+                }
+                else{
+                    ADD_IMM_OPERAND(out, AD_IMM_UINT, 0);
+                    concat(&DECODE_STR(out), ", lsl #0");
+                }
+            }
+
+            concat(&DECODE_STR(out), "]");
+
+            return 0;
+        }
+        else if(instr_id == AD_INSTR_STR || instr_id == AD_INSTR_LDR){
+            if(sz == _64_BIT)
+                amount = S == 0 ? 0 : 3;
+            else
+                amount = S == 0 ? 0 : 2;
+        }
+        else if(instr_id == AD_INSTR_LDRSW){
+            amount = S == 0 ? 0 : 2;
+        }
+
+        if(extended){
+            concat(&DECODE_STR(out), ", %s", extend);
+
+            if(amount != 0){
+                ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&amount);
+
+                concat(&DECODE_STR(out), " #%d", amount);
+            }
+
+            concat(&DECODE_STR(out), "]");
+        }
+        else{
+            if(amount != 0){
+                ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&amount);
+
+                concat(&DECODE_STR(out), ", lsl #%d", amount);
+            }
+
+            concat(&DECODE_STR(out), "]");
+        }
+    }
+    else{
+        /* shift amount for 128 bit */
+        int amount = 4;
+
+        if(registers == AD_RTBL_FP_8)
+            amount = S;
+        else if(registers == AD_RTBL_FP_16)
+            amount = S == 0 ? 0 : 1;
+        else if(registers == AD_RTBL_FP_32)
+            amount = S == 0 ? 0 : 2;
+        else if(registers == AD_RTBL_FP_64)
+            amount = S == 0 ? 0 : 3;
+
+        if(registers == AD_RTBL_FP_8){
+            if(S == 0){
+                if(extended)
+                    concat(&DECODE_STR(out), ", %s", extend);
+            }
+            else{
+                if(extended){
+                    ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&amount);
+                    concat(&DECODE_STR(out), ", %s #%d", extend, amount);
+                }
+                else{
+                    ADD_IMM_OPERAND(out, AD_IMM_UINT, 0);
+                    concat(&DECODE_STR(out), ", lsl #0");
+                }
+            }
+
+            concat(&DECODE_STR(out), "]");
+
+            return 0;
+        }
+
+        if(extended){
+            concat(&DECODE_STR(out), ", %s", extend);
+
+            if(amount != 0){
+                ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&amount);
+
+                concat(&DECODE_STR(out), " #%d", amount);
+            }
+
+            concat(&DECODE_STR(out), "]");
+        }
+        else{
+            if(amount != 0){
+                ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&amount);
+
+                concat(&DECODE_STR(out), ", lsl #%d", amount);
+            }
+
+            concat(&DECODE_STR(out), "]");
+        }
+    }
+
+    return 0;
+}
+
+static int DisassembleLoadAndStorePACInstr(struct instruction *i,
+        struct ad_insn *out){
+    unsigned size = bits(i->opcode, 30, 31);
+    unsigned V = bits(i->opcode, 26, 26);
+    unsigned M = bits(i->opcode, 23, 23);
+    unsigned S = bits(i->opcode, 22, 22);
+    unsigned imm9 = bits(i->opcode, 12, 20);
+    unsigned W = bits(i->opcode, 11, 11);
+    unsigned Rn = bits(i->opcode, 5, 9);
+    unsigned Rt = bits(i->opcode, 0, 4);
+
+    if(size != 3)
+        return 1;
+
+    if(size == 3 && V == 1)
+        return 1;
+
+    ADD_FIELD(out, size);
+    ADD_FIELD(out, V);
+    ADD_FIELD(out, M);
+    ADD_FIELD(out, S);
+    ADD_FIELD(out, imm9);
+    ADD_FIELD(out, W);
+    ADD_FIELD(out, Rn);
+    ADD_FIELD(out, Rt);
+
+    int instr_id = AD_NONE;
+
+    const char *Rt_s = GET_GEN_REG(AD_RTBL_GEN_64, Rt, NO_PREFER_ZR);
+    const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
+
+    ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE), AD_RTBL_GEN_64);
+    ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE), AD_RTBL_GEN_64);
+
+    int use_key_A = M == 0;
+    int simm = sign_extend((S << 9) | imm9, 10) << 3;
+
+    concat(&DECODE_STR(out), "ldr");
+
+    if(M == 0){
+        instr_id = AD_INSTR_LDRAA;
+        concat(&DECODE_STR(out), "aa");
+    }
+    else{
+        instr_id = AD_INSTR_LDRAB;
+        concat(&DECODE_STR(out), "ab");
+    }
+
+    concat(&DECODE_STR(out), " %s, [%s", Rt_s, Rn_s);
+
+    if(simm == 0)
+        concat(&DECODE_STR(out), "]");
+    else{
+        ADD_IMM_OPERAND(out, AD_IMM_INT, *(int *)&simm);
+
+        concat(&DECODE_STR(out), ", #"S_X"]", S_A(simm));
+
+        if(W == 1)
+            concat(&DECODE_STR(out), "!");
+    }
+
+    SET_INSTR_ID(out, instr_id);
+
+    return 0;
+}
+
+int LoadsAndStoresDisassemble(struct instruction *i, struct ad_insn *out){
+    int result = 0;
+
+    unsigned op0 = bits(i->opcode, 28, 31);
+    unsigned op1 = bits(i->opcode, 26, 26);
+    unsigned op2 = bits(i->opcode, 23, 24);
+    unsigned op3 = bits(i->opcode, 16, 21);
+    unsigned op4 = bits(i->opcode, 10, 11);
+
+    if((op0 & ~4) == 0 && op1 == 1 && (op2 == 0 || op2 == 1) && (op3 & ~0x1f) == 0)
+        result = DisassembleLoadStoreMultStructuresInstr(i, out, op2);
+    else if((op0 & ~4) == 0 && op1 == 1 && (op2 == 2 || op2 == 3))
+        result = DisassembleLoadStoreSingleStructuresInstr(i, out, op2 != 2);
+    else if(op0 == 13 && op1 == 0 && (op2 >> 1) == 1 && (op3 >> 5) == 1)
+        result = DisassembleLoadStoreMemoryTagsInstr(i, out);
+    else if((op0 & ~12) == 0 && op1 == 0 && (op2 >> 1) == 0)
+        result = DisassembleLoadAndStoreExclusiveInstr(i, out);
+    else if((op0 & ~12) == 1 && op1 == 0 && (op2 >> 1) == 1 && (op3 & ~0x1f) == 0 && op4 == 0)
+        result = DisassembleLDAPR_STLRInstr(i, out);
+    else if((op0 & ~12) == 1 && (op2 >> 1) == 0)
+        result = DisassembleLoadAndStoreLiteralInstr(i, out);
+    else if((op0 & ~12) == 2 && op2 < 4)
+        result = DisassembleLoadAndStoreRegisterPairInstr(i, out, op2);
+    else if((op0 & ~12) == 3 && (op2 >> 1) == 0){
+        if((op3 & ~0x1f) == 0)
+            result = DisassembleLoadAndStoreRegisterInstr(i, out, op4);
+        else{
+            if(op4 == 0)
+                result = DisassembleAtomicMemoryInstr(i, out);
+            else if(op4 == 2)
+                result = DisassembleLoadAndStoreRegisterOffsetInstr(i, out);
+            else if((op4 & 1) == 1)
+                result = DisassembleLoadAndStorePACInstr(i, out);
+            else
+                result = 1;
+        }
+    }
+    else if((op0 & ~12) == 3 && (op2 >> 1) == 1)
+        result = DisassembleLoadAndStoreRegisterInstr(i, out, UNSIGNED_IMMEDIATE);
+    else{
+        result = 1;
+    }
+
+    return result;
 }
