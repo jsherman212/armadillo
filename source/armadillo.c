@@ -34,7 +34,7 @@ static int _ArmadilloDisassemble(struct instruction *i,
         ADD_FIELD(out, op1);
         ADD_FIELD(out, imm16);
 
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&imm16);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&imm16);
 
         concat(&DECODE_STR(out), "udf #%#x", imm16);
 

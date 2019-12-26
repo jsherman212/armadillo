@@ -385,7 +385,7 @@ static int DisassembleAdvancedSIMDCopyInstr(struct instruction *i,
     /* INS (element) or INS (general) */
     else if(unaliased_instr_id == AD_INSTR_INS){
         /* index == index1 for INS (element) */
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&index);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&index);
         concat(&DECODE_STR(out), ".%s[%d]", Ts, index);
     }
 
@@ -408,11 +408,11 @@ static int DisassembleAdvancedSIMDCopyInstr(struct instruction *i,
 
     /* INS (element) */
     if(unaliased_instr_id == AD_INSTR_INS && op == 1){
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&index2);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&index2);
         concat(&DECODE_STR(out), "[%d]", index2);
     }
     else{
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&index);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&index);
         concat(&DECODE_STR(out), "[%d]", index);
     }
 
@@ -668,7 +668,7 @@ static int DisassembleAdvancedSIMDThreeSameInstr(struct instruction *i,
 
                     concat(&DECODE_STR(out), ", #%d", rotate);
 
-                    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&rotate);
+                    ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&rotate);
                 }
             }
         }
@@ -2080,7 +2080,7 @@ static int DisassembleAdvancedSIMDTwoRegisterMiscellaneousInstr(struct instructi
 
         unsigned shift = 8 << size;
 
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&shift);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&shift);
 
         concat(&DECODE_STR(out), "%s %s.%s, %s.%s, #%#x", instr_s, Rd_s, Ta,
                 Rn_s, Tb, shift);
@@ -2391,11 +2391,11 @@ static int DisassembleAdvancedSIMDTwoRegisterMiscellaneousInstr(struct instructi
         concat(&DECODE_STR(out), ".%s, %s.%s", T, Rn_s, T);
 
     if(add_zero){
-        ADD_IMM_OPERAND(out, AD_INT, 0);
+        ADD_IMM_OPERAND(out, AD_IMM_INT, 0);
         concat(&DECODE_STR(out), ", #0");
     }
     else if(add_zerof){
-        ADD_IMM_OPERAND(out, AD_FLOAT, 0);
+        ADD_IMM_OPERAND(out, AD_IMM_FLOAT, 0);
         concat(&DECODE_STR(out), ", #0.0");
     }
 
@@ -2884,7 +2884,7 @@ static int DisassembleAdvancedSIMDModifiedImmediateInstr(struct instruction *i,
         concat(&DECODE_STR(out), ".%s", T);
 
     if(instr_id == AD_INSTR_FMOV){
-        ADD_IMM_OPERAND(out, AD_FLOAT, *(unsigned *)&immf);
+        ADD_IMM_OPERAND(out, AD_IMM_FLOAT, *(unsigned *)&immf);
 
         concat(&DECODE_STR(out), ", #%f", immf);
 
@@ -2896,7 +2896,7 @@ static int DisassembleAdvancedSIMDModifiedImmediateInstr(struct instruction *i,
 
     /* at this point, only instr without shift is MOVI (64 bit, both variants) */
     if(instr_id == AD_INSTR_MOVI && op == 1 && cmode == 14){
-        ADD_IMM_OPERAND(out, AD_LONG, *(long *)&imm);
+        ADD_IMM_OPERAND(out, AD_IMM_LONG, *(long *)&imm);
 
         concat(&DECODE_STR(out), ", #"S_LX"", S_LA(imm));
 
@@ -2905,7 +2905,7 @@ static int DisassembleAdvancedSIMDModifiedImmediateInstr(struct instruction *i,
         return 0;
     }
 
-    ADD_IMM_OPERAND(out, AD_INT, *(int *)&imm8);
+    ADD_IMM_OPERAND(out, AD_IMM_INT, *(int *)&imm8);
 
     concat(&DECODE_STR(out), ", #"S_X"", S_A(imm8));
 
@@ -3067,7 +3067,7 @@ static int DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *i,
         if(shift > 0){
             concat(&DECODE_STR(out), ", #%#x", shift);
 
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&shift);
+            ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&shift);
         }
     }
     else if(opcode >= 0x10 && opcode <= 0x14){
@@ -3225,7 +3225,7 @@ static int DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *i,
         if(shift > 0){
             concat(&DECODE_STR(out), ", #%#x", shift);
 
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&shift);
+            ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&shift);
         }
     }
     else if(opcode == 0x1c || opcode == 0x1f){
@@ -3286,7 +3286,7 @@ static int DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *i,
             concat(&DECODE_STR(out), ".%s, %s.%s", T, Rn_s, T);
 
         if(fbits > 0){
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&fbits);
+            ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&fbits);
 
             concat(&DECODE_STR(out), ", #%#x", fbits);
         }
@@ -3664,11 +3664,11 @@ static int DisassembleAdvancedSIMDXIndexedElementInstr(struct instruction *i,
             concat(&DECODE_STR(out), ".%s, %s.%s", Ta, Rn_s, Tb);
     }
 
-    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&index);
+    ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&index);
     concat(&DECODE_STR(out), ", %s.%s[%d]", Rm_s, Ts, index);
 
     if(instr_id == AD_INSTR_FCMLA){
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&rotate);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&rotate);
         concat(&DECODE_STR(out), ", #%d", rotate);
     }
 
@@ -3840,7 +3840,7 @@ static int DisassembleAdvancedSIMDExtractInstr(struct instruction *i,
 
     int index = sign_extend(imm4, 4);
 
-    ADD_IMM_OPERAND(out, AD_INT, *(int *)&index);
+    ADD_IMM_OPERAND(out, AD_IMM_INT, *(int *)&index);
 
     concat(&DECODE_STR(out), "ext %s.%s, %s.%s, %s.%s, #"S_X"", Rd_s, T, Rn_s,
             T, Rm_s, T, S_A(index));
@@ -4018,7 +4018,7 @@ static int DisassembleCryptographicThreeRegisterImm2Instr(struct instruction *i,
     ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(AD_NONE), rtbl);
     ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(AD_NONE), rtbl);
 
-    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&imm2);
+    ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&imm2);
 
     concat(&DECODE_STR(out), "%s %s.4s, %s.4s, %s.s[%d]", instr_s, Rd_s, Rn_s,
             Rm_s, imm2);
@@ -4183,7 +4183,7 @@ static int DisassembleXARInstr(struct instruction *i, struct ad_insn *out){
     ADD_REG_OPERAND(out, Rn, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE), _RTBL(AD_RTBL_FP_V_128));
     ADD_REG_OPERAND(out, Rm, _SZ(_128_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE), _RTBL(AD_RTBL_FP_V_128));
 
-    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&imm6);
+    ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&imm6);
 
     concat(&DECODE_STR(out), "xar %s.2d, %s.2d, %s.2d, #"S_X"", Rd_s, Rn_s,
             Rm_s, S_A(imm6));
@@ -4345,7 +4345,7 @@ static int DisassembleConversionBetweenFloatingPointAndFixedPointInstr(struct in
 
     unsigned fbits = 64 - scale;
 
-    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&fbits);
+    ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&fbits);
 
     concat(&DECODE_STR(out), "%s %s, %s, #%#x", instr_s, Rd_s, Rn_s, fbits);
 
@@ -4497,7 +4497,7 @@ static int DisassembleConversionBetweenFloatingPointAndIntegerInstr(struct instr
     concat(&DECODE_STR(out), "%s %s", instr_s, Rd_s);
 
     if(!float_to_int && part){
-        ADD_IMM_OPERAND(out, AD_UINT, 1);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, 1);
         concat(&DECODE_STR(out), ".d[1]");
     }
 
@@ -4506,7 +4506,7 @@ static int DisassembleConversionBetweenFloatingPointAndIntegerInstr(struct instr
     concat(&DECODE_STR(out), ", %s", Rn_s);
 
     if(float_to_int && part){
-        ADD_IMM_OPERAND(out, AD_UINT, 1);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, 1);
         concat(&DECODE_STR(out), ".d[1]");
     }
 
@@ -4747,7 +4747,7 @@ static int DisassembleFloatingPointCompareInstr(struct instruction *i,
     concat(&DECODE_STR(out), "%s %s", instr_s, Rn_s);
 
     if(cmp_with_zero){
-        ADD_IMM_OPERAND(out, AD_FLOAT, 0);
+        ADD_IMM_OPERAND(out, AD_IMM_FLOAT, 0);
         concat(&DECODE_STR(out), ", #0.0");
     }
     else{
@@ -4810,7 +4810,7 @@ static int DisassembleFloatingPointImmediateInstr(struct instruction *i,
     unsigned imm = VFPExpandImm(imm8);
 
     float immf = *(float *)&imm;
-    ADD_IMM_OPERAND(out, AD_FLOAT, imm);
+    ADD_IMM_OPERAND(out, AD_IMM_FLOAT, imm);
 
     concat(&DECODE_STR(out), "fmov %s, #%f", Rd_s, immf);
 
@@ -4878,7 +4878,7 @@ static int DisassembleFloatingPointConditionalCompare(struct instruction *i,
     ADD_REG_OPERAND(out, Rn, sz, NO_PREFER_ZR, _SYSREG(AD_NONE), rtbl);
     ADD_REG_OPERAND(out, Rm, sz, NO_PREFER_ZR, _SYSREG(AD_NONE), rtbl);
 
-    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&nzcv);
+    ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&nzcv);
 
     const char *dc = decode_cond(cond);
 

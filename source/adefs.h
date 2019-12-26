@@ -2,51 +2,67 @@
 #define _ADEFS_H_
 
 struct ad_operand {
+    /* operand type (AD_OP_*) */
     int type;
     
     /* type == AD_OP_REG */
     struct {
+        /* register (AD_REG_*) */
         int rn;
+        /* register size */
         int sz;
+        /* is this register a zero register? */
         int zr;
+        /* if this is a system register, sysreg holds its encoding (AD_SYSREG_*) */
         int sysreg;
         
+        /* register string table, use rn for indexing */
         const char **rtbl;
     } op_reg;
 
     /* type == AD_OP_SHIFT */
     struct {
+        /* shift type (AD_SHIFT_*) */
         int type;
+        /* shift amount */
         int amt;
     } op_shift;
 
     /* type == AD_OP_IMM */
     struct {
+        /* immediate type (AD_IMM_*) */
         int type;
+        /* the bits which make up this immediate */
         long bits;
     } op_imm;
 
     /* type == AD_OP_MEM */
     struct {
+        /* base register (always a 64-bit general purpose register, AD_REG_*) */
         int rn;
+        /* offset from base register */
         int off;
     } op_mem;
 };
 
 struct ad_insn {
-    /* string which holds the decoded instr */
+    /* instruction disassembly */
     char *decoded;
 
+    /* which top level decode group this instruction belongs to (AD_G_*) */
     int group;
+    /* unique instruction ID (AD_INSTR_*) */
     int instr_id;
 
+    /* array of decode fields, going from left to right (as per the manual) */
     int *fields;
     int num_fields;
 
+    /* array of ad_operand structs, going from left to right (according to the disassembly) */
     struct ad_operand *operands;
     int num_operands;
 
-    /* code condition */
+    /* code condition, if any (AD_CC_*) */
     int cc;
 };
 
@@ -61,7 +77,7 @@ enum {
 };
 
 enum {
-    AD_INT = 0, AD_UINT, AD_LONG, AD_ULONG, AD_FLOAT
+    AD_IMM_INT = 0, AD_IMM_UINT, AD_IMM_LONG, AD_IMM_ULONG, AD_IMM_FLOAT
 };
 
 enum {

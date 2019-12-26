@@ -26,7 +26,7 @@ static int DisassembleConditionalImmediateBranchInstr(struct instruction *i,
     unsigned long imm = sign_extend(imm19 << 2, 64) + i->PC;
     const char *dc = decode_cond(cond);
 
-    ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&imm);
+    ADD_IMM_OPERAND(out, AD_IMM_ULONG, *(unsigned long *)&imm);
 
     concat(&DECODE_STR(out), "b.%s #%#lx", dc, imm);
 
@@ -65,7 +65,7 @@ static int DisassembleExcGenInstr(struct instruction *i, struct ad_insn *out){
 
         instr_id = tab[LL].instr_id;
 
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imm16);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&imm16);
 
         concat(&DECODE_STR(out), "%s #%#x", tab[LL].instr_s, imm16);
     }
@@ -81,7 +81,7 @@ static int DisassembleExcGenInstr(struct instruction *i, struct ad_insn *out){
 
         instr_id = tab[opc].instr_id;
 
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imm16);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&imm16);
 
         concat(&DECODE_STR(out), "%s #%#x", tab[opc].instr_s, imm16);
     }
@@ -89,7 +89,7 @@ static int DisassembleExcGenInstr(struct instruction *i, struct ad_insn *out){
         int tab[] = { AD_NONE, AD_INSTR_DCPS1, AD_INSTR_DCPS2, AD_INSTR_DCPS3 };
         instr_id = tab[LL];
 
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imm16);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&imm16);
 
         concat(&DECODE_STR(out), "dcps%d #%#x", LL, imm16);
     }
@@ -150,7 +150,7 @@ static int DisassembleHintInstr(struct instruction *i, struct ad_insn *out){
         { "autibsp", AD_INSTR_AUTIBSP }
     };
 
-    if(CRm == 6 && (op2 << 2) == 0){
+    if(CRm == 4 && (op2 & ~6) == 0){
         instr_id = AD_INSTR_BTI;
 
         unsigned indirection = op2 >> 1;
@@ -235,13 +235,13 @@ static int DisassembleBarrierInstr(struct instruction *i,
             instr_s = "dmb";
             instr_id = AD_INSTR_DMB;
 
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&CRm);
+            ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&CRm);
         }
         else if((CRm & ~4) != 0){
             instr_s = "dsb";
             instr_id = AD_INSTR_DSB;
 
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&CRm);
+            ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&CRm);
         }
         else if(CRm == 0){
             instr_s = "ssbb";
@@ -263,7 +263,7 @@ static int DisassembleBarrierInstr(struct instruction *i,
     else if(op2 == 2){
         instr_id = AD_INSTR_CLREX;
 
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&CRm);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&CRm);
 
         concat(&DECODE_STR(out), "clrex");
 
@@ -273,7 +273,7 @@ static int DisassembleBarrierInstr(struct instruction *i,
     else if(op2 == 6){
         instr_id = AD_INSTR_ISB;
 
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&CRm);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&CRm);
 
         concat(&DECODE_STR(out), "isb");
 
@@ -331,8 +331,8 @@ static int DisassemblePSTATEInstr(struct instruction *i, struct ad_insn *out){
 
         unsigned pstatefield = (op1 << 3) | op2;
 
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&pstatefield);
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&CRm);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&pstatefield);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&CRm);
 
         /* easier to split cases up like this rather than testing pstatefield */
         if(op1 == 0){
@@ -590,7 +590,7 @@ static int DisassembleSystemInstr(struct instruction *i, struct ad_insn *out){
             encoding |= ((CRm & 1) << 3);
             encoding |= op2;
 
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&encoding);
+            ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&encoding);
             ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE), _RTBL(AD_RTBL_GEN_64));
 
             const char *at_op_s = at_op(encoding);
@@ -634,7 +634,7 @@ static int DisassembleSystemInstr(struct instruction *i, struct ad_insn *out){
             encoding |= (CRm << 3);
             encoding |= op2;
 
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&encoding);
+            ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&encoding);
             ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE), _RTBL(AD_RTBL_GEN_64));
 
             const char *dc_op_s = dc_op(encoding);
@@ -653,7 +653,7 @@ static int DisassembleSystemInstr(struct instruction *i, struct ad_insn *out){
             encoding |= (CRm << 3);
             encoding |= op2;
 
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&encoding);
+            ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&encoding);
             ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE), _RTBL(AD_RTBL_GEN_64));
 
             const char *ic_op_s = ic_op(encoding);
@@ -672,7 +672,7 @@ static int DisassembleSystemInstr(struct instruction *i, struct ad_insn *out){
             encoding |= (CRm << 3);
             encoding |= op2;
 
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&encoding);
+            ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&encoding);
             ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE), _RTBL(AD_RTBL_GEN_64));
 
             const char *tlbi_op_s = tlbi_op(encoding);
@@ -687,10 +687,10 @@ static int DisassembleSystemInstr(struct instruction *i, struct ad_insn *out){
         else{
             instr_id = AD_INSTR_SYS;
 
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&op1);
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&CRn);
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&CRm);
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&op2);
+            ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&op1);
+            ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&CRn);
+            ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&CRm);
+            ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&op2);
 
             concat(&DECODE_STR(out), "sys #%#x, C%d, C%d, #%#x",
                     op1, CRn, CRm, op2);
@@ -708,10 +708,10 @@ static int DisassembleSystemInstr(struct instruction *i, struct ad_insn *out){
         instr_id = AD_INSTR_SYSL;
 
         ADD_REG_OPERAND(out, Rt, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE), _RTBL(AD_RTBL_GEN_64));
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&op1);
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&CRn);
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&CRm);
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&op2);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&op1);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&CRn);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&CRm);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&op2);
 
         const char *Rt_s = GET_GEN_REG(AD_RTBL_GEN_64, Rt, NO_PREFER_ZR);
 
@@ -1398,7 +1398,7 @@ static int DisassembleUnconditionalBranchImmInstr(struct instruction *i,
 
     long imm = (signed)imm26 + i->PC;
 
-    ADD_IMM_OPERAND(out, AD_LONG, *(long *)&imm);
+    ADD_IMM_OPERAND(out, AD_IMM_LONG, *(long *)&imm);
 
     concat(&DECODE_STR(out), "%s "S_LX"", instr_s, S_LA(imm));
 
@@ -1441,7 +1441,7 @@ static int DisassembleCompareAndBranchImmediateInstr(struct instruction *i,
     long imm = (signed)imm19 + i->PC;
 
     ADD_REG_OPERAND(out, Rt, sz, NO_PREFER_ZR, _SYSREG(AD_NONE), _RTBL(registers));
-    ADD_IMM_OPERAND(out, AD_LONG, *(long *)&imm);
+    ADD_IMM_OPERAND(out, AD_IMM_LONG, *(long *)&imm);
 
     concat(&DECODE_STR(out), "%s %s, "S_LX"", instr_s, Rt_s, S_LA(imm));
 
@@ -1488,8 +1488,8 @@ static int DisassembleTestAndBranchImmediateInstr(struct instruction *i,
     long imm = (signed)imm14 + i->PC;
 
     ADD_REG_OPERAND(out, Rt, sz, PREFER_ZR, _SYSREG(AD_NONE), _RTBL(registers));
-    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&bit_pos);
-    ADD_IMM_OPERAND(out, AD_LONG, *(long *)&imm);
+    ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&bit_pos);
+    ADD_IMM_OPERAND(out, AD_IMM_LONG, *(long *)&imm);
 
     concat(&DECODE_STR(out), "%s %s, #%#x, #"S_LX"", instr_s, Rt_s, bit_pos, S_LA(imm));
 

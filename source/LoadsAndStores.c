@@ -215,7 +215,7 @@ static int DisassembleLoadStoreMultStructuresInstr(struct instruction *i,
                 return 1;
 
             /* imm is unsigned, that fxn returns -1 for error checking */
-            ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imm);
+            ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&imm);
 
             concat(&DECODE_STR(out), ", #%#x", (unsigned)imm);
         }
@@ -349,7 +349,7 @@ static int DisassembleLoadStoreSingleStructuresInstr(struct instruction *i,
     concat(&DECODE_STR(out), " }");
 
     if(!replicate){
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&index);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&index);
         concat(&DECODE_STR(out), "[%d]", index);
     }
 
@@ -371,7 +371,7 @@ static int DisassembleLoadStoreSingleStructuresInstr(struct instruction *i,
             }
             else{
                 unsigned imm = rimms[size] * selem;
-                ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imm);
+                ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&imm);
 
                 concat(&DECODE_STR(out), ", #%#x", imm);
             }
@@ -395,7 +395,7 @@ static int DisassembleLoadStoreSingleStructuresInstr(struct instruction *i,
                     idx = 3;
 
                 unsigned imm = rimms[idx] * selem;
-                ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imm);
+                ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&imm);
 
                 concat(&DECODE_STR(out), ", #%#x", imm);
             }
@@ -465,7 +465,7 @@ static int DisassembleLoadStoreMemoryTagsInstr(struct instruction *i,
         if(imm9 != 0){
             signed simm = sign_extend(imm9, 9) << 4;
 
-            ADD_IMM_OPERAND(out, AD_INT, *(int *)&simm);
+            ADD_IMM_OPERAND(out, AD_IMM_INT, *(int *)&simm);
 
             concat(&DECODE_STR(out), ", #"S_X"", S_A(simm));
         }
@@ -508,7 +508,7 @@ static int DisassembleLoadStoreMemoryTagsInstr(struct instruction *i,
         else{
             signed simm = sign_extend(imm9, 9) << 4;
 
-            ADD_IMM_OPERAND(out, AD_INT, *(int *)&simm);
+            ADD_IMM_OPERAND(out, AD_IMM_INT, *(int *)&simm);
 
             if(op2 == post)
                 concat(&DECODE_STR(out), "], #"S_X"", S_A(simm));
@@ -933,7 +933,7 @@ static int DisassembleLDAPR_STLRInstr(struct instruction *i,
     if(imm9 == 0)
         concat(&DECODE_STR(out), "]");
     else{
-        ADD_IMM_OPERAND(out, AD_INT, *(int *)&imm9);
+        ADD_IMM_OPERAND(out, AD_IMM_INT, *(int *)&imm9);
 
         concat(&DECODE_STR(out), ", #"S_X"]", S_A(imm9));
     }
@@ -986,7 +986,7 @@ static int DisassembleLoadAndStoreLiteralInstr(struct instruction *i,
         const char *targets[] = { "L1", "L2", "L3" };
         const char *policies[] = { "KEEP", "STRM" };
 
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&Rt);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&Rt);
 
         if(OOB(type, types) || OOB(target, targets) || OOB(policy, policies))
             concat(&DECODE_STR(out), "%s #%#x, #"S_LX"", instr_s, Rt, S_LA(imm));
@@ -1026,7 +1026,7 @@ static int DisassembleLoadAndStoreLiteralInstr(struct instruction *i,
         concat(&DECODE_STR(out), "%s %s, #"S_LX"", instr_s, Rt_s, S_LA(imm));
     }
 
-    ADD_IMM_OPERAND(out, AD_LONG, *(long *)&imm);
+    ADD_IMM_OPERAND(out, AD_IMM_LONG, *(long *)&imm);
 
     SET_INSTR_ID(out, instr_id);
 
@@ -1147,7 +1147,7 @@ static int DisassembleLoadAndStoreRegisterPairInstr(struct instruction *i,
         else
             concat(&DECODE_STR(out), ", #"S_X"]!", S_A(imm7));
 
-        ADD_IMM_OPERAND(out, AD_INT, *(int *)&imm7);
+        ADD_IMM_OPERAND(out, AD_IMM_INT, *(int *)&imm7);
     }
 
     SET_INSTR_ID(out, instr_id);
@@ -1257,7 +1257,7 @@ static int DisassembleLoadAndStoreRegisterInstr(struct instruction *i,
         const char *targets[] = { "L1", "L2", "L3" };
         const char *policies[] = { "KEEP", "STRM" };
 
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&imm9);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&imm9);
 
         if(OOB(type, types) || OOB(target, targets) || OOB(policy, policies))
             concat(&DECODE_STR(out), "#%#x, ", Rt);
@@ -1297,7 +1297,7 @@ static int DisassembleLoadAndStoreRegisterInstr(struct instruction *i,
             unsigned long pimm = imm12 << shift;
 
             if(pimm != 0){
-                ADD_IMM_OPERAND(out, AD_ULONG, *(unsigned long *)&pimm);
+                ADD_IMM_OPERAND(out, AD_IMM_ULONG, *(unsigned long *)&pimm);
 
                 concat(&DECODE_STR(out), ", #"S_LX"", S_LA(pimm));
             }
@@ -2532,7 +2532,7 @@ static int DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *i,
         const char *targets[] = { "L1", "L2", "L3" };
         const char *policies[] = { "KEEP", "STRM" };
 
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&Rt);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&Rt);
 
         if(OOB(type, types) || OOB(target, targets) || OOB(policy, policies))
             concat(&DECODE_STR(out), "%s #%#x, [%s, %s", instr.instr_s, Rt, Rn_s, Rm_s);
@@ -2550,7 +2550,7 @@ static int DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *i,
                 concat(&DECODE_STR(out), ", %s", extend);
 
             if(S){
-                ADD_IMM_OPERAND(out, AD_UINT, 3);
+                ADD_IMM_OPERAND(out, AD_IMM_UINT, 3);
                 
                 concat(&DECODE_STR(out), " #3");
             }
@@ -2574,11 +2574,11 @@ static int DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *i,
             }
             else{
                 if(extended){
-                    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&S);
+                    ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&S);
                     concat(&DECODE_STR(out), ", %s #%d", extend, S);
                 }
                 else{
-                    ADD_IMM_OPERAND(out, AD_UINT, 0);
+                    ADD_IMM_OPERAND(out, AD_IMM_UINT, 0);
                     concat(&DECODE_STR(out), ", lsl #0");
                 }
             }
@@ -2601,7 +2601,7 @@ static int DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *i,
             concat(&DECODE_STR(out), ", %s", extend);
 
             if(amount != 0){
-                ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&amount);
+                ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&amount);
 
                 concat(&DECODE_STR(out), " #%d", amount);
             }
@@ -2610,7 +2610,7 @@ static int DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *i,
         }
         else{
             if(amount != 0){
-                ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&amount);
+                ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&amount);
 
                 concat(&DECODE_STR(out), ", lsl #%d", amount);
             }
@@ -2638,11 +2638,11 @@ static int DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *i,
             }
             else{
                 if(extended){
-                    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&amount);
+                    ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&amount);
                     concat(&DECODE_STR(out), ", %s #%d", extend, amount);
                 }
                 else{
-                    ADD_IMM_OPERAND(out, AD_UINT, 0);
+                    ADD_IMM_OPERAND(out, AD_IMM_UINT, 0);
                     concat(&DECODE_STR(out), ", lsl #0");
                 }
             }
@@ -2656,7 +2656,7 @@ static int DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *i,
             concat(&DECODE_STR(out), ", %s", extend);
 
             if(amount != 0){
-                ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&amount);
+                ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&amount);
 
                 concat(&DECODE_STR(out), " #%d", amount);
             }
@@ -2665,7 +2665,7 @@ static int DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *i,
         }
         else{
             if(amount != 0){
-                ADD_IMM_OPERAND(out, AD_UINT, *(unsigned int *)&amount);
+                ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned int *)&amount);
 
                 concat(&DECODE_STR(out), ", lsl #%d", amount);
             }
@@ -2730,7 +2730,7 @@ static int DisassembleLoadAndStorePACInstr(struct instruction *i,
     if(simm == 0)
         concat(&DECODE_STR(out), "]");
     else{
-        ADD_IMM_OPERAND(out, AD_INT, *(int *)&simm);
+        ADD_IMM_OPERAND(out, AD_IMM_INT, *(int *)&simm);
 
         concat(&DECODE_STR(out), ", #"S_X"]", S_A(simm));
 

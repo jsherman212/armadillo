@@ -1,4 +1,3 @@
-#include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,7 +13,7 @@ static int _concat_internal(char **dst, const char *src, va_list args){
         dstlen = strlen(*dst);
 
     /* Back up args before it gets used. Client calls va_end
-     * on the parameter themselves when needed.
+     * on the parameter themselves when calling vconcat.
      */
     va_list args1;
     va_copy(args1, args);

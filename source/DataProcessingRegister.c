@@ -669,8 +669,8 @@ static int DisassembleRotateRightIntoFlagsInstr(struct instruction *i,
     ADD_FIELD(out, mask);
 
     ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), PREFER_ZR, _SYSREG(AD_NONE), _RTBL(AD_RTBL_GEN_64));
-    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&imm6);
-    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&mask);
+    ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&imm6);
+    ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&mask);
 
     const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, PREFER_ZR);
 
@@ -772,11 +772,11 @@ static int DisassembleConditionalCompareInstr(struct instruction *i,
         concat(&DECODE_STR(out), ", %s", Rm_s);
     }
     else{
-        ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&imm5);
+        ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&imm5);
         concat(&DECODE_STR(out), ", #"S_X"", S_A(imm5));
     }
 
-    ADD_IMM_OPERAND(out, AD_UINT, *(unsigned *)&nzcv);
+    ADD_IMM_OPERAND(out, AD_IMM_UINT, *(unsigned *)&nzcv);
     concat(&DECODE_STR(out), ", #"S_X"", S_A(nzcv));
 
     const char *cond_s = decode_cond(cond);

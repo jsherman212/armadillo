@@ -3,8 +3,7 @@
 
 #include "adefs.h"
 
-int ArmadilloDisassemble(unsigned int opcode, unsigned long PC,
-        struct ad_insn **out);
+int ArmadilloDisassemble(unsigned int opcode, unsigned long PC, struct ad_insn **out);
 int ArmadilloDone(struct ad_insn **insn);
 
 #endif
