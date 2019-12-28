@@ -27,6 +27,14 @@ OBJECT_FILES = $(SRCDIR)/armadillo.o \
 armadillo : $(OBJECT_FILES)
 	$(CC) $(CFLAGS) -dynamiclib -o libarmadillo.dylib $(OBJECT_FILES)
 
+driver85 : $(OBJECT_FILES) driver85.c linkedlist.c
+	$(MAKE) armadillo
+	$(CC) $(CFLAGS) -L. -larmadillo linkedlist.c driver85.c -o driver85
+
+asmtestcases : asmtests
+	llvm-mc -triple=aarch64 -mattr=+mte,+pa,+lse,+rcpc-immo,+crc,+fmi,+fullfp16,+rdm,+dotprod,+complxnum,+fp16fml,+aes,+sm4,+sha3 \
+		--show-encoding --print-imm-hex -assemble < asmtests | perl asmtestgen > tests.txt
+
 $(SRCDIR)/%.o : $(SRCDIR)/%.c $(SRCDIR)/%.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
