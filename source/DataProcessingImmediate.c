@@ -700,6 +700,9 @@ static int DisassembleBitfieldInstr(struct instruction *i,
 
                 concat(&DECODE_STR(out), "lsl %s, %s, #%#x", Rd_s, Rn_s, shift);
             }
+            else{
+                return 1;
+            }
         }
         else if((sf == 0 && imms == 0x1f) || (sf == 1 && imms == 0x3f)){
             instr_id = AD_INSTR_LSR;

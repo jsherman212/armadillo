@@ -252,6 +252,9 @@ static int DisassembleDataProcessingOneSourceInstr(struct instruction *i,
 
         concat(&DECODE_STR(out), "%s %s", instr_s, Rd_s);
     }
+    else{
+        return 1;
+    }
 
     SET_INSTR_ID(out, instr_id);
 
@@ -1017,6 +1020,9 @@ static int DisassembleDataProcessingThreeSourceInstr(struct instruction *i,
         }
     }
 
+    if(!instr_s)
+        return 1;
+
     SET_INSTR_ID(out, instr_id);
 
     return 0;
@@ -1051,6 +1057,8 @@ int DataProcessingRegisterDisassemble(struct instruction *i,
         result = DisassembleConditionalSelectInstr(i, out);
     else if(op1 == 1 && (op2 >> 3) == 1)
         result = DisassembleDataProcessingThreeSourceInstr(i, out);
+    else
+        result = 1;
 
     return result;
 }

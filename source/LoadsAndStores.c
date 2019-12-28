@@ -520,6 +520,9 @@ static int DisassembleLoadStoreMemoryTagsInstr(struct instruction *i,
             }
         }
     }
+    else{
+        return 1;
+    }
 
     SET_INSTR_ID(out, instr_id);
 
@@ -1238,6 +1241,10 @@ static int DisassembleLoadAndStoreRegisterInstr(struct instruction *i,
         return 1;
 
     const char *instr_s = instr_tab[instr_idx].instr_s;
+
+    if(!instr_s)
+        return 1;
+
     instr_id = instr_tab[instr_idx].instr_id;
 
     const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
@@ -2390,11 +2397,17 @@ static int DisassembleAtomicMemoryInstr(struct instruction *i,
     int instr_id = AD_NONE;
 
     if(use_alias){
+        if(!alias.instr_s)
+            return 1;
+
         concat(&DECODE_STR(out), "%s ", alias.instr_s);
         
         instr_id = alias.instr_id;
     }
     else{
+        if(!instr.instr_s)
+            return 1;
+
         concat(&DECODE_STR(out), "%s ", instr.instr_s);
 
         instr_id = instr.instr_id;
@@ -2560,6 +2573,9 @@ static int DisassembleLoadAndStoreRegisterOffsetInstr(struct instruction *i,
 
         return 0;
     }
+
+    if(!instr.instr_s)
+        return 1;
 
     concat(&DECODE_STR(out), "%s %s, [%s, %s", instr.instr_s, Rt_s, Rn_s, Rm_s);
 
@@ -2782,9 +2798,8 @@ int LoadsAndStoresDisassemble(struct instruction *i, struct ad_insn *out){
     }
     else if((op0 & ~12) == 3 && (op2 >> 1) == 1)
         result = DisassembleLoadAndStoreRegisterInstr(i, out, UNSIGNED_IMMEDIATE);
-    else{
+    else
         result = 1;
-    }
 
     return result;
 }

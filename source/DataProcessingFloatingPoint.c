@@ -1560,7 +1560,7 @@ static int DisassembleAdvancedSIMDThreeSameInstr(struct instruction *i,
                 return 1;
         }
 
-        if(!rtbl)
+        if(!rtbl || !instr_s)
             return 1;
 
         const char *Rd_s = GET_FP_REG(rtbl, Rd);
@@ -2785,6 +2785,9 @@ static int DisassembleAdvancedSIMDModifiedImmediateInstr(struct instruction *i,
         instr_id = AD_INSTR_BIC;
     }
 
+    if(!instr_s)
+        return 1;
+
     const char **Rd_Rtbl = NULL;
     unsigned Rd_sz = 0;
 
@@ -2880,8 +2883,12 @@ static int DisassembleAdvancedSIMDModifiedImmediateInstr(struct instruction *i,
     concat(&DECODE_STR(out), "%s %s", instr_s, Rd_s);
 
     /* only instr without arrangement specifier is MOVI (64 bit scalar variant) */
-    if(!(instr_id == AD_INSTR_MOVI && Q == 0 && op == 1 && cmode == 14))
+    if(!(instr_id == AD_INSTR_MOVI && Q == 0 && op == 1 && cmode == 14)){
+        if(!T)
+            return 1;
+
         concat(&DECODE_STR(out), ".%s", T);
+    }
 
     if(instr_id == AD_INSTR_FMOV){
         ADD_IMM_OPERAND(out, AD_IMM_FLOAT, *(unsigned *)&immf);
@@ -3107,6 +3114,9 @@ static int DisassembleAdvancedSIMDShiftByImmediateInstr(struct instruction *i,
                 instr_s = U == 0 ? "sqrshrn" : "uqrshrn";
                 instr_id = U == 0 ? AD_INSTR_SQRSHRN : AD_INSTR_UQRSHRN;
             }
+
+            if(!instr_s)
+                return 1;
 
             int hsb = HighestSetBit(immh, 4);
 

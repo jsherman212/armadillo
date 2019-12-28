@@ -287,6 +287,9 @@ static int DisassembleBarrierInstr(struct instruction *i,
 
         concat(&DECODE_STR(out), "sb");
     }
+    else{
+        return 1;
+    }
 
     SET_INSTR_ID(out, instr_id);
 
@@ -341,6 +344,9 @@ static int DisassemblePSTATEInstr(struct instruction *i, struct ad_insn *out){
             if(OOB(op2, ptbl))
                 return 1;
 
+            if(!ptbl[op2])
+                return 1;
+
             concat(&DECODE_STR(out), "msr %s", ptbl[op2]);
         }
         else{
@@ -349,6 +355,9 @@ static int DisassemblePSTATEInstr(struct instruction *i, struct ad_insn *out){
             };
 
             if(OOB(op2, ptbl))
+                return 1;
+
+            if(!ptbl[op2])
                 return 1;
 
             concat(&DECODE_STR(out), "msr %s", ptbl[op2]);
@@ -1322,6 +1331,9 @@ static int DisassembleUnconditionalBranchRegisterInstr(struct instruction *i,
             }
         }
 
+        if(!instr_s)
+            return 1;
+
         ADD_REG_OPERAND(out, Rn, _SZ(_64_BIT), NO_PREFER_ZR, _SYSREG(AD_NONE), _RTBL(AD_RTBL_GEN_64));
         const char *Rn_s = GET_GEN_REG(AD_RTBL_GEN_64, Rn, NO_PREFER_ZR);
 
@@ -1354,6 +1366,9 @@ static int DisassembleUnconditionalBranchRegisterInstr(struct instruction *i,
             }
         }
 
+        if(!instr_s)
+            return 1;
+
         concat(&DECODE_STR(out), "%s", instr_s);
 
         if(instr_id == AD_INSTR_RET && Rn != 0x1e){
@@ -1367,6 +1382,9 @@ static int DisassembleUnconditionalBranchRegisterInstr(struct instruction *i,
         instr_id = AD_INSTR_DRPS;
 
         concat(&DECODE_STR(out), "drps");
+    }
+    else{
+        return 1;
     }
 
     SET_INSTR_ID(out, instr_id);
@@ -1522,6 +1540,8 @@ int BranchExcSysDisassemble(struct instruction *i, struct ad_insn *out){
             result = DisassembleSystemRegisterMoveInstr(i, out);
         else if((op1 >> 13) == 1)
             result = DisassembleUnconditionalBranchRegisterInstr(i, out);
+        else
+            result = 1;
     }
     else if((op0 & ~4) == 0){
         result = DisassembleUnconditionalBranchImmInstr(i, out);
