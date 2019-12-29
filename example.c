@@ -1266,7 +1266,7 @@ static const char *AD_GET_SYSREG_STRING(unsigned int encoding){
 };
 
 static const char *AD_TYPE_TABLE[] = {
-    "AD_OP_REG", "AD_OP_IMM", "AD_OP_SHIFT", "AD_OP_MEM"
+    "AD_OP_REG", "AD_OP_IMM", "AD_OP_SHIFT"
 };
 
 static const char *AD_SHIFT_TABLE[] = {
@@ -1339,9 +1339,8 @@ static void disp_operand(struct ad_operand operand){
         else{
             printf("\t\t\tRegister: ");
 
-            if(operand.op_reg.sz != 32 && operand.op_reg.sz != 64){
+            if(operand.op_reg.fp)
                 printf("%s\n", GET_FP_REG(operand.op_reg.rtbl, operand.op_reg.rn));
-            }
             else{
                 const char *reg = GET_GEN_REG(operand.op_reg.rtbl, operand.op_reg.rn, operand.op_reg.zr);
                 printf("%s\n", reg);
@@ -1373,18 +1372,6 @@ static void disp_operand(struct ad_operand operand){
             printf("Unknown immediate type and didn't crash?\n");
             abort();
         }
-    }
-    else if(operand.type == AD_OP_MEM){
-        char *reg = NULL;
-
-        if(operand.op_mem.rn == 31)
-            concat(&reg, "SP");
-        else
-            concat(&reg, "X%d", operand.op_mem.rn);
-
-        printf("\t\t\tBase register: %s\n\t\t\tOffset: %#x\n", reg, operand.op_mem.off);
-
-        free(reg);
     }
     else{
         printf("\t\t\tUnknown type and didn't crash?\n");
