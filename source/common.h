@@ -54,6 +54,10 @@ struct itab {
         i->operands[i->num_operands - 1].type = AD_OP_REG; \
         i->operands[i->num_operands - 1].op_reg.rn = rn_; \
         i->operands[i->num_operands - 1].op_reg.sz = sz_; \
+        if((rtbl_) != AD_RTBL_GEN_32 && (rtbl_) != AD_RTBL_GEN_64) \
+            i->operands[i->num_operands - 1].op_reg.fp = 1; \
+        else \
+            i->operands[i->num_operands - 1].op_reg.fp = 0; \
         i->operands[i->num_operands - 1].op_reg.zr = zr_; \
         i->operands[i->num_operands - 1].op_reg.sysreg = sysreg_; \
         i->operands[i->num_operands - 1].op_reg.rtbl = rtbl_; \
@@ -85,19 +89,6 @@ struct itab {
         i->operands[i->num_operands - 1].type = AD_OP_IMM; \
         i->operands[i->num_operands - 1].op_imm.type = type_; \
         i->operands[i->num_operands - 1].op_imm.bits = bits_; \
-    } while (0)
-
-#define ADD_MEM_OPERAND(i, rn_, off_) \
-    do { \
-        if(!i->operands) \
-            i->operands = malloc(sizeof(struct ad_operand) * ++i->num_operands); \
-        else{ \
-            struct ad_operand *operands_rea = realloc(i->operands, \
-                    sizeof(struct ad_operand) * ++i->num_operands); \
-            i->operands = operands_rea; \
-        } \
-        i->operands[i->num_operands - 1].op_mem.rn = rn_; \
-        i->operands[i->num_operands - 1].op_mem.off = off_; \
     } while (0)
 
 #define DECODE_STR(x) ((x)->decoded)

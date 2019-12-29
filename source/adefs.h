@@ -11,7 +11,9 @@ struct ad_operand {
         int rn;
         /* register size */
         int sz;
-        /* is this register a zero register? */
+        /* is this a floating point register? */
+        int fp;
+        /* is this a zero register? */
         int zr;
         /* if this is a system register, sysreg holds its encoding (AD_SYSREG_*) */
         int sysreg;
@@ -35,14 +37,6 @@ struct ad_operand {
         /* the bits which make up this immediate */
         long bits;
     } op_imm;
-
-    /* type == AD_OP_MEM */
-    struct {
-        /* base register (always a 64-bit general purpose register, AD_REG_*) */
-        int rn;
-        /* offset from base register */
-        int off;
-    } op_mem;
 };
 
 struct ad_insn {
