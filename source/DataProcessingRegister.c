@@ -945,7 +945,7 @@ static int DisassembleDataProcessingThreeSourceInstr(struct instruction *i,
         concat(&DECODE_STR(out), "%s %s, %s, %s", instr_s, Rd_s, Rn_s, Rm_s);
 
         if(instr_id != AD_INSTR_MUL && instr_id != AD_INSTR_MNEG){
-            ADD_REG_OPERAND(out, Rd, sz, PREFER_ZR, _SYSREG(AD_NONE), _RTBL(registers));
+            ADD_REG_OPERAND(out, Ra, sz, PREFER_ZR, _SYSREG(AD_NONE), _RTBL(registers));
             const char *Ra_s = GET_GEN_REG(registers, Ra, PREFER_ZR);
 
             concat(&DECODE_STR(out), ", %s", Ra_s);
